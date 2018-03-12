@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <com.rockcarry.fanplayer.playerView
+        android:id="@+id/player_root"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" >
+        <SurfaceView
+            android:id="@+id/video_view"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_centerInParent="true" />
+        <ProgressBar
+            android:id="@+id/buffering"
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:alpha="0.8"
+            />
+        <SeekBar
+            android:id="@+id/seek_bar"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:alpha="0.8" />
+        <ImageView
+            android:id="@+id/btn_playpause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:src="@drawable/icn_media_pause"
+            android:alpha="0.8"
+            />
+    </com.rockcarry.fanplayer.playerView>
+
+</RelativeLayout>
+
