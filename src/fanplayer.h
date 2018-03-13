@@ -136,6 +136,7 @@ void  player_seek    (void *hplayer, int64_t ms, int type);
 void  player_setrect (void *hplayer, int type, int x, int y, int w, int h); // type: 0 - video rect, 1 - visual effect rect
 int   player_snapshot(void *hplayer, char *file, int w, int h, int waitt);
 int   player_record  (void *hplayer, char *file);
+void  player_textout (void *hplayer, int x, int y, int color, char *text);
 void  player_setparam(void *hplayer, int id, void *param);
 void  player_getparam(void *hplayer, int id, void *param);
 

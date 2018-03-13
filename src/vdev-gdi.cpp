@@ -17,6 +17,7 @@ typedef struct {
     HDC      hdcdst;
     HBITMAP *hbitmaps;
     BYTE   **pbmpbufs;
+    HFONT    hfont;
 } VDEVGDICTXT;
 
 // 内部函数实现
@@ -36,6 +37,10 @@ static void* video_render_thread_proc(void *param)
         int64_t vpts = c->vpts = c->ppts[c->head];
         if (vpts != -1) {
             SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
+            if (c->textt) {
+                SetTextColor(c->hdcsrc, c->textc & 0xffffff);
+                TextOutA(c->hdcsrc, c->textx, c->texty, c->textt, (int)strlen(c->textt));
+            }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
         }
 
@@ -121,6 +126,9 @@ static void vdev_gdi_destroy(void *ctxt)
     }
     //-- for video
 
+    // delete font
+    DeleteObject(c->hfont);
+
     // close semaphore
     sem_destroy(&c->semr);
     sem_destroy(&c->semw);
@@ -174,6 +182,14 @@ void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate)
         av_log(NULL, AV_LOG_ERROR, "failed to allocate resources for vdev-gdi !\n");
         exit(0);
     }
+
+    LOGFONT logfont;
+    memset(&logfont, 0, sizeof(logfont));
+    wcscpy(logfont.lfFaceName, TEXT(DEF_FONT_NAME));
+    logfont.lfHeight = DEF_FONT_SIZE;
+    ctxt->hfont = CreateFontIndirect(&logfont);
+    SelectObject(ctxt->hdcsrc, ctxt->hfont);
+    SetBkMode(ctxt->hdcsrc, TRANSPARENT);
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);

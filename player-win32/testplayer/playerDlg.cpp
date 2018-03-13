@@ -228,6 +228,11 @@ void CplayerDlg::OnPaint()
         } else {
             SetWindowText(pos == -1 ? TEXT("testplayer - buffering") : TEXT("testplayer"));
         }
+#if 0 // for player_testout test
+        static int x = 0;
+        x++; x %= m_rtClient.right;
+        player_textout(m_ffPlayer, x, 10, 0xff00ff00, "testplayer textout test !");
+#endif
         CDialog::OnPaint();
     }
 }

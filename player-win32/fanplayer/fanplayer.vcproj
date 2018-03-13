@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="d3d9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib"
+				AdditionalDependencies="d3d9.lib d3dx9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\pthreads-win32\lib;..\dx9sdk\lib"
 				ModuleDefinitionFile="fanplayer.def"
@@ -138,7 +138,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="d3d9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib"
+				AdditionalDependencies="d3d9.lib d3dx9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\pthreads-win32\lib;..\dx9sdk\lib"
 				ModuleDefinitionFile="fanplayer.def"

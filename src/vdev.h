@@ -14,6 +14,8 @@ extern "C" {
 #define VDEV_CLOSE      (1 << 0)
 #define VDEV_PAUSE      (1 << 1)
 #define VDEV_COMPLETED  (1 << 2)
+#define DEF_FONT_SIZE    32
+#define DEF_FONT_NAME    "Arial"
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS \
@@ -52,6 +54,11 @@ extern "C" {
     /* used to sync video to system clock */  \
     int64_t   start_pts;                      \
     int64_t   start_tick;                     \
+                                              \
+    int       textx;                          \
+    int       texty;                          \
+    int       textc;                          \
+    char     *textt;                          \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8]); \
     void (*unlock  )(void *ctxt, int64_t pts);                         \
     void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
@@ -82,6 +89,7 @@ void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
+void  vdev_textout (void *ctxt, int x, int y, int color, char *text);
 void  vdev_pause   (void *ctxt, int pause);
 void  vdev_reset   (void *ctxt);
 void  vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts);

@@ -5,6 +5,7 @@
 #include "recorder.h"
 #include "dxva2hwa.h"
 #include "fanplayer.h"
+#include "vdev.h"
 
 extern "C" {
 #include "libavutil/time.h"
@@ -905,6 +906,13 @@ int player_record(void *hplayer, char *file)
     recorder_free(recorder);
     player->recorder = recorder_init(file, player->avformat_context);
     return 0;
+}
+
+void player_textout(void *hplayer, int x, int y, int color, char *text)
+{
+    void *vdev = NULL;
+    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
+    if (vdev) vdev_textout(vdev, x, y, color, text);
 }
 
 void player_setparam(void *hplayer, int id, void *param)

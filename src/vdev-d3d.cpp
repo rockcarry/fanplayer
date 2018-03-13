@@ -1,5 +1,6 @@
 // 包含头文件
 #include <d3d9.h>
+#include <d3dx9.h>
 #include "vdev.h"
 
 extern "C" {
@@ -22,6 +23,7 @@ typedef struct {
     LPDIRECT3DSURFACE9   *surfs;
     D3DPRESENT_PARAMETERS d3dpp;
     D3DFORMAT             d3dfmt;
+    LPD3DXFONT            d3dfont;
 } VDEVD3DCTXT;
 
 // 内部函数实现
@@ -32,6 +34,11 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         if (pBackBuffer) {
             if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, pBackBuffer, NULL, D3DTEXF_LINEAR))) {
                 RECT rect = { c->x, c->y, c->x + c->w, c->y + c->h };
+                if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) {
+                    RECT r = { c->textx, c->texty, rect.right, rect.bottom };
+                    c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+                    c->pD3DDev->EndScene();
+                }
                 c->pD3DDev->Present(NULL, &rect, NULL, NULL);
             }
             pBackBuffer->Release();
@@ -143,6 +150,7 @@ static void vdev_d3d_destroy(void *ctxt)
 
     c->pD3DDev->Release();
     c->pD3D9  ->Release();
+    c->d3dfont->Release();
 
     // close semaphore
     sem_destroy(&c->semr);
@@ -237,6 +245,12 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->surfs[0]->Release();
     ctxt->surfs[0] = NULL;
     //-- try pixel format
+
+    LOGFONT logfont;
+    memset(&logfont, 0, sizeof(logfont));
+    wcscpy(logfont.lfFaceName, TEXT(DEF_FONT_NAME));
+    logfont.lfHeight = DEF_FONT_SIZE;
+    D3DXCreateFontIndirect(ctxt->pD3DDev, &logfont, &ctxt->d3dfont);
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);
