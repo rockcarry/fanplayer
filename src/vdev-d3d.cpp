@@ -21,6 +21,7 @@ typedef struct {
     LPDIRECT3D9           pD3D9;
     LPDIRECT3DDEVICE9     pD3DDev;
     LPDIRECT3DSURFACE9   *surfs;
+    LPDIRECT3DSURFACE9    bkbuf;
     D3DPRESENT_PARAMETERS d3dpp;
     D3DFORMAT             d3dfmt;
     LPD3DXFONT            d3dfont;
@@ -29,20 +30,14 @@ typedef struct {
 // 内部函数实现
 static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 {
-    IDirect3DSurface9 *pBackBuffer = NULL;
-    if (SUCCEEDED(c->pD3DDev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer))) {
-        if (pBackBuffer) {
-            if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, pBackBuffer, NULL, D3DTEXF_LINEAR))) {
-                RECT rect = { c->x, c->y, c->x + c->w, c->y + c->h };
-                if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) {
-                    RECT r = { c->textx, c->texty, rect.right, rect.bottom };
-                    c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
-                    c->pD3DDev->EndScene();
-                }
-                c->pD3DDev->Present(NULL, &rect, NULL, NULL);
-            }
-            pBackBuffer->Release();
+    RECT rect = { c->x, c->y, c->x + c->w, c->y + c->h };
+    if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
+        if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) {
+            RECT r = { c->textx, c->texty, rect.right, rect.bottom };
+            c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+            c->pD3DDev->EndScene();
         }
+        c->pD3DDev->Present(NULL, &rect, NULL, NULL);
     }
 }
 
@@ -84,8 +79,7 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
     if (!c->surfs[c->tail]) {
         // create surface
         if (FAILED(c->pD3DDev->CreateOffscreenPlainSurface(c->sw, c->sh, (D3DFORMAT)c->d3dfmt,
-                   D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL)))
-        {
+                   D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL))) {
             av_log(NULL, AV_LOG_ERROR, "failed to create d3d off screen plain surface !\n");
             exit(0);
         }
@@ -148,6 +142,7 @@ static void vdev_d3d_destroy(void *ctxt)
         }
     }
 
+    c->bkbuf  ->Release();
     c->pD3DDev->Release();
     c->pD3D9  ->Release();
     c->d3dfont->Release();
@@ -223,9 +218,13 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
 #endif
 
     if (FAILED(ctxt->pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)ctxt->surface,
-                D3DCREATE_SOFTWARE_VERTEXPROCESSING, &ctxt->d3dpp, &ctxt->pD3DDev)) )
-    {
+               D3DCREATE_SOFTWARE_VERTEXPROCESSING, &ctxt->d3dpp, &ctxt->pD3DDev)) ) {
         av_log(NULL, AV_LOG_ERROR, "failed to create d3d device !\n");
+        exit(0);
+    }
+
+    if (FAILED(ctxt->pD3DDev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &ctxt->bkbuf)) {
+        av_log(NULL, AV_LOG_ERROR, "failed to get d3d back buffer !\n");
         exit(0);
     }
 
