@@ -78,10 +78,10 @@ void* vdev_android_create(void *surface, int bufnum, int w, int h, int frate)
     // init vdev context
     ctxt->pixfmt    = android_pixfmt_to_ffmpeg_pixfmt(DEF_WIN_PIX_FMT);
     ctxt->surface   = surface;
-    ctxt->w         = w ? w : 1;
-    ctxt->h         = h ? h : 1;
-    ctxt->sw        = w ? w : 1;
-    ctxt->sh        = h ? h : 1;
+    ctxt->w         = w > 1 ? w : 1;
+    ctxt->h         = h > 1 ? h : 1;
+    ctxt->sw        = w > 1 ? w : 1;
+    ctxt->sh        = h > 1 ? h : 1;
     ctxt->tickframe = 1000 / frate;
     ctxt->ticksleep = ctxt->tickframe;
     ctxt->apts      = -1;

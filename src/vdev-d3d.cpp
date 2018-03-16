@@ -20,24 +20,41 @@ typedef struct {
 
     LPDIRECT3D9           pD3D9;
     LPDIRECT3DDEVICE9     pD3DDev;
-    LPDIRECT3DSURFACE9   *surfs;
-    LPDIRECT3DSURFACE9    bkbuf;
+    LPDIRECT3DSURFACE9   *surfs; // offset screen surfaces
+    LPDIRECT3DSURFACE9    surfw; // surface keeps same size as window
+    LPDIRECT3DSURFACE9    bkbuf; // back buffer surface
     D3DPRESENT_PARAMETERS d3dpp;
     D3DFORMAT             d3dfmt;
     LPD3DXFONT            d3dfont;
+    int                   flag;  // flag for reinit surfw
 } VDEVD3DCTXT;
 
 // 内部函数实现
 static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 {
     RECT rect = { c->x, c->y, c->x + c->w, c->y + c->h };
-    if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
-        if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) {
-            RECT r = { c->textx, c->texty, rect.right, rect.bottom };
-            c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
-            c->pD3DDev->EndScene();
+    if (!c->textt) { // without textout draw
+        if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
+            c->pD3DDev->Present(NULL, &rect, NULL, NULL);
         }
-        c->pD3DDev->Present(NULL, &rect, NULL, NULL);
+    } else { // with textout draw
+        if (!c->surfw || c->flag) {
+            if (c->surfw) c->surfw->Release();
+            c->pD3DDev->CreateRenderTarget(c->w, c->h, c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType,
+                                           c->d3dpp.MultiSampleQuality, FALSE, &c->surfw, NULL);
+            c->pD3DDev->SetRenderTarget(0, c->surfw);
+            c->flag = 0;
+        }
+        if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR))) {
+            if (SUCCEEDED(c->pD3DDev->BeginScene())) { // draw text
+                RECT r = { c->textx, c->texty, rect.right, rect.bottom };
+                c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+                c->pD3DDev->EndScene();
+            }
+            if (SUCCEEDED(c->pD3DDev->StretchRect(c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
+                c->pD3DDev->Present(NULL, &rect, NULL, NULL);
+            }
+        }
     }
 }
 
@@ -102,6 +119,17 @@ static void vdev_d3d_unlock(void *ctxt, int64_t pts)
     sem_post(&c->semr);
 }
 
+static void vdev_d3d_setrect(void *ctxt, int x, int y, int w, int h)
+{
+    VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
+    D3DSURFACE_DESC desc;
+    if (c->surfw && SUCCEEDED(c->surfw->GetDesc(&desc))) {
+        if (desc.Width != w || desc.Height != h) {
+            c->flag = 1;
+        }
+    }
+}
+
 void vdev_d3d_setparam(void *ctxt, int id, void *param)
 {
     if (!ctxt || !param) return;
@@ -142,10 +170,11 @@ static void vdev_d3d_destroy(void *ctxt)
         }
     }
 
-    c->bkbuf  ->Release();
-    c->pD3DDev->Release();
-    c->pD3D9  ->Release();
-    c->d3dfont->Release();
+    if (c->surfw  ) c->surfw  ->Release();
+    if (c->bkbuf  ) c->bkbuf  ->Release();
+    if (c->d3dfont) c->d3dfont->Release();
+    if (c->pD3DDev) c->pD3DDev->Release();
+    if (c->pD3D9  ) c->pD3D9  ->Release();
 
     // close semaphore
     sem_destroy(&c->semr);
@@ -172,14 +201,15 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->bufnum    = bufnum;
     ctxt->w         = w > 1 ? w : 1;
     ctxt->h         = h > 1 ? h : 1;
-    ctxt->sw        = ctxt->w < GetSystemMetrics(SM_CXSCREEN) ? ctxt->w : GetSystemMetrics(SM_CXSCREEN);
-    ctxt->sh        = ctxt->h < GetSystemMetrics(SM_CYSCREEN) ? ctxt->h : GetSystemMetrics(SM_CYSCREEN);
+    ctxt->sw        = w > 1 ? w : 1;
+    ctxt->sh        = h > 1 ? h : 1;
     ctxt->tickframe = 1000 / frate;
     ctxt->ticksleep = ctxt->tickframe;
     ctxt->apts      = -1;
     ctxt->vpts      = -1;
     ctxt->lock      = vdev_d3d_lock;
     ctxt->unlock    = vdev_d3d_unlock;
+    ctxt->setrect   = vdev_d3d_setrect;
     ctxt->setparam  = vdev_d3d_setparam;
     ctxt->getparam  = vdev_d3d_getparam;
     ctxt->destroy   = vdev_d3d_destroy;
@@ -204,8 +234,8 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->pD3D9->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3dmode);
     ctxt->d3dpp.BackBufferFormat      = D3DFMT_UNKNOWN;
     ctxt->d3dpp.BackBufferCount       = 1;
-    ctxt->d3dpp.BackBufferWidth       = ctxt->sw;
-    ctxt->d3dpp.BackBufferHeight      = ctxt->sh;
+    ctxt->d3dpp.BackBufferWidth       = GetSystemMetrics(SM_CXSCREEN);
+    ctxt->d3dpp.BackBufferHeight      = GetSystemMetrics(SM_CYSCREEN);
     ctxt->d3dpp.MultiSampleType       = D3DMULTISAMPLE_NONE;
     ctxt->d3dpp.SwapEffect            = D3DSWAPEFFECT_DISCARD;
     ctxt->d3dpp.hDeviceWindow         = (HWND)ctxt->surface;
@@ -223,7 +253,7 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
         exit(0);
     }
 
-    if (FAILED(ctxt->pD3DDev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &ctxt->bkbuf)) {
+    if (FAILED(ctxt->pD3DDev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &ctxt->bkbuf))) {
         av_log(NULL, AV_LOG_ERROR, "failed to get d3d back buffer !\n");
         exit(0);
     }
