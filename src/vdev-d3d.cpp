@@ -33,27 +33,21 @@ typedef struct {
 static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 {
     RECT rect = { c->x, c->y, c->x + c->w, c->y + c->h };
-    if (!c->textt) { // without textout draw
-        if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
+    if (!c->surfw || c->flag) {
+        if (c->surfw) c->surfw->Release();
+        c->pD3DDev->CreateRenderTarget(c->w, c->h, c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType,
+                                       c->d3dpp.MultiSampleQuality, FALSE, &c->surfw, NULL);
+        c->pD3DDev->SetRenderTarget(0, c->surfw);
+        c->flag = 0;
+    }
+    if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR))) {
+        if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) { // draw text
+            RECT r = { c->textx, c->texty, rect.right, rect.bottom };
+            c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+            c->pD3DDev->EndScene();
+        }
+        if (SUCCEEDED(c->pD3DDev->StretchRect(c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
             c->pD3DDev->Present(NULL, &rect, NULL, NULL);
-        }
-    } else { // with textout draw
-        if (!c->surfw || c->flag) {
-            if (c->surfw) c->surfw->Release();
-            c->pD3DDev->CreateRenderTarget(c->w, c->h, c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType,
-                                           c->d3dpp.MultiSampleQuality, FALSE, &c->surfw, NULL);
-            c->pD3DDev->SetRenderTarget(0, c->surfw);
-            c->flag = 0;
-        }
-        if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR))) {
-            if (SUCCEEDED(c->pD3DDev->BeginScene())) { // draw text
-                RECT r = { c->textx, c->texty, rect.right, rect.bottom };
-                c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
-                c->pD3DDev->EndScene();
-            }
-            if (SUCCEEDED(c->pD3DDev->StretchRect(c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
-                c->pD3DDev->Present(NULL, &rect, NULL, NULL);
-            }
         }
     }
 }
