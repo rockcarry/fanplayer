@@ -125,6 +125,7 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
     char ext[MAX_PATH]; _splitpath(m_strUrl, NULL, NULL, NULL, ext);
     if (  strnicmp(m_strUrl, "http://", 7) == 0 && stricmp(ext, ".m3u8") == 0
        || strnicmp(m_strUrl, "rtmp://", 7) == 0
+       || strnicmp(m_strUrl, "rtsp://", 7) == 0
        || strnicmp(m_strUrl, "gdigrab://", 10) == 0
        || strnicmp(m_strUrl, "vfwcap", 6) == 0
        || stricmp(ext, ".bmp" ) == 0

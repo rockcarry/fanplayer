@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://");
+        mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
         mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;video_rotate=0");
 
         mRoot = (playerView)findViewById(R.id.player_root);
