@@ -345,8 +345,8 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             player_setrect(m_ffPlayer, 0, 0, 0, m_rtClient.right, m_rtClient.bottom - 2);
             player_setrect(m_ffPlayer, 1, 0, 0, m_rtClient.right, m_rtClient.bottom - 2);
             if (m_bResetPlayer) {
-                player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
                 if (!m_bPlayPause) player_play(m_ffPlayer);
+                player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
                 m_bResetPlayer = FALSE;
             } else {
                 player_play(m_ffPlayer);
