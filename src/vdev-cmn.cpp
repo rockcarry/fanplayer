@@ -13,15 +13,15 @@ extern "C" {
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
 {
     VDEV_COMMON_CTXT *c = NULL;
-    switch (type) {
 #ifdef WIN32
-    case VDEV_RENDER_TYPE_GDI    : c = (VDEV_COMMON_CTXT*)vdev_gdi_create    (surface, bufnum, w, h, frate); break;
-    case VDEV_RENDER_TYPE_D3D    : c = (VDEV_COMMON_CTXT*)vdev_d3d_create    (surface, bufnum, w, h, frate); break;
+    switch (type) {
+    case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum, w, h, frate); break;
+    case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h, frate); break;
+    }
 #endif
 #ifdef ANDROID
-    case VDEV_RENDER_TYPE_ANDROID: c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate); break;
+    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate); break;
 #endif
-    }
     return c;
 }
 

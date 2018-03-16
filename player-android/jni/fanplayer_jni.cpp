@@ -28,7 +28,6 @@ static jlong JNICALL nativeOpen(JNIEnv *env, jobject obj, jstring url, jobject j
     }
 
     const char *strurl = env->GetStringUTFChars(url, NULL);
-    playerparams.vdev_render_type = VDEV_RENDER_TYPE_ANDROID;
     jlong hplayer = (jlong)player_open((char*)strurl, obj, &playerparams);
     env->ReleaseStringUTFChars(url, strurl);
     return hplayer;
