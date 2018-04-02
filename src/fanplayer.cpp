@@ -726,10 +726,12 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
         memcpy(&player->init_params, params, sizeof(PLAYER_INIT_PARAMS));
     }
 
+    // allocate avformat_context
+    player->avformat_context = avformat_alloc_context();
+    if (!player->avformat_context) goto error_handler;
+
     //++ for player init timeout
     if (player->init_params.init_timeout > 0) {
-        player->avformat_context = avformat_alloc_context();
-        if (!player->avformat_context) goto error_handler;
         player->avformat_context->interrupt_callback.callback = interrupt_callback;
         player->avformat_context->interrupt_callback.opaque   = player;
         player->init_timetick = av_gettime_relative();
