@@ -80,6 +80,12 @@ typedef struct {
 
     // recorder used for recording
     void            *recorder;
+
+    int              hlsmode;
+    uint8_t         *hlstextdata;
+    int              hlstextsize;
+    int              hlstextoffset;
+    char             hlskey[32];
 } PLAYER;
 
 // 内部常量定义
@@ -333,6 +339,19 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
     return cur;
 }
 
+static int read_buffer(void *opaque, uint8_t *buf, int size)
+{
+    uint8_t *srcbuf = *(uint8_t**)((uint8_t*)opaque + sizeof(int));
+    int      srclen = *(int    * )((uint8_t*)opaque + sizeof(int) + sizeof(uint8_t*));
+    int      srcoff = *(int    * )((uint8_t*)opaque + sizeof(int) + sizeof(uint8_t*) + sizeof(int));
+    int      readn  = srcoff < srclen ? srclen - srcoff : 0;
+    if (readn == 0) return -1;
+
+    memcpy(buf, srcbuf + srcoff, readn);
+    *(int*)((uint8_t*)opaque + sizeof(int) + sizeof(uint8_t*) + sizeof(int)) += readn;
+    return readn;
+}
+
 static int player_prepare(PLAYER *player)
 {
     //++ for avdevice
@@ -363,8 +382,21 @@ static int player_prepare(PLAYER *player)
     }
     //-- for avdevice
 
+    AVDictionary *avdic = NULL;
+    if (player->hlsmode) {
+        av_dict_set(&avdic, "protocol_whitelist", "file,crypto,http,https,hls,tcp", 0);
+        if (strlen(player->hlskey) > 0) {
+            av_dict_set(&avdic, "hls_special_key", player->hlskey, 0);
+        }
+        fmt = av_find_input_format("hls");
+
+        AVIOContext *avio = avio_alloc_context(player->hlstextdata, player->hlstextsize, 0, NULL, read_buffer, NULL, NULL);
+        avio->opaque = &player->hlsmode;
+        player->avformat_context->pb = avio;
+    }
+
     // open input file
-    if (avformat_open_input(&player->avformat_context, url, fmt, NULL) != 0) {
+    if (avformat_open_input(&player->avformat_context, url, fmt, &avdic) != 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
         goto done;
     }
@@ -766,6 +798,84 @@ error_handler:
     return NULL;
 }
 
+void* player_open_hls(char *m3u8, char *key, void *appdata, PLAYER_INIT_PARAMS *params)
+{
+    PLAYER *player = NULL;
+
+    // av register all
+    av_register_all();
+    avdevice_register_all();
+    avfilter_register_all();
+    avformat_network_init();
+
+    // setup log
+    av_log_set_level   (AV_LOG_WARNING);
+    av_log_set_callback(avlog_callback);
+
+    // alloc player context
+    player = (PLAYER*)calloc(1, sizeof(PLAYER));
+    if (!player) return NULL;
+
+    // create packet queue
+    player->pktqueue = pktqueue_create(0);
+    if (!player->pktqueue) {
+        av_log(NULL, AV_LOG_ERROR, "failed to create packet queue !\n");
+        goto error_handler;
+    }
+
+    // for player init params
+    if (params) {
+        memcpy(&player->init_params, params, sizeof(PLAYER_INIT_PARAMS));
+    }
+
+    // allocate avformat_context
+    player->avformat_context = avformat_alloc_context();
+    if (!player->avformat_context) goto error_handler;
+
+    //++ for player init timeout
+    if (player->init_params.init_timeout > 0) {
+        player->avformat_context->interrupt_callback.callback = interrupt_callback;
+        player->avformat_context->interrupt_callback.opaque   = player;
+        player->init_timetick = av_gettime_relative();
+        player->init_timeout  = player->init_params.init_timeout * 1000;
+    }
+    //-- for player init timeout
+
+    //++ for player_prepare
+#ifdef WIN32
+    player->appdata = appdata;
+#endif
+#ifdef ANDROID
+    player->appdata = get_jni_env()->NewGlobalRef((jobject)appdata);
+#endif
+    player->hlsmode     = 1;
+    player->hlstextsize = (int)strlen(m3u8) + 1;
+    player->hlstextdata = (uint8_t*)av_malloc(player->hlstextsize);
+    if (!player->hlstextdata) {
+        av_log(NULL, AV_LOG_ERROR, "failed to allocate hlstextdata buffer !\n");
+        goto error_handler;
+    }
+    memcpy(player->hlstextdata, m3u8, player->hlstextsize);
+    if (key) strncpy(player->hlskey, key, 32);
+    //-- for player_prepare
+
+    if (player->init_params.open_syncmode && player_prepare(player) == -1) {
+        av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
+        goto error_handler;
+    }
+
+    // make sure player status paused
+    player->player_status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE);
+    pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
+    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
+    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+    return player; // return
+
+error_handler:
+    player_close(player);
+    return NULL;
+}
+
 void player_close(void *hplayer)
 {
     if (!hplayer) return;
@@ -809,6 +919,10 @@ void player_close(void *hplayer)
 #ifdef ANDROID
     get_jni_env()->DeleteGlobalRef((jobject)player->appdata);
 #endif
+
+    if (player->hlsmode) {
+        if (player->hlstextdata) av_free(player->hlstextdata);
+    }
 
     free(player);
 
@@ -910,7 +1024,7 @@ int player_record(void *hplayer, char *file)
     return 0;
 }
 
-void player_textout(void *hplayer, int x, int y, int color, char *text)
+void player_textout(void *hplayer, int x, int y, int color, TCHAR *text)
 {
     void *vdev = NULL;
     player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);

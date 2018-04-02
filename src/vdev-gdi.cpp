@@ -39,7 +39,7 @@ static void* video_render_thread_proc(void *param)
             SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
             if (c->textt) {
                 SetTextColor(c->hdcsrc, c->textc & 0xffffff);
-                TextOutA(c->hdcsrc, c->textx, c->texty, c->textt, (int)strlen(c->textt));
+                TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)wcslen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
         }
