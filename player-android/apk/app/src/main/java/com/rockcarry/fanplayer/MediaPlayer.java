@@ -2,6 +2,8 @@ package com.rockcarry.fanplayer;
 
 import android.os.Handler;
 import android.os.Message;
+import android.graphics.SurfaceTexture;
+import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -52,8 +54,12 @@ public final class MediaPlayer
     public void setParam(int id, long value) { nativeSetParam(m_hPlayer, id, value); }
     public long getParam(int id)             { return nativeGetParam(m_hPlayer, id); }
 
-    public void setDisplaySurface(Object surface) {
+    public void setDisplaySurface(Surface surface) {
         nativeSetDisplaySurface(m_hPlayer, surface);
+    }
+
+    public void setDisplayTexture(SurfaceTexture texture) {
+        nativeSetDisplaySurface(m_hPlayer, new Surface(texture));
     }
 
     public void setPlayerMsgHandler(Handler h) {
