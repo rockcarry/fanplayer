@@ -40,8 +40,9 @@ static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
 
     if (c->wincur != c->winnew) {
-        c->wincur = c->winnew;
+        if (c->wincur) ANativeWindow_release(c->wincur);
         if (c->winnew) ANativeWindow_setBuffersGeometry(c->winnew, c->sw, c->sh, DEF_WIN_PIX_FMT);
+        c->wincur = c->winnew;
     }
 
     if (c->wincur) {
@@ -62,6 +63,8 @@ static void vdev_android_unlock(void *ctxt, int64_t pts)
 
 static void vdev_android_destroy(void *ctxt)
 {
+    VDEVCTXT *c = (VDEVCTXT*)ctxt;
+    if (c->wincur) ANativeWindow_release(c->wincur);
     free(ctxt);
 }
 

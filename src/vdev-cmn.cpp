@@ -20,7 +20,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
     }
 #endif
 #ifdef ANDROID
-    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate); break;
+    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate);
 #endif
     return c;
 }
