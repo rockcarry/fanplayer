@@ -1,5 +1,5 @@
-﻿#ifndef __FFPLAYER_FFPLAYER_H__
-#define __FFPLAYER_FFPLAYER_H__
+﻿#ifndef __FANPLAYER_FANPLAYER_H__
+#define __FANPLAYER_FANPLAYER_H__
 
 // 包含头文件
 #include "stdefine.h"
@@ -179,6 +179,12 @@ player_snapshot 视频播放截图
 player_record   将当前播放器的视频录像保存
     hplayer     - 指向 player_open 返回的 player 对象
     file        - 录像文件名，仅支持 .mp4 格式，传入 NULL 为停止录像
+
+player_textout  在视频显示上叠加文字输出
+    hplayer     - 指向 player_open 返回的 player 对象
+    x, y        - 文字输出坐标
+    color       - 文字颜色
+    text        - 文字字符串
 
 player_setparam 设置参数
     hplayer     - 指向 player_open 返回的 player 对象

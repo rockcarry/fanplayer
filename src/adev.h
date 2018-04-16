@@ -1,5 +1,5 @@
-#ifndef __FFPLAYER_ADEV_H__
-#define __FFPLAYER_ADEV_H__
+#ifndef __FANPLAYER_ADEV_H__
+#define __FANPLAYER_ADEV_H__
 
 // 包含头文件
 #include "ffrender.h"
