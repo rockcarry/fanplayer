@@ -4,19 +4,22 @@ set -e
 PREFIX_DIR=$PWD/ffmpeg-android-sdk
 SYSROOT=$NDK_HOME/platforms/android-19/arch-arm/
 CROSS_COMPILE=$NDK_HOME/toolchains/arm-linux-androideabi-4.9/prebuilt/windows/bin/arm-linux-androideabi-
-EXTRA_CFLAGS="-DANDROID -DNDEBUG -Os -ffast-math -mfpu=neon-vfpv4 -mfloat-abi=softfp"
+EXTRA_CFLAGS="-I$PREFIX_DIR/include -DANDROID -DNDEBUG -Os -ffast-math -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"
 
 #++ build x264 ++#
-if false; then
+if true; then
 if [ ! -d x264 ]; then
-  git clone git://git.videolan.org/x264.git
+  git clone -b stable git://git.videolan.org/x264.git
 fi
 cd x264
 ./configure --prefix=$PREFIX_DIR \
 --enable-strip \
 --enable-static \
 --enable-pic \
+--disable-cli \
+--disable-opencl \
+--disable-avs \
 --host=arm-linux-androideabi \
 --cross-prefix=$CROSS_COMPILE \
 --sysroot=$SYSROOT
@@ -39,6 +42,7 @@ cd ffmpeg
 --cross-prefix=$CROSS_COMPILE \
 --sysroot=$SYSROOT \
 --prefix=$PREFIX_DIR \
+--enable-thumb \
 --enable-static \
 --enable-small \
 --disable-shared \
