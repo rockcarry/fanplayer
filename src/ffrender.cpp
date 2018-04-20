@@ -85,9 +85,8 @@ typedef struct
 static void render_setspeed(RENDER *render, int speed)
 {
     if (speed > 0) {
-        // set vdev frame rate
-        int framerate = (int)((render->frame_rate.num * speed) / (render->frame_rate.den * 100.0) + 0.5);
-        vdev_setparam(render->vdev, PARAM_VDEV_FRAME_RATE, &framerate);
+        // set vdev playback speed
+        vdev_setparam(render->vdev, PARAM_PLAY_SPEED, &speed);
 
         // set render_speed_new to triger swr_context re-create
         render->render_speed_new = speed;
@@ -211,7 +210,6 @@ void render_audio(void *hrender, AVFrame *audio)
     do {
         if (render->adev_buf_avail == 0) {
             adev_lock(render->adev, &render->adev_hdr_cur);
-            apts += 10 * render->render_speed_cur * render->frame_rate.den / render->frame_rate.num;
             render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
             render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
         }
@@ -240,6 +238,7 @@ void render_audio(void *hrender, AVFrame *audio)
         //-- do resample audio data --//
 
         if (render->adev_buf_avail == 0) {
+            apts += 10 * render->render_speed_cur * render->frame_rate.den / render->frame_rate.num;
             adev_unlock(render->adev, apts);
         }
     } while (sampnum > 0);

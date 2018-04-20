@@ -43,6 +43,7 @@ extern "C" {
     int       ticksleep;                      \
     int64_t   ticklast;                       \
                                               \
+    int       speed;                          \
     int       status;                         \
     pthread_t thread;                         \
                                               \
