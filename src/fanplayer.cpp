@@ -208,7 +208,10 @@ static void vfilter_graph_free(PLAYER *player)
 static void vfilter_graph_input(PLAYER *player, AVFrame *frame)
 {
     if (!player->vfilter_graph) return;
-    av_buffersrc_add_frame_flags(player->vfilter_source_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    int ret = av_buffersrc_add_frame_flags(player->vfilter_source_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    if (ret != 0) {
+        av_log(NULL, AV_LOG_WARNING, "av_buffersrc_add_frame_flags failed !\n");
+    }
 }
 
 static int vfilter_graph_output(PLAYER *player, AVFrame *frame)

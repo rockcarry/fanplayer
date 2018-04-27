@@ -30,7 +30,7 @@ fi
 
 #++ build ffmpeg ++#
 if [ ! -d ffmpeg ]; then
-  git clone -b fanplayer https://github.com/rockcarry/ffmpeg
+  git clone -b fanplayer-n3.3.x https://github.com/rockcarry/ffmpeg
 fi
 cd ffmpeg
 ./configure \

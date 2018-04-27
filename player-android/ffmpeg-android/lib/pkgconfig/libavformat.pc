@@ -1,4 +1,4 @@
-prefix=/c/ffmpeg-android-sdk
+prefix=/home/chenk/ffmpeg-android-sdk
 exec_prefix=${prefix}
 libdir=${prefix}/lib
 includedir=${prefix}/include
@@ -9,6 +9,6 @@ Version: 57.56.101
 Requires: libavcodec >= 57.64.101, libswresample >= 2.3.100, libavutil >= 55.34.101
 Requires.private: 
 Conflicts:
-Libs: -L${libdir}  -lavformat -LC:/msys/msys/1.0/local/lib -lx264 -ldl -lm -lz -pthread
+Libs: -L${libdir}  -lavformat -LD:/msys32/mingw32/lib -lx264 -ldl -lm -lz -pthread
 Libs.private: 
 Cflags: -I${includedir}
