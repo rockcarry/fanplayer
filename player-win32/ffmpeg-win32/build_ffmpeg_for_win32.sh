@@ -3,7 +3,7 @@ set -e
 
 
 #++ build x264 ++#
-if true; then
+if false; then
 if [ ! -d x264 ]; then
   git clone git://git.videolan.org/x264.git
 fi
@@ -19,7 +19,7 @@ fi
 
 #++ build ffmpeg ++#
 if [ ! -d ffmpeg ]; then
-  git clone -b fanplayer https://github.com/rockcarry/ffmpeg
+  git clone -b fanplayer-n3.3.x https://github.com/rockcarry/ffmpeg
 fi
 cd ffmpeg
 ./configure \
@@ -28,7 +28,6 @@ cd ffmpeg
 --enable-static \
 --enable-shared \
 --enable-small \
---enable-memalign-hack \
 --disable-symver \
 --disable-debug \
 --disable-programs \
