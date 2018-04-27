@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
@@ -31,6 +32,9 @@ public class MainActivity extends Activity {
     private boolean      mIsPlaying = false;
     private boolean      mIsLive    = false;
     private String       mURL       = "rtmp://live.hkstv.hk.lxdns.com/live/hks";
+    private Surface      mVideoSurface;
+    private int          mVideoViewW;
+    private int          mVideoViewH;
 
     /** Called when the activity is first created. */
     @Override
@@ -67,11 +71,9 @@ public class MainActivity extends Activity {
             @Override
             public void onSizeChanged(int w, int h, int oldw, int oldh) {
                 mVideo.setVisibility(View.INVISIBLE);
-                Message msg = new Message();
-                msg.arg1 = w;
-                msg.arg2 = h;
-                msg.what = MSG_INIT_VIDEO_SIZE;
-                mHandler.sendMessage(msg);
+                mVideoViewW = w;
+                mVideoViewH = h;
+                mHandler.sendEmptyMessage(MSG_UDPATE_VIEW_SIZE);
             }
         });
 
@@ -85,12 +87,14 @@ public class MainActivity extends Activity {
 
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
-                    mPlayer.setDisplaySurface(holder.getSurface());
+                    mVideoSurface = holder.getSurface();
+                    mPlayer.setDisplaySurface(mVideoSurface);
                 }
 
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
-                    mPlayer.setDisplaySurface(null);
+                    mVideoSurface = null;
+                    mPlayer.setDisplaySurface(mVideoSurface);
                 }
             }
         );
@@ -130,7 +134,6 @@ public class MainActivity extends Activity {
     public void onDestroy() {
         super.onDestroy();
         mHandler.removeMessages(MSG_UPDATE_PROGRESS);
-        mHandler.removeMessages(MSG_INIT_VIDEO_SIZE);
         mPlayer.close();
     }
 
@@ -184,9 +187,9 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static final int MSG_UPDATE_PROGRESS = 1;
-    private static final int MSG_HIDE_BUTTONS    = 2;
-    private static final int MSG_INIT_VIDEO_SIZE = 3;
+    private static final int MSG_UPDATE_PROGRESS  = 1;
+    private static final int MSG_UDPATE_VIEW_SIZE = 2;
+    private static final int MSG_HIDE_BUTTONS     = 3;
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -206,19 +209,16 @@ public class MainActivity extends Activity {
                     mPause.setVisibility(View.INVISIBLE);
                 }
                 break;
-            case MSG_INIT_VIDEO_SIZE: {
-                    if (!mPlayer.initVideoSize(msg.arg1, msg.arg2, mVideo)) {
-                        Message m = new Message();
-                        m.arg1 = msg.arg1;
-                        m.arg2 = msg.arg2;
-                        m.what = MSG_INIT_VIDEO_SIZE;
-                        mHandler.sendMessageDelayed(m, 200);
-                    } else {
+            case MSG_UDPATE_VIEW_SIZE: {
+                    if (mPlayer.initVideoSize(mVideoViewW, mVideoViewH, mVideo)) {
                         mVideo.setVisibility(View.VISIBLE);
                     }
                 }
                 break;
             case MediaPlayer.MSG_OPEN_DONE: {
+                    mPlayer .setDisplaySurface(mVideoSurface);
+                    mVideo  .setVisibility(View.INVISIBLE);
+                    mHandler.sendEmptyMessage(MSG_UDPATE_VIEW_SIZE);
                     mSeek.setMax((int)mPlayer.getParam(MediaPlayer.PARAM_MEDIA_DURATION));
                     testPlayerPlay(true);
                 }
