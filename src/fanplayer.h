@@ -76,6 +76,9 @@ enum {
 
     // audio/video sync diff
     PARAM_AVSYNC_TIME_DIFF,
+
+    // get player init params
+    PARAM_PLAYER_INIT_PARAMS,
     //-- public
 
     //++ for adev

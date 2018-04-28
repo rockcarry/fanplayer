@@ -91,10 +91,10 @@ void CplayerDlg::DoDataExchange(CDataExchange* pDX)
     CDialog::DoDataExchange(pDX);
 }
 
-void CplayerDlg::PlayerReset()
+void CplayerDlg::PlayerReset(PLAYER_INIT_PARAMS *params)
 {
     player_close(m_ffPlayer);
-    m_ffPlayer = player_open(m_strUrl, GetSafeHwnd(), &m_Params);
+    m_ffPlayer = player_open(m_strUrl, GetSafeHwnd(), params);
 }
 
 void CplayerDlg::PlayerOpenFile(TCHAR *file)
@@ -138,8 +138,9 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
         m_bLiveStream = FALSE;
     }
 
-    // reset player
-    PlayerReset();
+    PLAYER_INIT_PARAMS params;
+    load_fanplayer_params(&params); // load fanplayer init params
+    PlayerReset(&params); // reset player
 }
 
 BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
@@ -180,9 +181,6 @@ BOOL CplayerDlg::OnInitDialog()
 
     // get dc
     m_pDrawDC = GetDC();
-
-    // load fanplayer init params
-    load_fanplayer_params(&m_Params);
 
     // setup init timer
     SetTimer(TIMER_ID_FIRST_DIALOG, 100, NULL);
@@ -250,12 +248,14 @@ void CplayerDlg::OnDestroy()
     CDialog::OnDestroy();
     ReleaseDC(m_pDrawDC);
 
+    // save fanplayer init params
+    PLAYER_INIT_PARAMS params;
+    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
+    save_fanplayer_params(&params);
+
     // close player
     player_close(m_ffPlayer);
     m_ffPlayer = NULL;
-
-    // save fanplayer init params
-    save_fanplayer_params(&m_Params);
 }
 
 void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
@@ -371,18 +371,22 @@ void CplayerDlg::OnOpenFile()
 
 void CplayerDlg::OnAudioStream()
 {
+    PLAYER_INIT_PARAMS params;
+    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
-    m_Params.audio_stream_cur++; m_Params.audio_stream_cur %= m_Params.audio_stream_total;
+    params.audio_stream_cur++; params.audio_stream_cur %= params.audio_stream_total;
     m_bResetPlayer = TRUE;
-    PlayerReset();
+    PlayerReset(&params);
 }
 
 void CplayerDlg::OnVideoStream()
 {
+    PLAYER_INIT_PARAMS params;
+    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
-    m_Params.video_stream_cur++; m_Params.video_stream_cur %= m_Params.video_stream_total;
+    params.video_stream_cur++; params.video_stream_cur %= params.video_stream_total;
     m_bResetPlayer = TRUE;
-    PlayerReset();
+    PlayerReset(&params);
 }
 
 void CplayerDlg::OnVideoMode()
@@ -403,10 +407,12 @@ void CplayerDlg::OnEffectMode()
 
 void CplayerDlg::OnVRenderType()
 {
+    PLAYER_INIT_PARAMS params;
+    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
-    m_Params.vdev_render_type++; m_Params.vdev_render_type %= VDEV_RENDER_TYPE_MAX_NUM;
+    params.vdev_render_type++; params.vdev_render_type %= VDEV_RENDER_TYPE_MAX_NUM;
     m_bResetPlayer = TRUE;
-    PlayerReset();
+    PlayerReset(&params);
 }
 
 void CplayerDlg::OnTakeSnapshot()
