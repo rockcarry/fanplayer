@@ -1,5 +1,5 @@
-#ifndef __FFPLAYER_SNAPSHOT_H__
-#define __FFPLAYER_SNAPSHOT_H__
+#ifndef __FANPLAYER_SNAPSHOT_H__
+#define __FANPLAYER_SNAPSHOT_H__
 
 #ifdef __cplusplus
 extern "C" {

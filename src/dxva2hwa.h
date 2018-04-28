@@ -1,5 +1,5 @@
-#ifndef __FFPLAYER_DXVA2HWA_H__
-#define __FFPLAYER_DXVA2HWA_H__
+#ifndef __FANPLAYER_DXVA2HWA_H__
+#define __FANPLAYER_DXVA2HWA_H__
 
 #ifdef __cplusplus
 extern "C" {

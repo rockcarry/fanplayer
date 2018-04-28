@@ -20,7 +20,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
     }
 #endif
 #ifdef ANDROID
-    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate); break;
+    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate);
 #endif
     return c;
 }
@@ -101,8 +101,8 @@ void vdev_setparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
 
     switch (id) {
-    case PARAM_VDEV_FRAME_RATE:
-        c->tickframe = 1000 / (*(int*)param > 1 ? *(int*)param : 1);
+    case PARAM_PLAY_SPEED:
+        c->speed = *(int*)param;
         break;
     case PARAM_AVSYNC_TIME_DIFF:
         c->tickavdiff = *(int*)param;
@@ -117,8 +117,8 @@ void vdev_getparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
 
     switch (id) {
-    case PARAM_VDEV_FRAME_RATE:
-        *(int*)param = 1000 / c->tickframe;
+    case PARAM_PLAY_SPEED:
+        *(int*)param = c->speed;
         break;
     case PARAM_AVSYNC_TIME_DIFF:
         *(int*)param = c->tickavdiff;
@@ -150,8 +150,8 @@ void vdev_refresh_background(void *ctxt)
 void vdev_avsync_and_complete(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    int     tickdiff, scdiff, avdiff = -1;
-    int64_t tickcur;
+    int     tickframe, tickdiff, scdiff, avdiff = -1;
+    int64_t tickcur, sysclock;
 
     if (!(c->status & VDEV_PAUSE)) {
         //++ play completed ++//
@@ -167,6 +167,7 @@ void vdev_avsync_and_complete(void *ctxt)
         //-- play completed --//
 
         //++ frame rate & av sync control ++//
+        tickframe   = 100 * c->tickframe / c->speed;
         tickcur     = av_gettime_relative() / 1000;
         tickdiff    = (int)(tickcur - c->ticklast);
         c->ticklast = tickcur;
@@ -177,12 +178,13 @@ void vdev_avsync_and_complete(void *ctxt)
             c->start_tick= tickcur;
         }
 
-        avdiff = (int)(c->apts - c->vpts - c->tickavdiff); // diff between audio and video pts
-        scdiff = (int)(c->start_pts + tickcur - c->start_tick - c->vpts - c->tickavdiff); // diff between system clock and video pts
+        sysclock= c->start_pts + (tickcur - c->start_tick) * c->speed / 100;
+        avdiff  = (int)(c->apts  - c->vpts - c->tickavdiff); // diff between audio and video pts
+        scdiff  = (int)(sysclock - c->vpts - c->tickavdiff); // diff between system clock and video pts
         if (c->apts <= 0) avdiff = scdiff; // if apts is invalid, sync vpts to system clock
 
-        if (tickdiff - c->tickframe >  5) c->ticksleep--;
-        if (tickdiff - c->tickframe < -5) c->ticksleep++;
+        if (tickdiff - tickframe >  5) c->ticksleep--;
+        if (tickdiff - tickframe < -5) c->ticksleep++;
         if (c->vpts >= 0) {
                  if (avdiff >  500) c->ticksleep -= 3;
             else if (avdiff >  50 ) c->ticksleep -= 1;

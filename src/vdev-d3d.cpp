@@ -40,15 +40,18 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         c->pD3DDev->SetRenderTarget(0, c->surfw);
         c->flag = 0;
     }
-    if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR))) {
-        if (c->textt && SUCCEEDED(c->pD3DDev->BeginScene())) { // draw text
-            RECT r = { c->textx, c->texty, rect.right, rect.bottom };
-            c->d3dfont->DrawTextW(c->textt, -1, &r, 0, c->textc);
-            c->pD3DDev->EndScene();
+    if (c->textt && c->surfw) {
+        if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR))) {
+            if (SUCCEEDED(c->pD3DDev->BeginScene())) { // draw text
+                RECT r = { c->textx, c->texty, rect.right, rect.bottom };
+                c->d3dfont->DrawTextW(c->textt, -1, &r, 0, c->textc);
+                c->pD3DDev->EndScene();
+                surf = c->surfw;
+            }
         }
-        if (SUCCEEDED(c->pD3DDev->StretchRect(c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
-            c->pD3DDev->Present(NULL, &rect, NULL, NULL);
-        }
+    }
+    if (SUCCEEDED(c->pD3DDev->StretchRect(surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR))) {
+        c->pD3DDev->Present(NULL, &rect, NULL, NULL);
     }
 }
 
@@ -92,7 +95,7 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
         if (FAILED(c->pD3DDev->CreateOffscreenPlainSurface(c->sw, c->sh, (D3DFORMAT)c->d3dfmt,
                    D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL))) {
             av_log(NULL, AV_LOG_ERROR, "failed to create d3d off screen plain surface !\n");
-            exit(0);
+            return;
         }
     }
 
@@ -107,7 +110,7 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
 static void vdev_d3d_unlock(void *ctxt, int64_t pts)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
-    c->surfs[c->tail]->UnlockRect();
+    if (c->surfs[c->tail]) c->surfs[c->tail]->UnlockRect();
     c->ppts [c->tail] = pts;
     if (++c->tail == c->bufnum) c->tail = 0;
     sem_post(&c->semr);

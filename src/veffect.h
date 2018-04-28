@@ -1,5 +1,5 @@
-#ifndef __FFPLAYER_VEFFECT_H__
-#define __FFPLAYER_VEFFECT_H__
+#ifndef __FANPLAYER_VEFFECT_H__
+#define __FANPLAYER_VEFFECT_H__
 
 #ifdef __cplusplus
 extern "C" {

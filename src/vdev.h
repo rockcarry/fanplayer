@@ -1,5 +1,5 @@
-#ifndef __FFPLAYER_VDEV_H__
-#define __FFPLAYER_VDEV_H__
+#ifndef __FANPLAYER_VDEV_H__
+#define __FANPLAYER_VDEV_H__
 
 // 包含头文件
 #include <pthread.h>
@@ -43,6 +43,7 @@ extern "C" {
     int       ticksleep;                      \
     int64_t   ticklast;                       \
                                               \
+    int       speed;                          \
     int       status;                         \
     pthread_t thread;                         \
                                               \

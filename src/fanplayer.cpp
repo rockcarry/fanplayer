@@ -214,7 +214,10 @@ static void vfilter_graph_free(PLAYER *player)
 static void vfilter_graph_input(PLAYER *player, AVFrame *frame)
 {
     if (!player->vfilter_graph) return;
-    av_buffersrc_add_frame_flags(player->vfilter_source_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    int ret = av_buffersrc_add_frame_flags(player->vfilter_source_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    if (ret != 0) {
+        av_log(NULL, AV_LOG_WARNING, "av_buffersrc_add_frame_flags failed !\n");
+    }
 }
 
 static int vfilter_graph_output(PLAYER *player, AVFrame *frame)
@@ -470,13 +473,10 @@ static int player_prepare(PLAYER *player)
     // for player init params
     player->init_params.video_frame_rate     = vrate.num / vrate.den;
     player->init_params.video_stream_total   = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
-    player->init_params.video_stream_cur     = player->vstream_index;
     player->init_params.audio_channels       = av_get_channel_layout_nb_channels(alayout);
     player->init_params.audio_sample_rate    = arate;
     player->init_params.audio_stream_total   = get_stream_total(player, AVMEDIA_TYPE_AUDIO);
-    player->init_params.audio_stream_cur     = player->astream_index;
     player->init_params.subtitle_stream_total= get_stream_total(player, AVMEDIA_TYPE_SUBTITLE);
-    player->init_params.subtitle_stream_cur  = -1;
     ret = 0; // prepare ok
 
 done:
@@ -1088,6 +1088,9 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     case PARAM_RENDER_GET_CONTEXT:
         *(void**)param = player->render;
+        break;
+    case PARAM_PLAYER_INIT_PARAMS:
+        memcpy(param, &player->init_params, sizeof(PLAYER_INIT_PARAMS));
         break;
     default:
         render_getparam(player->render, id, param);

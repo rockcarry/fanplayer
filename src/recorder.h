@@ -1,5 +1,5 @@
-#ifndef __RECORDER_H__
-#define __RECORDER_H__
+#ifndef __FANPLAYER_RECORDER_H__
+#define __FANPLAYER_RECORDER_H__
 
 // 包含头文件
 #include "stdefine.h"

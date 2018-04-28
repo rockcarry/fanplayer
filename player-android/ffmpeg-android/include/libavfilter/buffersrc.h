@@ -189,7 +189,7 @@ int av_buffersrc_add_frame(AVFilterContext *ctx, AVFrame *frame);
  * @return            >= 0 in case of success, a negative AVERROR code
  *                    in case of failure
  */
-// av_warn_unused_result
+av_warn_unused_result
 int av_buffersrc_add_frame_flags(AVFilterContext *buffer_src,
                                  AVFrame *frame, int flags);
 

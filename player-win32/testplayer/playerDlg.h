@@ -30,7 +30,6 @@ protected:
     DECLARE_MESSAGE_MAP()
 
 private:
-    PLAYER_INIT_PARAMS m_Params;
     char               m_strUrl[MAX_PATH];
     void              *m_ffPlayer;
 
@@ -38,7 +37,7 @@ private:
     LONGLONG m_llLastPos;
     BOOL     m_bResetPlayer;
     BOOL     m_bLiveStream;
-    void PlayerReset();
+    void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
 
 private:
