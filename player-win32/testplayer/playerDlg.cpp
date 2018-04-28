@@ -248,10 +248,12 @@ void CplayerDlg::OnDestroy()
     CDialog::OnDestroy();
     ReleaseDC(m_pDrawDC);
 
+#if 0
     // save fanplayer init params
     PLAYER_INIT_PARAMS params;
     player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     save_fanplayer_params(&params);
+#endif
 
     // close player
     player_close(m_ffPlayer);
