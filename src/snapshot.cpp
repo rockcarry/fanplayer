@@ -1,4 +1,6 @@
 // 包含头文件
+#include <string.h>
+#include "stdefine.h"
 #include "snapshot.h"
 
 extern "C" {
@@ -29,7 +31,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     av_register_all();
 
     fileext = file + strlen(file) - 3;
-    if (_stricmp(fileext, "png") == 0) {
+    if (stricmp(fileext, "png") == 0) {
         codecid = AV_CODEC_ID_APNG;
         swsofmt = AV_PIX_FMT_RGB24;
     }
@@ -43,7 +45,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     picture.width  = w > 0 ? w : video->width;
     picture.height = h > 0 ? h : video->height;
     if (av_frame_get_buffer(&picture, 32) < 0) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate picture !\n", file);
+        av_log(NULL, AV_LOG_ERROR, "failed to allocate picture !\n");
         goto done;
     }
 

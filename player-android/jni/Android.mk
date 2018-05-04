@@ -11,6 +11,7 @@ LOCAL_SRC_FILES := \
     ../../src/fanplayer.cpp \
     ../../src/ffrender.cpp  \
     ../../src/pktqueue.cpp  \
+    ../../src/snapshot.cpp  \
     ../../src/recorder.cpp  \
     ../../src/adev-cmn.cpp  \
     ../../src/adev-android.cpp \
@@ -20,13 +21,14 @@ LOCAL_SRC_FILES := \
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/ndk-build-files/include \
     $(LOCAL_PATH)/../ffmpeg-android/include \
+    $(LOCAL_PATH)/../soundtouch-android/include \
     $(LOCAL_PATH)/../../src
 
 LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -Os -mfpu=neon-vfpv4 -mfloat-abi=softfp
 LOCAL_CXXFLAGS += -DHAVE_PTHREADS
 LOCAL_LDLIBS   += -lz -llog -landroid
 
-LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libx264
+LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libx264 libsoundtouch
 
 LOCAL_MULTILIB := 32
 
@@ -75,4 +77,9 @@ LOCAL_SRC_FILES := $(LOCAL_PATH)/../ffmpeg-android/lib/libx264.a
 include $(PREBUILT_STATIC_LIBRARY)
 #-- ffmpeg prebuilt static libraries
 
-
+#++ soundtouch prebuilt static libraries
+include $(CLEAR_VARS)
+LOCAL_MODULE := libsoundtouch
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../soundtouch-android/lib/libsoundtouch.a
+include $(PREBUILT_STATIC_LIBRARY)
+#-- soundtouch prebuilt static libraries

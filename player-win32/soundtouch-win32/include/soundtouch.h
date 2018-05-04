@@ -56,20 +56,20 @@
 #endif // __cplusplus
 
 /// Create a new instance of SoundTouch processor.
-SOUNDTOUCHDLL_API void* __cdecl soundtouch_createInstance();
+SOUNDTOUCHDLL_API void* __cdecl soundtouch_createInstance(void);
 
 /// Destroys a SoundTouch processor instance.
 SOUNDTOUCHDLL_API void __cdecl soundtouch_destroyInstance(void *h);
 
 /// Get SoundTouch library version string
-SOUNDTOUCHDLL_API const char *__cdecl soundtouch_getVersionString();
+SOUNDTOUCHDLL_API const char *__cdecl soundtouch_getVersionString(void);
 
 /// Get SoundTouch library version string - alternative function for 
 /// environments that can't properly handle character string as return value
 SOUNDTOUCHDLL_API void __cdecl soundtouch_getVersionString2(char* versionString, int bufferSize);
 
 /// Get SoundTouch library version Id
-SOUNDTOUCHDLL_API unsigned int __cdecl soundtouch_getVersionId();
+SOUNDTOUCHDLL_API unsigned int __cdecl soundtouch_getVersionId(void);
 
 /// Sets new rate control value. Normal rate = 1.0, smaller values
 /// represent slower rate, larger faster rates.

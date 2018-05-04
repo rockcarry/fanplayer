@@ -1,0 +1,178 @@
+//////////////////////////////////////////////////////////////////////////////
+///
+/// SoundTouch DLL wrapper - wraps SoundTouch routines into a Dynamic Load
+/// Library interface.
+///
+/// Author        : Copyright (c) Olli Parviainen
+/// Author e-mail : oparviai 'at' iki.fi
+/// SoundTouch WWW: http://www.surina.net/soundtouch
+///
+////////////////////////////////////////////////////////////////////////////////
+//
+// $Id: SoundTouchDLL.h 248 2017-03-05 16:36:35Z oparviai $
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// License :
+//
+//  SoundTouch audio processing library
+//  Copyright (c) Olli Parviainen
+//
+//  This library is free software; you can redistribute it and/or
+//  modify it under the terms of the GNU Lesser General Public
+//  License as published by the Free Software Foundation; either
+//  version 2.1 of the License, or (at your option) any later version.
+//
+//  This library is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+//  Lesser General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public
+//  License along with this library; if not, write to the Free Software
+//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+//
+////////////////////////////////////////////////////////////////////////////////
+
+#ifndef _SoundTouchLib_h_
+#define _SoundTouchLib_h_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// Create a new instance of SoundTouch processor.
+void* soundtouch_createInstance(void);
+
+/// Destroys a SoundTouch processor instance.
+void soundtouch_destroyInstance(void *h);
+
+/// Get SoundTouch library version string
+const char* soundtouch_getVersionString(void);
+
+/// Get SoundTouch library version string - alternative function for
+/// environments that can't properly handle character string as return value
+void soundtouch_getVersionString2(char* versionString, int bufferSize);
+
+/// Get SoundTouch library version Id
+unsigned int soundtouch_getVersionId(void);
+
+/// Sets new rate control value. Normal rate = 1.0, smaller values
+/// represent slower rate, larger faster rates.
+void soundtouch_setRate(void *h, float newRate);
+
+/// Sets new tempo control value. Normal tempo = 1.0, smaller values
+/// represent slower tempo, larger faster tempo.
+void soundtouch_setTempo(void *h, float newTempo);
+
+/// Sets new rate control value as a difference in percents compared
+/// to the original rate (-50 .. +100 %);
+void soundtouch_setRateChange(void *h, float newRate);
+
+/// Sets new tempo control value as a difference in percents compared
+/// to the original tempo (-50 .. +100 %);
+void soundtouch_setTempoChange(void *h, float newTempo);
+
+/// Sets new pitch control value. Original pitch = 1.0, smaller values
+/// represent lower pitches, larger values higher pitch.
+void soundtouch_setPitch(void *h, float newPitch);
+
+/// Sets pitch change in octaves compared to the original pitch
+/// (-1.00 .. +1.00);
+void soundtouch_setPitchOctaves(void *h, float newPitch);
+
+/// Sets pitch change in semi-tones compared to the original pitch
+/// (-12 .. +12);
+void soundtouch_setPitchSemiTones(void *h, float newPitch);
+
+
+/// Sets the number of channels, 1 = mono, 2 = stereo, n = multichannel
+void soundtouch_setChannels(void *h, unsigned int numChannels);
+
+/// Sets sample rate.
+void soundtouch_setSampleRate(void *h, unsigned int srate);
+
+/// Flushes the last samples from the processing pipeline to the output.
+/// Clears also the internal processing buffers.
+//
+/// Note: This function is meant for extracting the last samples of a sound
+/// stream. This function may introduce additional blank samples in the end
+/// of the sound stream, and thus it's not recommended to call this function
+/// in the middle of a sound stream.
+void soundtouch_flush(void *h);
+
+/// Adds 'numSamples' pcs of samples from the 'samples' memory position into
+/// the input of the object. Notice that sample rate _has_to_ be set before
+/// calling this function, otherwise throws a runtime_error exception.
+void soundtouch_putSamples(void *h,
+        const float *samples,       ///< Pointer to sample buffer.
+        unsigned int numSamples     ///< Number of sample frames in buffer. Notice
+                                    ///< that in case of multi-channel sound a single
+                                    ///< sample frame contains data for all channels.
+);
+
+/// int16 version of soundtouch_putSamples(): This accept int16 (short) sample data
+/// and internally converts it to float format before processing
+void soundtouch_putSamples_i16(void *h,
+        const short *samples,       ///< Pointer to sample buffer.
+        unsigned int numSamples     ///< Number of sample frames in buffer. Notice
+                                    ///< that in case of multi-channel sound a single
+                                    ///< sample frame contains data for all channels.
+);
+
+
+/// Clears all the samples in the object's output and internal processing
+/// buffers.
+void soundtouch_clear(void *h);
+
+/// Changes a setting controlling the processing system behaviour. See the
+/// 'SETTING_...' defines for available setting ID's.
+///
+/// \return 'nonzero' if the setting was succesfully changed, otherwise zero
+int soundtouch_setSetting(void *h,
+        int settingId,   ///< Setting ID number. see SETTING_... defines.
+        int value        ///< New setting value.
+);
+
+/// Reads a setting controlling the processing system behaviour. See the
+/// 'SETTING_...' defines for available setting ID's.
+///
+/// \return the setting value.
+int soundtouch_getSetting(void *h,
+        int settingId    ///< Setting ID number, see SETTING_... defines.
+);
+
+
+/// Returns number of samples currently unprocessed.
+unsigned int soundtouch_numUnprocessedSamples(void *h);
+
+/// Adjusts book-keeping so that given number of samples are removed from beginning of the
+/// sample buffer without copying them anywhere.
+///
+/// Used to reduce the number of samples in the buffer when accessing the sample buffer directly
+/// with 'ptrBegin' function.
+unsigned int soundtouch_receiveSamples(void *h,
+        float *outBuffer,           ///< Buffer where to copy output samples.
+        unsigned int maxSamples     ///< How many samples to receive at max.
+);
+
+
+/// int16 version of soundtouch_receiveSamples(): This converts internal float samples
+/// into int16 (short) return data type
+unsigned int soundtouch_receiveSamples_i16(void *h,
+        short *outBuffer,           ///< Buffer where to copy output samples.
+        unsigned int maxSamples     ///< How many samples to receive at max.
+);
+
+/// Returns number of samples currently available.
+unsigned int soundtouch_numSamples(void *h);
+
+/// Returns nonzero if there aren't any samples available for outputting.
+int soundtouch_isEmpty(void *h);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // _SoundTouchLib_h_
+
