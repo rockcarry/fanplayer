@@ -1,3 +1,2 @@
 1. subtitle/lrc
-2. sound touch
-3. d3d rotation
+2. d3d rotation
