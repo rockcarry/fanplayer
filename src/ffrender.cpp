@@ -222,11 +222,11 @@ void render_close(void *hrender)
 
 void render_audio(void *hrender, AVFrame *audio)
 {
+    if (!hrender) return;
     RENDER *render  = (RENDER*)hrender;
     int     sampnum = 0;
     int64_t apts    = audio->pts;
 
-    if (!render || !render->adev) return;
     do {
         if (  render->speed_value_cur != render->speed_value_new
            || render->speed_type_cur  != render->speed_type_new ) {
@@ -305,13 +305,13 @@ void render_audio(void *hrender, AVFrame *audio)
 
 void render_video(void *hrender, AVFrame *video)
 {
+    if (!hrender) return;
     RENDER  *render = (RENDER*)hrender;
     AVFrame  picture;
 
     // init picture
     memset(&picture, 0, sizeof(AVFrame));
 
-    if (!render || !render->vdev) return;
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
         if (  render->rect_xcur != render->rect_xnew
@@ -504,7 +504,7 @@ void render_getparam(void *hrender, int id, void *param)
         adev_getparam(render->adev, id, param);
         break;
     case PARAM_PLAY_SPEED_VALUE:
-        *(int*)param = render->speed_value_cur;
+        *(int*)param = render->speed_value_cur ? render->speed_value_cur : render->speed_value_new;
         break;
     case PARAM_PLAY_SPEED_TYPE:
         *(int*)param = render->speed_type_cur;
