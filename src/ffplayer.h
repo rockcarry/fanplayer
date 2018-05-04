@@ -133,6 +133,10 @@ typedef struct {
     int init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
     int open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
 } PLAYER_INIT_PARAMS;
+// video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
+// 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1
+//           这样播放器将只解码音频而不解码视频，可减少 cpu 的使用率
+
 
 // 函数声明
 void* player_open    (char *file, void *appdata, PLAYER_INIT_PARAMS *params);

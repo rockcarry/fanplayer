@@ -228,6 +228,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
     AVCodec *decoder = NULL;
     int     idx = -1, cur = -1;
 
+    if (sel == -1) return -1;
     for (int i=0; i<(int)player->avformat_context->nb_streams; i++) {
         if (player->avformat_context->streams[i]->codec->codec_type == type) {
             idx = i; if (++cur == sel) break;
