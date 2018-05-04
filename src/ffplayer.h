@@ -100,7 +100,12 @@ enum {
 
 // 初始化参数说明
 // PLAYER_INIT_PARAMS 为播放器初始化参数，在 player_open 时传入，并可获得视频文件打开后的一些参数信息
-// r 表示参数只读，w 表示参数只写，wr 表示参数可配置，但配置是否成功可在 player_open 后读取判断
+// player_open 函数只会读取传入的初始化参数的内容，而不会改变其内容。想要获取视频文件打开后的新参数值
+// 需要通过 player_getparam(PARAM_PLAYER_INIT_PARAMS, &params); 这样的接口
+// 结构体中 r 表示参数只读，w 表示参数只写，wr 表示参数可配置，但配置是否成功可在 player_open 后读取判断
+// 注意：采用异步打开方式（open_syncmode = 0）时，player_open 函数返回后，获取到的一些参数可能并不是有效
+// 的（比如 video_vwidth, video_vheight），需要等到接收到 MSG_OPEN_DONE 消息后才能获取有效的参数。同步打
+// 开方式则不会有这个问题，因为 player_open 完成后已经做完了全部的初始化工作。
 typedef struct {
     int video_vwidth;             // r  video actual width
     int video_vheight;            // r  video actual height
@@ -264,13 +269,13 @@ int diff = 100;
 player_setparam(g_hplayer, PARAM_AVSYNC_TIME_DIFF, &diff);
 设置为 100 后，音频将比视频快 100ms，设置为 -100 则慢 100ms
 
+PARAM_PLAYER_INIT_PARAMS
+用于获取播放器初始化参数，使用方法：
+PLAYER_INIT_PARAMS params;
+player_getparam(g_hplayer, PARAM_PLAYER_INIT_PARAMS, &params);
+参数含义详见播放器初始化参数说明
+
 所有的参数，都是可以 get 的，但并不是所有的参数都可以 set，因为有些参数是只读的。
-
-
-PARAM_DISABLE_AUDIO_DECODE 和 PARAM_DISABLE_VIDEO_DECODE
-用于禁止音频和视频的解码
-应用场景，播放视频时，如果用不只想听声音，不想看视频，那么可以禁止视频解码，
-这样可以大幅减少视频解码对资源的消耗
 
 
 // 对 avdevice 输入设备的支持
