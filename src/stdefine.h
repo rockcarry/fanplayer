@@ -12,8 +12,9 @@
 #pragma warning(disable:4996)
 
 // configs
-#define CONFIG_ENABLE_VEFFECT   1
-#define CONFIG_ENABLE_SNAPSHOT  1
+#define CONFIG_ENABLE_VEFFECT    1
+#define CONFIG_ENABLE_SNAPSHOT   1
+#define CONFIG_ENABLE_SOUNDTOUCH 1
 #endif
 
 
@@ -33,8 +34,9 @@ typedef struct {
 } RECT;
 
 // configs
-#define CONFIG_ENABLE_VEFFECT   0
-#define CONFIG_ENABLE_SNAPSHOT  0
+#define CONFIG_ENABLE_VEFFECT    0
+#define CONFIG_ENABLE_SNAPSHOT   0
+#define CONFIG_ENABLE_SOUNDTOUCH 0
 #endif
 
 

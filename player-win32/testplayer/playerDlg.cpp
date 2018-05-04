@@ -337,7 +337,8 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             if (TRUE) { // set player dynamic params
                 int param = 0;
                 //++ set dynamic player params
-//              param = 150; player_setparam(dlg->m_ffPlayer, PARAM_PLAY_SPEED  , &param);
+//              param = 150; player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &param);
+//              param = 1  ; player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE , &param);
 
                 // software volume scale -30dB to 12dB
                 // range for volume is [-182, 73]

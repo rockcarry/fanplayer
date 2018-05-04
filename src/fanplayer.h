@@ -69,7 +69,8 @@ enum {
     PARAM_AUDIO_VOLUME,
 
     // playback speed control
-    PARAM_PLAY_SPEED,
+    PARAM_PLAY_SPEED_VALUE,
+    PARAM_PLAY_SPEED_TYPE,
 
     // visual effect mode
     PARAM_VISUAL_EFFECT,
@@ -230,13 +231,20 @@ PARAM_AUDIO_VOLUME
 int volume = -0;
 player_setparam(g_hplayer, PARAM_AUDIO_VOLUME, &volume);
 
-PARAM_PLAY_SPEED
+PARAM_PLAY_SPEED_VALUE
 用于设置播放速度，fanplayer 支持变速播放
 int speed = 150;
-player_setparam(g_hplayer, PARAM_PLAY_SPEED, &speed);
+player_setparam(g_hplayer, PARAM_PLAY_SPEED_VALUE, &speed);
 参数 speed 为百分比速度，150 表示以 150% 进行播放
 速度没有上限和下限，设置为 0 没有意义，内部会处理为 1%
 播放速度的实际上限，由处理器的处理能力决定，超过处理器能力，播放会出现卡顿现象
+
+PARAM_PLAY_SPEED_TYPE
+用于设置变速播放的变速类型，目前支持两种类型：
+0 - 变速会变调，采用 swresample 改变采样率来实现变速
+1 - 变速不变调，采用 soundtouch 音频处理库实现变速
+int type = 1;
+player_setparam(g_hplayer, PARAM_PLAY_SPEED_TYPE, &type);
 
 PARAM_VISUAL_EFFECT
 用于指定视觉效果的类型，fanplayer 支持视觉效果，主要是对音频进行视觉效果的呈现
