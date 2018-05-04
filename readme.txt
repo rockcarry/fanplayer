@@ -32,14 +32,17 @@ testplayer
 ==========
 testplayer is a simple test player for fanplayer
 hot-keys for testplayer:
-ctrl+O - open file
-ctrl+E - switch visual effect
-ctrl+M - switch between letter box and stretch rect
-ctrl+R - switch between gdi and d3d
-ctrl+A - switch audio stream
-ctrl+V - switch video stream
-ctrl+S - take a snapshot of video
-ctrl+F - step seek forward
+ctrl+O    - open file
+ctrl+E    - switch visual effect
+ctrl+M    - switch between letter box and stretch rect
+ctrl+R    - switch between gdi and d3d
+ctrl+A    - switch audio stream
+ctrl+V    - switch video stream
+ctrl+S    - take a snapshot of video
+ctrl+F    - step seek forward
+ctrl+up   - play speed up
+ctrl+down - play speed down
+ctrl+t    - switch speed type
 
 
 want to learn more?
