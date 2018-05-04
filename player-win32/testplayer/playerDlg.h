@@ -2,7 +2,7 @@
 //
 #pragma once
 
-#include "fanplayer.h"
+#include "ffplayer.h"
 
 // CplayerDlg dialog
 class CplayerDlg : public CDialog

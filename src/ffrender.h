@@ -2,7 +2,7 @@
 #define __FANPLAYER_FFRENDER_H__
 
 // 包含头文件
-#include "fanplayer.h"
+#include "ffplayer.h"
 
 #ifdef __cplusplus
 extern "C" {

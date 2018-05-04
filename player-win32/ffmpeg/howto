@@ -1,0 +1,15 @@
+how to build ffmpeg lib for win32
+
+1. install msys2 build enviroment on pc
+   pacman -S git
+   pacman -S make
+   pacman -S mingw-w64-i686-gcc
+   pacman -S mingw-w64-i686-yasm
+   pacman -S mingw-w64-i686-nasm
+   pacman -S mingw-w64-i686-pkg-config
+   pacman -S mingw-w64-i686-diffutils
+   pacman -S mingw-w64-i686-x264
+
+2. run build_ffmpeg_for_win32.sh to build the ffmpeg for win32
+   ./build_ffmpeg_for_win32.sh
+

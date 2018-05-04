@@ -12,8 +12,9 @@
 #pragma warning(disable:4996)
 
 // configs
-#define CONFIG_ENABLE_VEFFECT   1
-#define CONFIG_ENABLE_SNAPSHOT  1
+#define CONFIG_ENABLE_VEFFECT    1
+#define CONFIG_ENABLE_SNAPSHOT   1
+#define CONFIG_ENABLE_SOUNDTOUCH 1
 #endif
 
 
@@ -24,6 +25,7 @@
 #include <android/log.h>
 
 #define MAX_PATH  PATH_MAX
+#define stricmp   strcasecmp
 
 typedef struct {
     long left;
@@ -33,8 +35,9 @@ typedef struct {
 } RECT;
 
 // configs
-#define CONFIG_ENABLE_VEFFECT   0
-#define CONFIG_ENABLE_SNAPSHOT  0
+#define CONFIG_ENABLE_VEFFECT    0
+#define CONFIG_ENABLE_SNAPSHOT   1
+#define CONFIG_ENABLE_SOUNDTOUCH 1
 #endif
 
 

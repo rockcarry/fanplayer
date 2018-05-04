@@ -4,7 +4,7 @@
 // 包含头文件
 #include <pthread.h>
 #include <semaphore.h>
-#include "fanplayer.h"
+#include "ffplayer.h"
 
 #ifdef __cplusplus
 extern "C" {

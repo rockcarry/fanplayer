@@ -337,7 +337,8 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             if (TRUE) { // set player dynamic params
                 int param = 0;
                 //++ set dynamic player params
-//              param = 150; player_setparam(dlg->m_ffPlayer, PARAM_PLAY_SPEED  , &param);
+//              param = 150; player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &param);
+//              param = 1  ; player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE , &param);
 
                 // software volume scale -30dB to 12dB
                 // range for volume is [-182, 73]
@@ -347,8 +348,8 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             player_setrect(m_ffPlayer, 0, 0, 0, m_rtClient.right, m_rtClient.bottom - 2);
             player_setrect(m_ffPlayer, 1, 0, 0, m_rtClient.right, m_rtClient.bottom - 2);
             if (m_bResetPlayer) {
-                if (!m_bPlayPause) player_play(m_ffPlayer);
-                player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
+                if (!m_bPlayPause ) player_play(m_ffPlayer);
+                if (!m_bLiveStream) player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
                 m_bResetPlayer = FALSE;
             } else {
                 player_play(m_ffPlayer);

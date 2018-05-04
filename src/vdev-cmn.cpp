@@ -101,7 +101,7 @@ void vdev_setparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
 
     switch (id) {
-    case PARAM_PLAY_SPEED:
+    case PARAM_PLAY_SPEED_VALUE:
         c->speed = *(int*)param;
         break;
     case PARAM_AVSYNC_TIME_DIFF:
@@ -117,7 +117,7 @@ void vdev_getparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
 
     switch (id) {
-    case PARAM_PLAY_SPEED:
+    case PARAM_PLAY_SPEED_VALUE:
         *(int*)param = c->speed;
         break;
     case PARAM_AVSYNC_TIME_DIFF:

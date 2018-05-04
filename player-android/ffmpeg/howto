@@ -1,0 +1,7 @@
+how to build ffmpeg lib for android
+
+1. install git, if on win32 install msys is need
+2. install android ndk, export $NDK_HOME enviroment variable
+3. run build_ffmpeg_for_android.sh to build the ffmpeg for android
+   ./build_ffmpeg_for_android.sh
+
