@@ -12,6 +12,7 @@
 
 #define TIMER_ID_FIRST_DIALOG  1
 #define TIMER_ID_PROGRESS      2
+#define TIMER_ID_HIDE_TEXT     3
 
 static void get_app_dir(char *path, int size)
 {
@@ -143,6 +144,12 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
     PlayerReset(&params); // reset player
 }
 
+void CplayerDlg::PlayerShowText(int time)
+{
+    player_textout(m_ffPlayer, 20, 20, RGB(0, 255, 0), m_strTxt);
+    SetTimer(TIMER_ID_HIDE_TEXT, time, NULL);
+}
+
 BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_PAINT()
     ON_WM_QUERYDRAGICON()
@@ -151,14 +158,17 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
-    ON_COMMAND(ID_OPEN_FILE    , &CplayerDlg::OnOpenFile    )
-    ON_COMMAND(ID_VIDEO_MODE   , &CplayerDlg::OnVideoMode   )
-    ON_COMMAND(ID_EFFECT_MODE  , &CplayerDlg::OnEffectMode  )
-    ON_COMMAND(ID_VRENDER_TYPE , &CplayerDlg::OnVRenderType )
-    ON_COMMAND(ID_AUDIO_STREAM , &CplayerDlg::OnAudioStream )
-    ON_COMMAND(ID_VIDEO_STREAM , &CplayerDlg::OnVideoStream )
-    ON_COMMAND(ID_TAKE_SNAPSHOT, &CplayerDlg::OnTakeSnapshot)
-    ON_COMMAND(ID_STEP_FORWARD , &CplayerDlg::OnStepForward )
+    ON_COMMAND(ID_OPEN_FILE      , &CplayerDlg::OnOpenFile     )
+    ON_COMMAND(ID_VIDEO_MODE     , &CplayerDlg::OnVideoMode    )
+    ON_COMMAND(ID_EFFECT_MODE    , &CplayerDlg::OnEffectMode   )
+    ON_COMMAND(ID_VRENDER_TYPE   , &CplayerDlg::OnVRenderType  )
+    ON_COMMAND(ID_AUDIO_STREAM   , &CplayerDlg::OnAudioStream  )
+    ON_COMMAND(ID_VIDEO_STREAM   , &CplayerDlg::OnVideoStream  )
+    ON_COMMAND(ID_TAKE_SNAPSHOT  , &CplayerDlg::OnTakeSnapshot )
+    ON_COMMAND(ID_STEP_FORWARD   , &CplayerDlg::OnStepForward  )
+    ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec )
+    ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc )
+    ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType)
 END_MESSAGE_MAP()
 
 
@@ -279,6 +289,12 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
         InvalidateRect(&rect, FALSE);
         break;
 
+    case TIMER_ID_HIDE_TEXT:
+        KillTimer(TIMER_ID_HIDE_TEXT);
+        player_textout(m_ffPlayer, 0, 0, 0, NULL);
+        m_strTxt[0] = '\0';
+        break;
+
     default:
         CDialog::OnTimer(nIDEvent);
         break;
@@ -350,6 +366,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             if (m_bResetPlayer) {
                 if (!m_bPlayPause ) player_play(m_ffPlayer);
                 if (!m_bLiveStream) player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
+                if ( m_strTxt[0]  ) PlayerShowText(2000);
                 m_bResetPlayer = FALSE;
             } else {
                 player_play(m_ffPlayer);
@@ -377,8 +394,10 @@ void CplayerDlg::OnAudioStream()
     PLAYER_INIT_PARAMS params;
     player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
-    params.audio_stream_cur++; params.audio_stream_cur %= params.audio_stream_total;
+    params.audio_stream_cur++; params.audio_stream_cur %= params.audio_stream_total + 1;
+    if (params.audio_stream_cur == params.audio_stream_total) params.audio_stream_cur = -1;
     m_bResetPlayer = TRUE;
+    sprintf(m_strTxt, "audio stream: %d", params.audio_stream_cur);
     PlayerReset(&params);
 }
 
@@ -387,8 +406,10 @@ void CplayerDlg::OnVideoStream()
     PLAYER_INIT_PARAMS params;
     player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
-    params.video_stream_cur++; params.video_stream_cur %= params.video_stream_total;
+    params.video_stream_cur++; params.video_stream_cur %= params.video_stream_total + 1;
+    if (params.video_stream_cur == params.video_stream_total) params.video_stream_cur = -1;
     m_bResetPlayer = TRUE;
+    sprintf(m_strTxt, "video stream: %d", params.video_stream_cur);
     PlayerReset(&params);
 }
 
@@ -398,6 +419,9 @@ void CplayerDlg::OnVideoMode()
     player_getparam(m_ffPlayer, PARAM_VIDEO_MODE, &mode);
     mode++; mode %= VIDEO_MODE_MAX_NUM;
     player_setparam(m_ffPlayer, PARAM_VIDEO_MODE, &mode);
+
+    sprintf(m_strTxt, "video mode: %d", mode);
+    PlayerShowText(2000);
 }
 
 void CplayerDlg::OnEffectMode()
@@ -415,18 +439,54 @@ void CplayerDlg::OnVRenderType()
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
     params.vdev_render_type++; params.vdev_render_type %= VDEV_RENDER_TYPE_MAX_NUM;
     m_bResetPlayer = TRUE;
+    sprintf(m_strTxt, "vdev type: %d", params.vdev_render_type);
     PlayerReset(&params);
 }
 
 void CplayerDlg::OnTakeSnapshot()
 {
     player_snapshot(m_ffPlayer, "snapshot.jpg", 0, 0, 1000);
+    strcpy(m_strTxt, "take snapshot to snapshot.jpg");
+    PlayerShowText(2000);
 }
 
 void CplayerDlg::OnStepForward()
 {
     player_seek(m_ffPlayer, 0, SEEK_STEP);
     m_bPlayPause = TRUE;
+    strcpy(m_strTxt, "step forward");
+    PlayerShowText(2000);
 }
 
+void CplayerDlg::OnPlaySpeedDec()
+{
+    int speed;
+    player_getparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
+    speed -= 10; if (speed < 10) speed = 10;
+    player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
 
+    sprintf(m_strTxt, "speed value: %d", speed);
+    PlayerShowText(2000);
+}
+
+void CplayerDlg::OnPlaySpeedInc()
+{
+    int speed;
+    player_getparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
+    speed += 10; if (speed > 200) speed = 200;
+    player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
+
+    sprintf(m_strTxt, "speed value: %d", speed);
+    PlayerShowText(2000);
+}
+
+void CplayerDlg::OnPlaySpeedType()
+{
+    int type;
+    player_getparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE, &type);
+    type = !type;
+    player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE, &type);
+
+    sprintf(m_strTxt, "speed type: %s", type ? "soundtouch" : "swresample");
+    PlayerShowText(2000);
+}

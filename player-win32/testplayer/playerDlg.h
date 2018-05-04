@@ -31,6 +31,7 @@ protected:
 
 private:
     char               m_strUrl[MAX_PATH];
+    char               m_strTxt[MAX_PATH];
     void              *m_ffPlayer;
 
 private:
@@ -39,6 +40,7 @@ private:
     BOOL     m_bLiveStream;
     void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
+    void PlayerShowText(int time);
 
 private:
     CDC  *m_pDrawDC;
@@ -59,4 +61,7 @@ public:
     afx_msg void   OnVRenderType();
     afx_msg void   OnTakeSnapshot();
     afx_msg void   OnStepForward();
+    afx_msg void   OnPlaySpeedDec();
+    afx_msg void   OnPlaySpeedInc();
+    afx_msg void   OnPlaySpeedType();
 };

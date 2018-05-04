@@ -268,10 +268,6 @@
 				RelativePath=".\player.rc"
 				>
 			</File>
-			<File
-				RelativePath=".\res\player.rc2"
-				>
-			</File>
 		</Filter>
 	</Files>
 	<Globals>

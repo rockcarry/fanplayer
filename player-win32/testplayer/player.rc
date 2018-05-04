@@ -49,7 +49,7 @@ BEGIN
     "LANGUAGE 4, 2\r\n"
     "#pragma code_page(936)\r\n"
     "#include ""res\\player.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
-    "#include ""afxres.rc""     // Standard components\r\n"
+    "#include ""afxres.rc""  // Standard components\r\n"
     "#endif\r\n"
     "\0"
 END
@@ -148,11 +148,14 @@ BEGIN
     "A",            ID_AUDIO_STREAM,        VIRTKEY, CONTROL, NOINVERT
     "E",            ID_EFFECT_MODE,         VIRTKEY, CONTROL, NOINVERT
     "O",            ID_OPEN_FILE,           VIRTKEY, CONTROL, NOINVERT
+    VK_DOWN,        ID_PLAY_SPEED_DEC,      VIRTKEY, CONTROL, NOINVERT
+    VK_UP,          ID_PLAY_SPEED_INC,      VIRTKEY, CONTROL, NOINVERT
+    "T",            ID_PLAY_SPEED_TYPE,     VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_STEP_FORWARD,        VIRTKEY, CONTROL, NOINVERT
     "S",            ID_TAKE_SNAPSHOT,       VIRTKEY, CONTROL, NOINVERT
     "M",            ID_VIDEO_MODE,          VIRTKEY, CONTROL, NOINVERT
     "V",            ID_VIDEO_STREAM,        VIRTKEY, CONTROL, NOINVERT
     "R",            ID_VRENDER_TYPE,        VIRTKEY, CONTROL, NOINVERT
-    "F",            ID_STEP_FORWARD,        VIRTKEY, CONTROL, NOINVERT
 END
 
 #endif    // Chinese (P.R.C.) resources
@@ -173,8 +176,7 @@ END
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE 4, 2
 #pragma code_page(936)
-#include "res\player.rc2"  // non-Microsoft Visual C++ edited resources
-#include "afxres.rc"     // Standard components
+#include "afxres.rc"  // Standard components
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
