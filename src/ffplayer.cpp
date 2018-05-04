@@ -4,7 +4,7 @@
 #include "ffrender.h"
 #include "recorder.h"
 #include "dxva2hwa.h"
-#include "fanplayer.h"
+#include "ffplayer.h"
 #include "vdev.h"
 
 extern "C" {

@@ -1,6 +1,6 @@
 // 包含头文件
 #include "fanplayer_jni.h"
-#include "fanplayer.h"
+#include "ffplayer.h"
 #include "adev.h"
 #include "vdev.h"
 

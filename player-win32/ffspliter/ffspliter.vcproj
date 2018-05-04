@@ -40,7 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include"
+				AdditionalIncludeDirectories="..\ffmpeg\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -63,7 +63,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="avcodec.lib avformat.lib avutil.lib "
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="..\ffmpeg-win32\bin"
+				AdditionalLibraryDirectories="..\ffmpeg\bin"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -118,7 +118,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include"
+				AdditionalIncludeDirectories="..\ffmpeg\include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
@@ -139,7 +139,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="avcodec.lib avformat.lib avutil.lib "
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\ffmpeg-win32\bin"
+				AdditionalLibraryDirectories="..\ffmpeg\bin"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="1"

@@ -47,7 +47,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\..\src"
+				AdditionalIncludeDirectories="..\ffmpeg\include;..\..\src"
 				PreprocessorDefinitions="WIN32;_WINDOWS;_DEBUG"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -101,7 +101,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="copy ffmpeg, pthreads and soundtouch dlls"
-				CommandLine="copy &quot;$(SolutionDir)\pthreads-win32\dll\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
+				CommandLine="copy &quot;$(SolutionDir)\pthreads\dll\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffmpeg\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
@@ -136,7 +136,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\..\src"
+				AdditionalIncludeDirectories="..\ffmpeg\include;..\..\src"
 				PreprocessorDefinitions="WIN32;_WINDOWS;NDEBUG"
 				MinimalRebuild="false"
 				RuntimeLibrary="0"
@@ -192,7 +192,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="copy ffmpeg, pthreads and soundtouch dlls"
-				CommandLine="copy &quot;$(SolutionDir)\pthreads-win32\dll\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
+				CommandLine="copy &quot;$(SolutionDir)\pthreads\dll\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffmpeg\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
 			/>
 		</Configuration>
 	</Configurations>

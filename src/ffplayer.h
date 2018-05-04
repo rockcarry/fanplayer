@@ -1,5 +1,5 @@
-﻿#ifndef __FANPLAYER_FANPLAYER_H__
-#define __FANPLAYER_FANPLAYER_H__
+﻿#ifndef __FANPLAYER_FFPLAYER_H__
+#define __FANPLAYER_FFPLAYER_H__
 
 // 包含头文件
 #include "stdefine.h"
