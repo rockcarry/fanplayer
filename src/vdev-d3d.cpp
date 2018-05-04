@@ -273,8 +273,7 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->surfs[0] = NULL;
     //-- try pixel format
 
-    LOGFONT logfont;
-    memset(&logfont, 0, sizeof(logfont));
+    LOGFONT logfont = {0};
     wcscpy(logfont.lfFaceName, TEXT(DEF_FONT_NAME));
     logfont.lfHeight = DEF_FONT_SIZE;
     D3DXCreateFontIndirect(ctxt->pD3DDev, &logfont, &ctxt->d3dfont);
