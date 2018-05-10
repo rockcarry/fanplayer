@@ -368,7 +368,10 @@ static int player_prepare(PLAYER *player)
     //-- for avdevice
 
     // open input file
-    if (avformat_open_input(&player->avformat_context, url, fmt, NULL) != 0) {
+    AVDictionary *opts = NULL;
+//  av_dict_set(&opts, "rtsp_transport", "udp", 0);
+//  av_dict_set(&opts, "buffer_size", "1048576", 0);
+    if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
         goto done;
     }
@@ -821,7 +824,7 @@ void player_play(void *hplayer)
 {
     if (!hplayer) return;
     PLAYER *player = (PLAYER*)hplayer;
-    player->player_status = 0;
+    player->player_status &= PS_CLOSE;
     render_start(player->render);
 }
 
