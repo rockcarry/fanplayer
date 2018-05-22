@@ -266,8 +266,10 @@ void render_audio(void *hrender, AVFrame *audio)
             do {
                 if (render->adev_buf_avail == 0) {
                     adev_lock(render->adev, &render->adev_hdr_cur);
-                    render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-                    render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+                    if (render->adev_hdr_cur) {
+                        render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
+                        render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+                    }
                 }
                 stnum = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
                 render->adev_buf_avail -= stnum * 4;
@@ -282,8 +284,10 @@ void render_audio(void *hrender, AVFrame *audio)
         {
             if (render->adev_buf_avail == 0) {
                 adev_lock(render->adev, &render->adev_hdr_cur);
-                render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-                render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+                if (render->adev_hdr_cur) {
+                    render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
+                    render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+                }
             }
             //++ do resample audio data ++//
             sampnum = swr_convert(render->swr_context,
