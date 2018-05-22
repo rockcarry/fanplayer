@@ -7,7 +7,9 @@ extern "C" {
 }
 
 // 内部常量定义
-#define COMPLETE_COUNTER  30
+#define COMPLETED_COUNTER        30
+#define TRYAVSYNC_COUNTER        100
+#define AUTO_SYNC_VIDEO_TO_SCLK  TRUE
 
 // 函数实现
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
@@ -86,6 +88,7 @@ void vdev_reset(void *ctxt)
 #endif//-- no need to reset vdev buffer queue
     c->apts   = c->vpts = AV_NOPTS_VALUE;
     c->status = 0;
+    c->avsync_counter = 0;
 }
 
 void vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts)
@@ -160,7 +163,7 @@ void vdev_avsync_and_complete(void *ctxt)
             c->completed_vpts = c->vpts;
             c->completed_counter = 0;
             c->status &=~VDEV_COMPLETED;
-        } else if ((c->vpts == -1 || c->vpts == AV_NOPTS_VALUE) && ++c->completed_counter == COMPLETE_COUNTER) {
+        } else if ((c->vpts == -1 || c->vpts == AV_NOPTS_VALUE) && ++c->completed_counter == COMPLETED_COUNTER) {
             c->status |= VDEV_COMPLETED;
             player_send_message(c->surface, MSG_PLAY_COMPLETED, 0);
         }
@@ -181,8 +184,25 @@ void vdev_avsync_and_complete(void *ctxt)
         sysclock= c->start_pts + (tickcur - c->start_tick) * c->speed / 100;
         avdiff  = (int)(c->apts  - c->vpts - c->tickavdiff); // diff between audio and video pts
         scdiff  = (int)(sysclock - c->vpts - c->tickavdiff); // diff between system clock and video pts
-        if (c->apts <= 0 || avdiff < -1000) avdiff = scdiff; // if apts is invalid or avsync is not good,
-                                                             // we sync video to system clock
+
+        if (c->apts <= 0) { // if apts is invalid, sync video to system clock
+            avdiff = scdiff;
+        }
+#if AUTO_SYNC_VIDEO_TO_SCLK
+        //++ if apts and vpts sync is not good, auto sync video to system clock
+        else if (abs(avdiff) > 1000) {
+            if (c->avsync_counter < TRYAVSYNC_COUNTER) { // try to get sync
+                c->avsync_counter++;
+            } else { // if try sync failed, sync video to system clock
+                avdiff = scdiff;
+                av_log(NULL, AV_LOG_INFO, "try sync vpts to apts failed, sync video to system clock !\n");
+            }
+        } else { // if synced, clear counter
+            c->avsync_counter = 0;
+        }
+        //-- if apts and vpts sync is not good, auto sync video to system clock
+#endif
+
         if (tickdiff - tickframe >  5) c->ticksleep--;
         if (tickdiff - tickframe < -5) c->ticksleep++;
         if (c->vpts >= 0) {
@@ -191,8 +211,8 @@ void vdev_avsync_and_complete(void *ctxt)
             else if (avdiff < -500) c->ticksleep += 2;
             else if (avdiff < -50 ) c->ticksleep += 1;
         }
-        if (c->ticksleep < 0  ) c->ticksleep = 0;
-        if (c->ticksleep > 500) c->ticksleep = 500;
+        if (c->ticksleep < 0            ) c->ticksleep = 0;
+        if (c->ticksleep > tickframe * 3) c->ticksleep = tickframe * 3;
         //-- frame rate & av sync control --//
     } else {
         c->ticksleep = c->tickframe;

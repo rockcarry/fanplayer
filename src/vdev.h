@@ -32,6 +32,7 @@ extern "C" {
     int64_t  *ppts;                           \
     int64_t   apts;                           \
     int64_t   vpts;                           \
+    int       avsync_counter;                 \
                                               \
     int       head;                           \
     int       tail;                           \
