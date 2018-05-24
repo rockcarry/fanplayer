@@ -30,9 +30,9 @@ protected:
     DECLARE_MESSAGE_MAP()
 
 private:
-    char               m_strUrl[MAX_PATH];
-    char               m_strTxt[MAX_PATH];
-    void              *m_ffPlayer;
+    char m_strUrl[MAX_PATH];
+    char m_strTxt[MAX_PATH];
+    void *m_ffPlayer;
 
 private:
     LONGLONG m_llLastPos;
@@ -64,4 +64,5 @@ public:
     afx_msg void   OnPlaySpeedDec();
     afx_msg void   OnPlaySpeedInc();
     afx_msg void   OnPlaySpeedType();
+    afx_msg void   OnVdevD3dRotate();
 };

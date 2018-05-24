@@ -169,6 +169,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec )
     ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc )
     ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType)
+    ON_COMMAND(ID_VDEVD3D_ROTATE , &CplayerDlg::OnVdevD3dRotate)
 END_MESSAGE_MAP()
 
 
@@ -488,5 +489,16 @@ void CplayerDlg::OnPlaySpeedType()
     player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE, &type);
 
     sprintf(m_strTxt, "speed type: %s", type ? "soundtouch" : "swresample");
+    PlayerShowText(2000);
+}
+
+void CplayerDlg::OnVdevD3dRotate()
+{
+    int angle = 0;
+    player_getparam(m_ffPlayer, PARAM_VDEV_D3D_ROTATE, &angle);
+    angle += 10; angle %= 360;
+    player_setparam(m_ffPlayer, PARAM_VDEV_D3D_ROTATE, &angle);
+
+    sprintf(m_strTxt, "rotation: %d", angle);
     PlayerShowText(2000);
 }
