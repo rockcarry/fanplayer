@@ -44,9 +44,17 @@ typedef struct {
 #define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZRHW|D3DFVF_TEX1)
 
 // 内部函数实现
+static void rotate_point(float w, float h, float xi, float yi, float cx, float cy, float radian, float *xo, float *yo)
+{
+    xi += cx - w / 2;
+    yi += cy - h / 2;
+    *xo = (xi - cx) * cos(radian) + (yi - cy) * sin(radian) + cx;
+    *yo =-(xi - cx) * sin(radian) + (yi - cy) * cos(radian) + cy;
+}
+
 static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle, int *ow, int *oh)
 {
-    double radian = angle * M_PI / 180;
+    float radian = (float)(-angle * M_PI / 180);
     float fow = abs(float(w * cos(radian)))
               + abs(float(h * sin(radian)));
     float foh = abs(float(w * sin(radian)))
@@ -66,23 +74,18 @@ static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle, int *
         c->pD3DDev->CreateVertexBuffer(4 * sizeof(CUSTOMVERTEX), 0, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &c->vertexes, NULL);
     }
 
-    CUSTOMVERTEX *pv  = NULL;
-    HRESULT       ret = c->vertexes->Lock(0, 4 * sizeof(CUSTOMVERTEX), (void**)&pv, 0);
-    if (SUCCEEDED(ret)) {
+    CUSTOMVERTEX *pv = NULL;
+    if (SUCCEEDED(c->vertexes->Lock(0, 4 * sizeof(CUSTOMVERTEX), (void**)&pv, 0))) {
         pv[0].rhw = pv[1].rhw = pv[2].rhw = pv[3].rhw = 1.0f;
         pv[0].tu  = 0.0f; pv[0].tv  = 0.0f;
         pv[1].tu  = 1.0f; pv[1].tv  = 0.0f;
         pv[2].tu  = 1.0f; pv[2].tv  = 1.0f;
         pv[3].tu  = 0.0f; pv[3].tv  = 1.0f;
         pv[0].z = pv[1].z = pv[2].z = pv[3].z = 0.0f;
-        pv[0].x = abs(float(h * sin(radian)));
-        pv[0].y = 0;
-        pv[1].x = fow;
-        pv[1].y = abs(float(w * sin(radian)));
-        pv[2].x = abs(float(w * cos(radian)));
-        pv[2].y = foh;
-        pv[3].x = 0;
-        pv[3].y = abs(float(h * cos(radian)));
+        rotate_point((float)w, (float)h, (float)0, (float)0, fow / 2, foh / 2, radian, &(pv[0].x), &(pv[0].y));
+        rotate_point((float)w, (float)h, (float)w, (float)0, fow / 2, foh / 2, radian, &(pv[1].x), &(pv[1].y));
+        rotate_point((float)w, (float)h, (float)w, (float)h, fow / 2, foh / 2, radian, &(pv[2].x), &(pv[2].y));
+        rotate_point((float)w, (float)h, (float)0, (float)h, fow / 2, foh / 2, radian, &(pv[3].x), &(pv[3].y));
         c->vertexes->Unlock();
     }
 }
