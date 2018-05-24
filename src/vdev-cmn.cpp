@@ -9,7 +9,7 @@ extern "C" {
 // 内部常量定义
 #define COMPLETED_COUNTER        30
 #define TRYAVSYNC_COUNTER        100
-#define AUTO_SYNC_VIDEO_TO_SCLK  TRUE
+#define AUTO_SYNC_VIDEO_TO_SCLK  FALSE
 
 // 函数实现
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
