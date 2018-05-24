@@ -1,2 +1,2 @@
 1. subtitle/lrc
-2. d3d rotation
+2. sync apts/vpts to system clock

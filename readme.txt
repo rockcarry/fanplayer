@@ -26,6 +26,7 @@ features
 12.support step seek forward operation
 13.mediacodec hardware decoding on android
 14.dxva2 hardware acceleration on windows
+15.rotation for direct3d video rendering
 
 
 testplayer
@@ -42,7 +43,8 @@ ctrl+S    - take a snapshot of video
 ctrl+F    - step seek forward
 ctrl+up   - play speed up
 ctrl+down - play speed down
-ctrl+t    - switch speed type
+ctrl+T    - switch speed type
+ctrl+X    - rotate video only for d3d rendering mode
 
 
 want to learn more?
