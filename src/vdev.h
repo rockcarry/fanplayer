@@ -14,8 +14,9 @@ extern "C" {
 #define VDEV_CLOSE      (1 << 0)
 #define VDEV_PAUSE      (1 << 1)
 #define VDEV_COMPLETED  (1 << 2)
+#define VDEV_REFRESHBG  (1 << 3)
 #define DEF_FONT_SIZE    32
-#define DEF_FONT_NAME    "Arial"
+#define DEF_FONT_NAME   "Arial"
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS \
@@ -51,7 +52,6 @@ extern "C" {
     int       completed_counter;              \
     int64_t   completed_apts;                 \
     int64_t   completed_vpts;                 \
-    int       refresh_flag;                   \
                                               \
     /* used to sync video to system clock */  \
     int64_t   start_pts;                      \

@@ -935,6 +935,20 @@ void player_setparam(void *hplayer, int id, void *param)
             player->vdrect.right - player->vdrect.left,
             player->vdrect.bottom - player->vdrect.top);
         break;
+    case PARAM_VDEV_D3D_ROTATE: {
+            double radian = (*(int*)param) * M_PI / 180;
+            player->init_params.video_owidth = abs(int(player->vcodec_context->width  * cos(radian)))
+                                             + abs(int(player->vcodec_context->height * sin(radian)));
+            player->init_params.video_oheight= abs(int(player->vcodec_context->width  * sin(radian)))
+                                             + abs(int(player->vcodec_context->height * cos(radian)));
+            render_setparam(player->render, id, param);
+            player_setrect(hplayer, 0,
+                player->vdrect.left, player->vdrect.top,
+                player->vdrect.right - player->vdrect.left,
+                player->vdrect.bottom - player->vdrect.top);
+
+        }
+        break;
     default:
         render_setparam(player->render, id, param);
         break;

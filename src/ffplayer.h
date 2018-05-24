@@ -90,6 +90,7 @@ enum {
     PARAM_VDEV_GET_CONTEXT = 0x3000,
     PARAM_VDEV_POST_SURFACE,
     PARAM_VDEV_GET_D3DDEV,
+    PARAM_VDEV_D3D_ROTATE,
     //-- for vdev
 
     //++ for render

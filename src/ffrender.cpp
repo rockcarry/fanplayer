@@ -482,6 +482,7 @@ void render_setparam(void *hrender, int id, void *param)
 #endif
     case PARAM_AVSYNC_TIME_DIFF:
     case PARAM_VDEV_POST_SURFACE:
+    case PARAM_VDEV_D3D_ROTATE:
         vdev_setparam(render->vdev, id, param);
         break;
     case PARAM_RENDER_SEEK_STEP:
@@ -520,6 +521,7 @@ void render_getparam(void *hrender, int id, void *param)
 #endif
     case PARAM_AVSYNC_TIME_DIFF:
     case PARAM_VDEV_GET_D3DDEV:
+    case PARAM_VDEV_D3D_ROTATE:
         vdev_getparam(render->vdev, id, param);
         break;
     case PARAM_ADEV_GET_CONTEXT:

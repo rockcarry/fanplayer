@@ -50,7 +50,7 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     c->x  = x; c->y  = y;
     c->w  = w; c->h  = h;
-    c->refresh_flag  = 1;
+    c->status |= VDEV_REFRESHBG;
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
 

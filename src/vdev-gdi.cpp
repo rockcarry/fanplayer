@@ -29,8 +29,8 @@ static void* video_render_thread_proc(void *param)
         sem_wait(&c->semr);
         if (c->status & VDEV_CLOSE) break;
 
-        if (c->refresh_flag) {
-            c->refresh_flag = 0;
+        if (c->status & VDEV_REFRESHBG) {
+            c->status &= ~VDEV_REFRESHBG;
             vdev_refresh_background(c);
         }
 
