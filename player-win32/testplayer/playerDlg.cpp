@@ -494,6 +494,10 @@ void CplayerDlg::OnPlaySpeedType()
 
 void CplayerDlg::OnVdevD3dRotate()
 {
+    PLAYER_INIT_PARAMS params;
+    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
+    if (params.vdev_render_type != VDEV_RENDER_TYPE_D3D) return;
+
     int angle = 0;
     player_getparam(m_ffPlayer, PARAM_VDEV_D3D_ROTATE, &angle);
     angle += 10; angle %= 360;
