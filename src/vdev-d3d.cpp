@@ -8,7 +8,8 @@ extern "C" {
 }
 
 // 预编译开关
-#define ENABLE_WAIT_D3D_VSYNC  FALSE
+#define ENABLE_WAIT_D3D_VSYNC    FALSE
+#define ENABLE_D3DMULTISAMPLE_X4 FALSE
 
 // 内部常量定义
 #define DEF_VDEV_BUF_NUM       3
@@ -347,7 +348,7 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->d3dpp.BackBufferCount       = 1;
     ctxt->d3dpp.BackBufferWidth       = GetSystemMetrics(SM_CXSCREEN);
     ctxt->d3dpp.BackBufferHeight      = GetSystemMetrics(SM_CYSCREEN);
-    ctxt->d3dpp.MultiSampleType       = D3DMULTISAMPLE_4_SAMPLES;
+    ctxt->d3dpp.MultiSampleType       = D3DMULTISAMPLE_NONE;
     ctxt->d3dpp.MultiSampleQuality    = 0;
     ctxt->d3dpp.SwapEffect            = D3DSWAPEFFECT_DISCARD;
     ctxt->d3dpp.hDeviceWindow         = (HWND)ctxt->surface;
@@ -359,15 +360,17 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->d3dpp.PresentationInterval  = D3DPRESENT_INTERVAL_IMMEDIATE;
 #endif
 
-    if (FAILED(ctxt->pD3D9->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, TRUE, ctxt->d3dpp.MultiSampleType, NULL))) {
-        ctxt->d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+#if ENABLE_D3DMULTISAMPLE_X4
+    if (SUCCEEDED(ctxt->pD3D9->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, TRUE, D3DMULTISAMPLE_4_SAMPLES, NULL))) {
+        ctxt->d3dpp.MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
     }
+#endif
+
     if (FAILED(ctxt->pD3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)ctxt->surface,
                D3DCREATE_SOFTWARE_VERTEXPROCESSING, &ctxt->d3dpp, &ctxt->pD3DDev)) ) {
         av_log(NULL, AV_LOG_ERROR, "failed to create d3d device !\n");
         exit(0);
     }
-
     if (FAILED(ctxt->pD3DDev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &ctxt->bkbuf))) {
         av_log(NULL, AV_LOG_ERROR, "failed to get d3d back buffer !\n");
         exit(0);
