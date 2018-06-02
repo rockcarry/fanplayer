@@ -375,7 +375,6 @@ static int player_prepare(PLAYER *player)
         av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
         goto done;
     }
-
     // find stream info
     if (avformat_find_stream_info(player->avformat_context, NULL) < 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to find stream info !\n");
@@ -453,7 +452,7 @@ static int player_prepare(PLAYER *player)
 
 done:
     // send player init message
-    player_send_message(player->appdata, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, 0);
+    player_send_message(player->appdata, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, (int64_t)player);
     return ret;
 }
 
@@ -1004,7 +1003,7 @@ void player_getparam(void *hplayer, int id, void *param)
 
 void player_send_message(void *extra, int32_t msg, int64_t param) {
 #ifdef WIN32
-    PostMessage((HWND)extra, MSG_FFPLAYER, msg, 0);
+    PostMessage((HWND)extra, MSG_FFPLAYER, msg, (LPARAM)param);
 #endif
 #ifdef ANDROID
     JNIEnv   *env = get_jni_env();
