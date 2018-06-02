@@ -117,7 +117,7 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
     } else {
         wcscpy(str, file);
     }
-    WideCharToMultiByte(CP_ACP, 0, str, -1, m_strUrl, MAX_PATH, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, str, -1, m_strUrl, MAX_PATH, NULL, NULL);
 
     // set window title
     SetWindowText(TEXT("testplayer - loading"));
@@ -128,6 +128,7 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
        || strnicmp(m_strUrl, "rtmp://", 7) == 0
        || strnicmp(m_strUrl, "rtsp://", 7) == 0
        || strnicmp(m_strUrl, "gdigrab://", 10) == 0
+       || strnicmp(m_strUrl, "dshow://", 8) == 0
        || strnicmp(m_strUrl, "vfwcap", 6) == 0
        || stricmp(ext, ".bmp" ) == 0
        || stricmp(ext, ".jpg" ) == 0
