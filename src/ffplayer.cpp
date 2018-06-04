@@ -326,12 +326,9 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
     case AVMEDIA_TYPE_SUBTITLE: return -1; // todo...
     default: return -1;
     }
-    for (i=0,cur=-1; i<(int)player->avformat_context->nb_streams; i++) {
+    for (i=0,cur=-1; i<(int)player->avformat_context->nb_streams && i!=idx; i++) {
         if (player->avformat_context->streams[i]->codec->codec_type == type) {
             cur++;
-        }
-        if (i == idx) {
-            break;
         }
     }
     return cur;
@@ -371,6 +368,16 @@ static int player_prepare(PLAYER *player)
     AVDictionary *opts = NULL;
 //  av_dict_set(&opts, "rtsp_transport", "udp", 0);
 //  av_dict_set(&opts, "buffer_size", "1048576", 0);
+    if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
+        char vsize[64];
+        sprintf(vsize, "%dx%d", player->init_params.video_vwidth, player->init_params.video_vheight);
+        av_dict_set(&opts, "video_size", vsize, 0);
+    }
+    if (player->init_params.video_frame_rate != 0) {
+        char frate[64];
+        sprintf(frate, "%d", player->init_params.video_frame_rate);
+        av_dict_set(&opts, "framerate" , frate, 0);
+    }
     if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
         goto done;
@@ -603,7 +610,6 @@ static void* audio_decode_thread_proc(void *param)
                 if (!(player->player_status & PS_A_SEEK)) render_audio(player->render, aframe);
             }
 
-            aframe->pts   = AV_NOPTS_VALUE;
             packet->data += consumed;
             packet->size -= consumed;
         }
@@ -678,7 +684,6 @@ static void* video_decode_thread_proc(void *param)
                 } while (player->vfilter_graph);
             }
 
-            vframe->pts   = AV_NOPTS_VALUE;
             packet->data += consumed;
             packet->size -= consumed;
         }

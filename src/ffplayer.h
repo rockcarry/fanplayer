@@ -108,11 +108,11 @@ enum {
 // 的（比如 video_vwidth, video_vheight），需要等到接收到 MSG_OPEN_DONE 消息后才能获取有效的参数。同步打
 // 开方式则不会有这个问题，因为 player_open 完成后已经做完了全部的初始化工作。
 typedef struct {
-    int video_vwidth;             // r  video actual width
-    int video_vheight;            // r  video actual height
+    int video_vwidth;             // wr video actual width
+    int video_vheight;            // wr video actual height
     int video_owidth;             // r  video output width  (after rotate)
     int video_oheight;            // r  video output height (after rotate)
-    int video_frame_rate;         // r  视频帧率
+    int video_frame_rate;         // wr 视频帧率
     int video_stream_total;       // r  视频流总数
     int video_stream_cur;         // wr 当前视频流
     int video_thread_count;       // wr 视频解码线程数
