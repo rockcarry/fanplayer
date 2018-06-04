@@ -57,7 +57,7 @@ static void vdev_android_unlock(void *ctxt, int64_t pts)
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
     if (c->wincur) ANativeWindow_unlockAndPost(c->wincur);
-    c->vpts = pts;
+    if (pts != AV_NOPTS_VALUE) c->vpts = pts;
     vdev_avsync_and_complete(c);
 }
 

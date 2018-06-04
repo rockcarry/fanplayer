@@ -34,17 +34,17 @@ static void* video_render_thread_proc(void *param)
             vdev_refresh_background(c);
         }
 
-        int64_t vpts = c->vpts = c->ppts[c->head];
-        if (vpts != -1) {
+        if (c->ppts[c->head] != -1) {
             SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
             if (c->textt) {
                 SetTextColor(c->hdcsrc, c->textc & 0xffffff);
                 TextOutA(c->hdcsrc, c->textx, c->texty, c->textt, (int)strlen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
+            if (c->ppts[c->head] != AV_NOPTS_VALUE) c->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
