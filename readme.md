@@ -1,3 +1,5 @@
+![fanplayer](fanplayer.png)
+
 fanplayer
 =========
 
@@ -31,32 +33,34 @@ features
 
 testplayer
 ==========
-testplayer is a simple test player for fanplayer
-hot-keys for testplayer:
-ctrl+O    - open file
-ctrl+E    - switch visual effect
-ctrl+M    - switch between letter box and stretch rect
-ctrl+R    - switch between gdi and d3d
-ctrl+A    - switch audio stream
-ctrl+V    - switch video stream
-ctrl+S    - take a snapshot of video
-ctrl+F    - step seek forward
-ctrl+up   - play speed up
-ctrl+down - play speed down
-ctrl+T    - switch speed type
-ctrl+X    - rotate video only for d3d rendering mode
+testplayer is a simple test player for fanplayer  
+hot-keys for testplayer:  
+ctrl+O    - open file  
+ctrl+E    - switch visual effect  
+ctrl+M    - switch between letter box and stretch rect  
+ctrl+R    - switch between gdi and d3d  
+ctrl+A    - switch audio stream  
+ctrl+V    - switch video stream  
+ctrl+S    - take a snapshot of video  
+ctrl+F    - step seek forward  
+ctrl+up   - play speed up  
+ctrl+down - play speed down  
+ctrl+T    - switch speed type  
+ctrl+X    - rotate video only for d3d rendering mode  
 
 
 want to learn more?
 ==================
 want to learn more about fanplayer, please visit our wiki.
+
 https://github.com/rockcarry/fanplayer/wiki
 
 
 contact and discuss
 ===================
-email   : rockcarry@163.com
-qq group: 383930765
+email   : rockcarry@163.com  
+qq group: 383930765  
+
 
 
 rockcarry
