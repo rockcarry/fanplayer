@@ -399,7 +399,7 @@ void CplayerDlg::OnAudioStream()
     params.audio_stream_cur++; params.audio_stream_cur %= params.audio_stream_total + 1;
     if (params.audio_stream_cur == params.audio_stream_total) params.audio_stream_cur = -1;
     m_bResetPlayer = TRUE;
-    sprintf(m_strTxt, "audio stream: %d", params.audio_stream_cur);
+    wsprintf(m_strTxt, TEXT("audio stream: %d"), params.audio_stream_cur);
     PlayerReset(&params);
 }
 
@@ -411,7 +411,7 @@ void CplayerDlg::OnVideoStream()
     params.video_stream_cur++; params.video_stream_cur %= params.video_stream_total + 1;
     if (params.video_stream_cur == params.video_stream_total) params.video_stream_cur = -1;
     m_bResetPlayer = TRUE;
-    sprintf(m_strTxt, "video stream: %d", params.video_stream_cur);
+    wsprintf(m_strTxt, TEXT("video stream: %d"), params.video_stream_cur);
     PlayerReset(&params);
 }
 
@@ -422,7 +422,7 @@ void CplayerDlg::OnVideoMode()
     mode++; mode %= VIDEO_MODE_MAX_NUM;
     player_setparam(m_ffPlayer, PARAM_VIDEO_MODE, &mode);
 
-    sprintf(m_strTxt, "video mode: %d", mode);
+    wsprintf(m_strTxt, TEXT("video mode: %d"), mode);
     PlayerShowText(2000);
 }
 
@@ -441,14 +441,14 @@ void CplayerDlg::OnVRenderType()
     player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
     params.vdev_render_type++; params.vdev_render_type %= VDEV_RENDER_TYPE_MAX_NUM;
     m_bResetPlayer = TRUE;
-    sprintf(m_strTxt, "vdev type: %d", params.vdev_render_type);
+    wsprintf(m_strTxt, TEXT("vdev type: %d"), params.vdev_render_type);
     PlayerReset(&params);
 }
 
 void CplayerDlg::OnTakeSnapshot()
 {
     player_snapshot(m_ffPlayer, "snapshot.jpg", 0, 0, 1000);
-    strcpy(m_strTxt, "take snapshot to snapshot.jpg");
+    wcscpy(m_strTxt, TEXT("take snapshot to snapshot.jpg"));
     PlayerShowText(2000);
 }
 
@@ -456,7 +456,7 @@ void CplayerDlg::OnStepForward()
 {
     player_seek(m_ffPlayer, 0, SEEK_STEP);
     m_bPlayPause = TRUE;
-    strcpy(m_strTxt, "step forward");
+    wcscpy(m_strTxt, TEXT("step forward"));
     PlayerShowText(2000);
 }
 
@@ -467,7 +467,7 @@ void CplayerDlg::OnPlaySpeedDec()
     speed -= 10; if (speed < 10) speed = 10;
     player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
 
-    sprintf(m_strTxt, "speed value: %d", speed);
+    wsprintf(m_strTxt, TEXT("speed value: %d"), speed);
     PlayerShowText(2000);
 }
 
@@ -478,7 +478,7 @@ void CplayerDlg::OnPlaySpeedInc()
     speed += 10; if (speed > 200) speed = 200;
     player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_VALUE, &speed);
 
-    sprintf(m_strTxt, "speed value: %d", speed);
+    wsprintf(m_strTxt, TEXT("speed value: %d"), speed);
     PlayerShowText(2000);
 }
 
@@ -489,7 +489,7 @@ void CplayerDlg::OnPlaySpeedType()
     type = !type;
     player_setparam(m_ffPlayer, PARAM_PLAY_SPEED_TYPE, &type);
 
-    sprintf(m_strTxt, "speed type: %s", type ? "soundtouch" : "swresample");
+    wsprintf(m_strTxt, TEXT("speed type: %s"), type ? TEXT("soundtouch") : TEXT("swresample"));
     PlayerShowText(2000);
 }
 
@@ -504,6 +504,6 @@ void CplayerDlg::OnVdevD3dRotate()
     angle += 10; angle %= 360;
     player_setparam(m_ffPlayer, PARAM_VDEV_D3D_ROTATE, &angle);
 
-    sprintf(m_strTxt, "rotation: %d", angle);
+    wsprintf(m_strTxt, TEXT("rotation: %d"), angle);
     PlayerShowText(2000);
 }
