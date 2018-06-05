@@ -1,4 +1,4 @@
-// °üº¬Í·ÎÄ¼ş
+// åŒ…å«å¤´æ–‡ä»¶
 #include <d3d9.h>
 #include <d3dx9.h>
 #include "vdev.h"
@@ -7,16 +7,16 @@ extern "C" {
 #include "libavformat/avformat.h"
 }
 
-// Ô¤±àÒë¿ª¹Ø
+// é¢„ç¼–è¯‘å¼€å…³
 #define ENABLE_WAIT_D3D_VSYNC    FALSE
 #define ENABLE_D3DMULTISAMPLE_X4 FALSE
 
-// ÄÚ²¿³£Á¿¶¨Òå
+// å†…éƒ¨å¸¸é‡å®šä¹‰
 #define DEF_VDEV_BUF_NUM       3
 #define VDEV_D3D_SET_RECT     (1 << 16)
 #define VDEV_D3D_SET_ROTATE   (1 << 17)
 
-// ÄÚ²¿ÀàĞÍ¶¨Òå
+// å†…éƒ¨ç±»å‹å®šä¹‰
 typedef struct {
     // common members
     VDEV_COMMON_MEMBERS
@@ -44,7 +44,7 @@ typedef struct {
 } CUSTOMVERTEX;
 #define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZRHW|D3DFVF_TEX1)
 
-// ÄÚ²¿º¯ÊıÊµÏÖ
+// å†…éƒ¨å‡½æ•°å®ç°
 static void rotate_point(float w, float h, float xi, float yi, float cx, float cy, float radian, float *xo, float *yo)
 {
     xi += cx - w / 2;
@@ -297,7 +297,7 @@ static void vdev_d3d_destroy(void *ctxt)
     free(c);
 }
 
-// ½Ó¿Úº¯ÊıÊµÏÖ
+// æ¥å£å‡½æ•°å®ç°
 void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
 {
     VDEVD3DCTXT *ctxt = (VDEVD3DCTXT*)calloc(1, sizeof(VDEVD3DCTXT));

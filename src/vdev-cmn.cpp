@@ -54,7 +54,7 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
 
-void vdev_textout(void *ctxt, int x, int y, int color, char *text)
+void vdev_textout(void *ctxt, int x, int y, int color, TCHAR *text)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     c->textx = x;
