@@ -7,9 +7,7 @@ extern "C" {
 }
 
 // 内部常量定义
-#define COMPLETED_COUNTER        30
-#define TRYAVSYNC_COUNTER        100
-#define AUTO_SYNC_VIDEO_TO_SCLK  FALSE
+#define COMPLETED_COUNTER  30
 
 // 函数实现
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
@@ -88,7 +86,6 @@ void vdev_reset(void *ctxt)
 #endif//-- no need to reset vdev buffer queue
     c->apts   = c->vpts = AV_NOPTS_VALUE;
     c->status = 0;
-    c->avsync_counter = 0;
 }
 
 void vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts)
@@ -188,28 +185,16 @@ void vdev_avsync_and_complete(void *ctxt)
         if (c->apts <= 0) { // if apts is invalid, sync video to system clock
             avdiff = scdiff;
         }
-#if AUTO_SYNC_VIDEO_TO_SCLK
-        //++ if apts and vpts sync is not good, auto sync video to system clock
-        else if (abs(avdiff) > 1000) {
-            if (c->avsync_counter < TRYAVSYNC_COUNTER) { // try to get sync
-                c->avsync_counter++;
-            } else { // if try sync failed, sync video to system clock
-                avdiff = scdiff;
-                av_log(NULL, AV_LOG_INFO, "try sync vpts to apts failed, sync video to system clock !\n");
-            }
-        } else { // if synced, clear counter
-            c->avsync_counter = 0;
-        }
-        //-- if apts and vpts sync is not good, auto sync video to system clock
-#endif
 
         if (tickdiff - tickframe >  5) c->ticksleep--;
         if (tickdiff - tickframe < -5) c->ticksleep++;
         if (c->vpts >= 0) {
-            if      (avdiff >  500) c->ticksleep  = 0;
-            else if (avdiff >  50 ) c->ticksleep -= 1;
-            else if (avdiff < -500) c->ticksleep += 2;
-            else if (avdiff < -50 ) c->ticksleep += 1;
+            if      (avdiff >  500) c->ticksleep  = 3;
+            else if (avdiff >  50 ) c->ticksleep -= 2;
+            else if (avdiff >  30 ) c->ticksleep -= 1;
+            else if (avdiff < -500) c->ticksleep += 3;
+            else if (avdiff < -50 ) c->ticksleep += 2;
+            else if (avdiff < -30 ) c->ticksleep += 1;
         }
         if (c->ticksleep < 0            ) c->ticksleep = 0;
         if (c->ticksleep > tickframe * 3) c->ticksleep = tickframe * 3;
