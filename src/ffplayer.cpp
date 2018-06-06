@@ -360,7 +360,7 @@ static int player_prepare(PLAYER *player)
         url = player->url + strlen(AVDEV_GDIGRAB) + 3;
     } else if (strstr(player->url, AVDEV_VFWCAP) == player->url) {
         fmt = av_find_input_format(AVDEV_VFWCAP);
-        url = NULL;
+        url = player->url + strlen(AVDEV_VFWCAP) + 3;
     }
     //-- for avdevice
 
@@ -499,6 +499,10 @@ static void* av_demux_thread_proc(void *param)
     AVPacket *packet = NULL;
     int       retv   = 0;
 
+#ifdef WIN32
+    CoInitialize(NULL);
+#endif
+
     // async prepare player
     if (!player->init_params.open_syncmode) {
         retv = player_prepare(player);
@@ -546,6 +550,9 @@ done:
 #ifdef ANDROID
     // need detach current thread
     get_jni_jvm()->DetachCurrentThread();
+#endif
+#ifdef WIN32
+    CoUninitialize();
 #endif
     return NULL;
 }

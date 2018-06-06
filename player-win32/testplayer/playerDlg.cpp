@@ -180,6 +180,9 @@ BOOL CplayerDlg::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
+    // init COM
+    CoInitialize(NULL);
+
     // Set the icon for this dialog.  The framework does this automatically
     //  when the application's main window is not a dialog
     SetIcon(m_hIcon, TRUE );  // Set big icon
@@ -270,6 +273,9 @@ void CplayerDlg::OnDestroy()
     // close player
     player_close(m_ffPlayer);
     m_ffPlayer = NULL;
+
+    // uninit COM
+    CoUninitialize();
 }
 
 void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
