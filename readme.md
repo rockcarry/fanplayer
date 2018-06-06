@@ -1,4 +1,4 @@
-![fanplayer](fanplayer.png)
+![fanplayer](logo/Original-2-Green-01.png)
 
 fanplayer
 =========
