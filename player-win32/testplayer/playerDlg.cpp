@@ -85,6 +85,7 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_ffPlayer    = NULL;
     m_bLiveStream = FALSE;
     m_bResetPlayer= FALSE;
+    m_bIsRecording= FALSE;
 }
 
 void CplayerDlg::DoDataExchange(CDataExchange* pDX)
@@ -171,6 +172,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc )
     ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType)
     ON_COMMAND(ID_VDEVD3D_ROTATE , &CplayerDlg::OnVdevD3dRotate)
+    ON_COMMAND(ID_RECORD_VIDEO   , &CplayerDlg::OnRecordVideo  )
 END_MESSAGE_MAP()
 
 
@@ -511,5 +513,13 @@ void CplayerDlg::OnVdevD3dRotate()
     player_setparam(m_ffPlayer, PARAM_VDEV_D3D_ROTATE, &angle);
 
     sprintf(m_strTxt, "rotation: %d", angle);
+    PlayerShowText(2000);
+}
+
+void CplayerDlg::OnRecordVideo()
+{
+    player_record(m_ffPlayer, m_bIsRecording ? NULL : "record.mp4");
+    m_bIsRecording = !m_bIsRecording;
+    sprintf(m_strTxt, "recording %s", m_bIsRecording ? "started" : "stoped");
     PlayerShowText(2000);
 }

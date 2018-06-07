@@ -100,14 +100,17 @@ void recorder_free(void *ctxt)
         }
     }
 
-    /* free the stream */
+    // free the stream
     avformat_free_context(recorder->ofc);
-
-    // free recorder context
-    free(recorder);
 
     // unlock
     pthread_mutex_unlock(&recorder->lock);
+
+    // destroy
+    pthread_mutex_destroy(&recorder->lock);
+
+    // free recorder context
+    free(recorder);
 }
 
 int recorder_packet(void *ctxt, AVPacket *pkt)
@@ -131,8 +134,7 @@ int recorder_packet(void *ctxt, AVPacket *pkt)
     av_interleaved_write_frame(recorder->ofc, &packet);
     av_packet_unref(&packet);
 
-    // unlock & destroy
+    // unlock
     pthread_mutex_unlock (&recorder->lock);
-    pthread_mutex_destroy(&recorder->lock);
     return 0;
 }

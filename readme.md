@@ -47,6 +47,7 @@ ctrl+up   - play speed up
 ctrl+down - play speed down  
 ctrl+T    - switch speed type  
 ctrl+X    - rotate video only for d3d rendering mode  
+ctrl+C    - record current playing media to record.mp4 file  
 
 
 want to learn more?
