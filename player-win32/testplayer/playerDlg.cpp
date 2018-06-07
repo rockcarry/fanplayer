@@ -355,7 +355,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
 {
     if (TranslateAccelerator(GetSafeHwnd(), m_hAcc, pMsg)) return TRUE;
 
-    if (pMsg->message == MSG_FFPLAYER) {
+    if (pMsg->message == MSG_FANPLAYER) {
         switch (pMsg->wParam)
         {
         case MSG_OPEN_DONE:

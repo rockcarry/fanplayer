@@ -1015,7 +1015,7 @@ void player_getparam(void *hplayer, int id, void *param)
 
 void player_send_message(void *extra, int32_t msg, int64_t param) {
 #ifdef WIN32
-    PostMessage((HWND)extra, MSG_FFPLAYER, msg, (LPARAM)param);
+    PostMessage((HWND)extra, MSG_FANPLAYER, msg, (LPARAM)param);
 #endif
 #ifdef ANDROID
     JNIEnv   *env = get_jni_env();
