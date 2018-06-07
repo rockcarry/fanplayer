@@ -11,13 +11,6 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
 
-// 类型定义
-typedef struct
-{
-    int16_t *data;
-    int32_t  size;
-} AUDIOBUF;
-
 // 函数声明
 void*render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_layout,
                  int vdevtype, void *surface, AVRational frate, AVPixelFormat pixfmt, int w, int h);

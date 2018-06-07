@@ -8,13 +8,12 @@
 extern "C" {
 #endif
 
-#if 0
 // 类型定义
-typedef struct {
-    BYTE  *lpdata;
-    DWORD  buflen;
+typedef struct
+{
+    int16_t *data;
+    int32_t  size;
 } AUDIOBUF;
-#endif
 
 #define ADEV_SAMPLE_RATE  44100
 
