@@ -18,17 +18,6 @@ typedef struct
     int32_t  size;
 } AUDIOBUF;
 
-typedef struct
-{
-    int            samprate;
-    AVSampleFormat sampfmt;
-    int64_t        chlayout;
-    AVRational     frate;
-    AVPixelFormat  pixfmt;
-    int            width;
-    int            height;
-} RENDER_UPDATE_PARAMS;
-
 // 函数声明
 void*render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_layout,
                  int vdevtype, void *surface, AVRational frate, AVPixelFormat pixfmt, int w, int h);
