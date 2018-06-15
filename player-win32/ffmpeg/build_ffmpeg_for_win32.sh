@@ -30,7 +30,6 @@ cd ffmpeg
 --enable-small \
 --disable-symver \
 --disable-debug \
---disable-programs \
 --disable-doc \
 --disable-postproc \
 --disable-encoders \
@@ -47,6 +46,7 @@ cd ffmpeg
 --enable-muxer=flv \
 --enable-filter=yadif \
 --enable-filter=rotate \
+--enable-filter=scale \
 --enable-asm \
 --enable-gpl \
 --enable-version3 \
