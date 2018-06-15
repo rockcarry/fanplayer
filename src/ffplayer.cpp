@@ -691,8 +691,8 @@ static void* video_decode_thread_proc(void *param)
                 } while (player->vfilter_graph);
             }
 
-            packet->data += consumed;
-            packet->size -= consumed;
+            packet->data += packet->size;
+            packet->size -= packet->size;
         }
         //-- decode video packet --//
 
