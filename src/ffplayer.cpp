@@ -5,6 +5,7 @@
 #include "recorder.h"
 #include "dxva2hwa.h"
 #include "ffplayer.h"
+#include "solfs.h"
 #include "vdev.h"
 
 extern "C" {
@@ -80,6 +81,15 @@ typedef struct {
 
     // recorder used for recording
     void            *recorder;
+
+    #define SOLFS_DATABUF_SIZE  (64 * 1024)
+    SolFSHandle     solfs_hsolfs;
+    SolFSHandle     solfs_hfile;
+    SolFSBool       solfs_pwdvalid;
+    SolFSLongWord   solfs_encryption;
+    SolFSLongWord   solfs_tagcount;
+    SolFSWideChar  *solfs_tagname;
+    uint8_t         solfs_databuf[SOLFS_DATABUF_SIZE];
 } PLAYER;
 
 // 内部常量定义
@@ -334,6 +344,23 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
     return cur;
 }
 
+static int read_buffer(void *opaque, uint8_t *buf, int size)
+{
+    PLAYER *player = (PLAYER*)opaque;
+    SolFSLongWord read = 0;
+    if (!player->solfs_hfile) return -1;
+    StorageReadFile(player->solfs_hfile, buf, size, &read);
+    return (int)read;
+}
+
+static int64_t seek_buffer(void *opaque, int64_t offset, int whence)
+{
+    PLAYER *player = (PLAYER*)opaque;
+    SolFSLongLongWord curpos = 0;
+    SolFSError err = StorageSeekFileLong(player->solfs_hfile, offset, whence, &curpos);
+    return err ? -1 : 0;
+}
+
 static int player_prepare(PLAYER *player)
 {
     //++ for avdevice
@@ -360,7 +387,7 @@ static int player_prepare(PLAYER *player)
         url = player->url + strlen(AVDEV_GDIGRAB) + 3;
     } else if (strstr(player->url, AVDEV_VFWCAP) == player->url) {
         fmt = av_find_input_format(AVDEV_VFWCAP);
-        url = NULL;
+        url = player->url + strlen(AVDEV_VFWCAP) + 3;
     }
     //-- for avdevice
 
@@ -378,6 +405,14 @@ static int player_prepare(PLAYER *player)
         sprintf(frate, "%d", player->init_params.video_frame_rate);
         av_dict_set(&opts, "framerate" , frate, 0);
     }
+
+    if (player->solfs_hfile) {
+        av_dict_set(&opts, "protocol_whitelist", "file,crypto", 0);
+        AVIOContext *avio = avio_alloc_context(player->solfs_databuf, SOLFS_DATABUF_SIZE, 0, NULL, read_buffer, NULL, seek_buffer);
+        avio->opaque = player;
+        player->avformat_context->pb = avio;
+    }
+
     if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
         goto done;
@@ -774,6 +809,125 @@ error_handler:
     return NULL;
 }
 
+void* player_open_solfs(wchar_t *file, wchar_t *password, void *appdata, PLAYER_INIT_PARAMS *params)
+{
+    PLAYER *player = NULL;
+
+    // av register all
+    av_register_all();
+    avdevice_register_all();
+    avfilter_register_all();
+    avformat_network_init();
+
+    // setup log
+    av_log_set_level   (AV_LOG_WARNING);
+    av_log_set_callback(avlog_callback);
+
+    // alloc player context
+    player = (PLAYER*)calloc(1, sizeof(PLAYER));
+    if (!player) return NULL;
+
+    // create packet queue
+    player->pktqueue = pktqueue_create(0);
+    if (!player->pktqueue) {
+        av_log(NULL, AV_LOG_ERROR, "failed to create packet queue !\n");
+        goto error_handler;
+    }
+
+    // for player init params
+    if (params) {
+        memcpy(&player->init_params, params, sizeof(PLAYER_INIT_PARAMS));
+    }
+
+    // allocate avformat_context
+    player->avformat_context = avformat_alloc_context();
+    if (!player->avformat_context) goto error_handler;
+
+    //++ for player init timeout
+    if (player->init_params.init_timeout > 0) {
+        player->avformat_context->interrupt_callback.callback = interrupt_callback;
+        player->avformat_context->interrupt_callback.opaque   = player;
+        player->init_timetick = av_gettime_relative();
+        player->init_timeout  = player->init_params.init_timeout * 1000;
+    }
+    //-- for player init timeout
+
+    //++ for player_prepare
+#ifdef WIN32
+    player->appdata = appdata;
+#endif
+#ifdef ANDROID
+    player->appdata = get_jni_env()->NewGlobalRef((jobject)appdata);
+#endif
+
+    SolFSError err = StorageOpen(file, &player->solfs_hsolfs, '\\', 0, 0);
+    if (err || !player->solfs_hsolfs) {
+        av_log(NULL, AV_LOG_ERROR, "failed to open solfs storage ! %d\n", err);
+        goto error_handler;
+    }
+
+    err = StorageCheckPassword(player->solfs_hsolfs, password, wcslen(password), &player->solfs_pwdvalid, &player->solfs_encryption);
+    if (err || !player->solfs_pwdvalid) {
+        av_log(NULL, AV_LOG_ERROR, "failed to check solfs password ! %d\n", err);
+        goto error_handler;
+    }
+
+    err = StorageSetPassword(player->solfs_hsolfs, password, wcslen(password));
+    if (err) {
+        av_log(NULL, AV_LOG_ERROR, "failed to set solfs password ! %d\n", err);
+        goto error_handler;
+    }
+
+    err = StorageGetTagNamesCount(player->solfs_hsolfs, &player->solfs_tagcount);
+    if (err || player->solfs_tagcount < 4) {
+        av_log(NULL, AV_LOG_ERROR, "failed to check tag name count ! %d\n", err);
+        goto error_handler;
+    }
+
+    SolFSWord      tagid  = 0;
+    SolFSWord      tagtype= 0;
+    SolFSLongWord  bufsize= 0;
+    SolFSWideChar *tagname= NULL;
+    err = StorageGetTagName(player->solfs_hsolfs, 0, &tagid, &tagtype, NULL, &bufsize);
+    if (err != errBufferTooSmall) {
+        av_log(NULL, AV_LOG_ERROR, "failed to get tag buffer size ! %d\n", err);
+        goto error_handler;
+    }
+
+    player->solfs_tagname = (SolFSWideChar*)malloc(bufsize);
+    err = StorageGetTagName(player->solfs_hsolfs, 0, &tagid, &tagtype, player->solfs_tagname, &bufsize);
+    if (err) {
+        av_log(NULL, AV_LOG_ERROR, "failed to get tag name value ! %d\n", err);
+        goto error_handler;
+    }
+
+    err = StorageOpenFile(player->solfs_hsolfs, player->solfs_tagname, TRUE, FALSE, TRUE, TRUE, password, wcslen(password), &player->solfs_hfile);
+    if (err || !player->solfs_hfile) {
+        av_log(NULL, AV_LOG_ERROR, "failed to open solfs file ! %d\n", err);
+        goto error_handler;
+    }
+    //-- for player_prepare
+
+    if (player->init_params.open_syncmode && player_prepare(player) == -1) {
+        av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
+        goto error_handler;
+    }
+
+    // make sure player status paused
+    player->player_status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE);
+    pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
+    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
+    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+    return player; // return
+
+error_handler:
+    if (player->solfs_tagname) free(player->solfs_tagname);
+    if (player->solfs_hfile  ) StorageCloseFile(player->solfs_hfile );
+    if (player->solfs_hsolfs ) StorageClose    (player->solfs_hsolfs);
+    player_close(player);
+    return NULL;
+}
+
 void player_close(void *hplayer)
 {
     if (!hplayer) return;
@@ -817,6 +971,10 @@ void player_close(void *hplayer)
 #ifdef ANDROID
     get_jni_env()->DeleteGlobalRef((jobject)player->appdata);
 #endif
+
+    if (player->solfs_tagname) free(player->solfs_tagname);
+    if (player->solfs_hfile  ) StorageCloseFile(player->solfs_hfile );
+    if (player->solfs_hsolfs ) StorageClose    (player->solfs_hsolfs);
 
     free(player);
 
@@ -918,7 +1076,7 @@ int player_record(void *hplayer, char *file)
     return 0;
 }
 
-void player_textout(void *hplayer, int x, int y, int color, char *text)
+void player_textout(void *hplayer, int x, int y, int color, TCHAR *text)
 {
     void *vdev = NULL;
     player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
