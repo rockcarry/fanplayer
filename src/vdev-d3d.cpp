@@ -147,7 +147,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             RECT r = { c->textx, c->texty, rect.right, rect.bottom };
             c->pD3DDev->SetRenderTarget(0, c->surfw);
             if (!(c->textc >> 24)) c->textc |= (0xff << 24);
-            c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+            c->d3dfont->DrawTextW(c->textt, -1, &r, 0, c->textc);
             c->pD3DDev->EndScene();
             surf = c->surfw;
         }

@@ -1,6 +1,7 @@
 EXPORTS
 
 player_open
+player_open_hls
 player_close
 player_play
 player_pause
