@@ -77,13 +77,18 @@ static void save_fanplayer_params(PLAYER_INIT_PARAMS *params)
     }
 }
 
-static int read_solfs_test_config(wchar_t *file, wchar_t *passwd)
+static int read_solfs_test_config(wchar_t *storage, wchar_t *passwd, wchar_t *file)
 {
-    FILE *fp = NULL;
+    FILE  *fp = NULL;
+    size_t len= 0;
     fp = _wfopen(L"solfstest.ini", L"r");
     if (!fp) return -1;
-    fgetws(file  , MAX_PATH, fp);
-    fgetws(passwd, MAX_PATH, fp);
+    fgetws(storage, MAX_PATH, fp);
+    fgetws(passwd , MAX_PATH, fp);
+    fgetws(file   , MAX_PATH, fp);
+    len = wcslen(storage); if (len    > 0 && storage[len - 1] == L'\n') storage[len - 1] = '\0';
+    len = wcslen(passwd ); if (passwd > 0 && passwd [len - 1] == L'\n') passwd [len - 1] = '\0';
+    len = wcslen(file   ); if (len    > 0 && file   [len - 1] == L'\n') file   [len - 1] = '\0';
     fclose(fp);
     return 0;
 }
@@ -205,13 +210,15 @@ BOOL CplayerDlg::OnInitDialog()
     // get dc
     m_pDrawDC = GetDC();
 
-    wchar_t filename[MAX_PATH];
+    wchar_t storage [MAX_PATH];
     wchar_t passwd  [MAX_PATH];
-    if (read_solfs_test_config(filename, passwd) == 0) {
+    wchar_t filename[MAX_PATH];
+    if (read_solfs_test_config(storage, passwd, filename) == 0) {
         // open solfs file
         PLAYER_INIT_PARAMS params;
         load_fanplayer_params(&params); // load fanplayer init params
-        m_ffPlayer = player_open_solfs(filename, passwd, GetSafeHwnd(), &params);
+        m_ffPlayer = player_open_solfs("8F632285590A3ACB48B906CB49165B582D2E0F98BE91CFAB010E93D04417E0D43B7F85B3BEE3E3EC8E464F7B378600E68B441552179C92186065B39EDA5FCA8AC1AAA0276D988DBA5F9CF17E8327A20EF9C32ED4D2C5C1A0690C14E60EEC93DEB21B70A0CEF8344A70BCDCD1057257F4898054",
+            storage, passwd, filename, GetSafeHwnd(), &params);
     } else {
         // setup init timer
         SetTimer(TIMER_ID_FIRST_DIALOG, 100, NULL);

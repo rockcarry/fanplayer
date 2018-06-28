@@ -347,18 +347,31 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
 static int read_buffer(void *opaque, uint8_t *buf, int size)
 {
     PLAYER *player = (PLAYER*)opaque;
-    SolFSLongWord read = 0;
     if (!player->solfs_hfile) return -1;
-    StorageReadFile(player->solfs_hfile, buf, size, &read);
-    return (int)read;
+
+    SolFSLongWord read = 0;
+    SolFSError     err = 0;
+    err = StorageReadFile(player->solfs_hfile, buf, size, &read);
+    if (err) return -1;
+    else return (int)read;
 }
 
 static int64_t seek_buffer(void *opaque, int64_t offset, int whence)
 {
     PLAYER *player = (PLAYER*)opaque;
+    if (!player->solfs_hfile) return -1;
+
     SolFSLongLongWord curpos = 0;
-    SolFSError err = StorageSeekFileLong(player->solfs_hfile, offset, whence, &curpos);
-    return err ? -1 : 0;
+    SolFSError        err    = 0;
+    if (whence == AVSEEK_SIZE) {
+        err = StorageGetFileSizeLong(player->solfs_hfile, &curpos);
+        if (err) return -1;
+        else return curpos;
+    } else {
+        err = StorageSeekFileLong(player->solfs_hfile, offset, whence, &curpos);
+        if (err) return -1;
+        else return curpos;
+    }
 }
 
 static int player_prepare(PLAYER *player)
@@ -809,7 +822,7 @@ error_handler:
     return NULL;
 }
 
-void* player_open_solfs(wchar_t *file, wchar_t *password, void *appdata, PLAYER_INIT_PARAMS *params)
+void* player_open_solfs(char *key, wchar_t *storage, wchar_t *password, wchar_t *file, void *appdata, PLAYER_INIT_PARAMS *params)
 {
     PLAYER *player = NULL;
 
@@ -860,50 +873,33 @@ void* player_open_solfs(wchar_t *file, wchar_t *password, void *appdata, PLAYER_
     player->appdata = get_jni_env()->NewGlobalRef((jobject)appdata);
 #endif
 
-    SolFSError err = StorageOpen(file, &player->solfs_hsolfs, '\\', 0, 0);
+    SolFSError err = StorageSetRegistrationKey((SolFSChar*)key);
+    if (err) {
+        av_log(NULL, AV_LOG_ERROR, "failed to set registration key %d !\n", err);
+        goto error_handler;
+    }
+
+    err = StorageOpen(storage, &player->solfs_hsolfs, '\\', 0, 0);
     if (err || !player->solfs_hsolfs) {
-        av_log(NULL, AV_LOG_ERROR, "failed to open solfs storage ! %d\n", err);
+        av_log(NULL, AV_LOG_ERROR, "failed to open solfs storage %d !\n", err);
         goto error_handler;
     }
 
-    err = StorageCheckPassword(player->solfs_hsolfs, password, wcslen(password), &player->solfs_pwdvalid, &player->solfs_encryption);
+    err = StorageCheckPassword(player->solfs_hsolfs, password, wcslen(password)*sizeof(wchar_t), &player->solfs_pwdvalid, &player->solfs_encryption);
     if (err || !player->solfs_pwdvalid) {
-        av_log(NULL, AV_LOG_ERROR, "failed to check solfs password ! %d\n", err);
+        av_log(NULL, AV_LOG_ERROR, "failed to check solfs password %d !\n", err);
         goto error_handler;
     }
 
-    err = StorageSetPassword(player->solfs_hsolfs, password, wcslen(password));
+    err = StorageSetPassword(player->solfs_hsolfs, password, wcslen(password)*sizeof(wchar_t));
     if (err) {
-        av_log(NULL, AV_LOG_ERROR, "failed to set solfs password ! %d\n", err);
+        av_log(NULL, AV_LOG_ERROR, "failed to set solfs password %d !\n", err);
         goto error_handler;
     }
 
-    err = StorageGetTagNamesCount(player->solfs_hsolfs, &player->solfs_tagcount);
-    if (err || player->solfs_tagcount < 4) {
-        av_log(NULL, AV_LOG_ERROR, "failed to check tag name count ! %d\n", err);
-        goto error_handler;
-    }
-
-    SolFSWord      tagid  = 0;
-    SolFSWord      tagtype= 0;
-    SolFSLongWord  bufsize= 0;
-    SolFSWideChar *tagname= NULL;
-    err = StorageGetTagName(player->solfs_hsolfs, 0, &tagid, &tagtype, NULL, &bufsize);
-    if (err != errBufferTooSmall) {
-        av_log(NULL, AV_LOG_ERROR, "failed to get tag buffer size ! %d\n", err);
-        goto error_handler;
-    }
-
-    player->solfs_tagname = (SolFSWideChar*)malloc(bufsize);
-    err = StorageGetTagName(player->solfs_hsolfs, 0, &tagid, &tagtype, player->solfs_tagname, &bufsize);
-    if (err) {
-        av_log(NULL, AV_LOG_ERROR, "failed to get tag name value ! %d\n", err);
-        goto error_handler;
-    }
-
-    err = StorageOpenFile(player->solfs_hsolfs, player->solfs_tagname, TRUE, FALSE, TRUE, TRUE, password, wcslen(password), &player->solfs_hfile);
+    err = StorageOpenFile(player->solfs_hsolfs, file, TRUE, FALSE, TRUE, TRUE, password, wcslen(password), &player->solfs_hfile);
     if (err || !player->solfs_hfile) {
-        av_log(NULL, AV_LOG_ERROR, "failed to open solfs file ! %d\n", err);
+        av_log(NULL, AV_LOG_ERROR, "failed to open solfs file %d !\n", err);
         goto error_handler;
     }
     //-- for player_prepare

@@ -141,7 +141,7 @@ typedef struct {
 
 // 函数声明
 void* player_open      (char *file, void *appdata, PLAYER_INIT_PARAMS *params);
-void* player_open_solfs(wchar_t *file, wchar_t *password, void *appdata, PLAYER_INIT_PARAMS *params);
+void* player_open_solfs(char *key, wchar_t *storage, wchar_t *password, wchar_t *file, void *appdata, PLAYER_INIT_PARAMS *params);
 void  player_close     (void *hplayer);
 void  player_play      (void *hplayer);
 void  player_pause     (void *hplayer);
