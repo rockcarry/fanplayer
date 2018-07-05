@@ -25,7 +25,7 @@ features
 9. take video snapshot, support save into jpeg and png
 10.very fast (async) seek operation taking 0ms delay
 11.support video rotation by ffmpeg avfilter
-12.support step seek forward operation
+12.support step seek forward/backward operation
 13.mediacodec hardware decoding on android
 14.dxva2 hardware acceleration on windows
 15.rotation for direct3d video rendering
@@ -43,6 +43,7 @@ ctrl+A    - switch audio stream
 ctrl+V    - switch video stream  
 ctrl+S    - take a snapshot of video  
 ctrl+F    - step seek forward  
+ctrl+B    - step seek backward  
 ctrl+up   - play speed up  
 ctrl+down - play speed down  
 ctrl+T    - switch speed type  
