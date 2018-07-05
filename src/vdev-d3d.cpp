@@ -172,7 +172,7 @@ static void* video_render_thread_proc(void *param)
 
         if (c->ppts[c->head] != -1) {
             d3d_draw_surf(c, c->surfs[c->head]);
-            if (c->ppts[c->head] != AV_NOPTS_VALUE) c->vpts = c->ppts[c->head];
+            c->vpts = c->ppts[c->head];
         }
 
         av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->vpts);

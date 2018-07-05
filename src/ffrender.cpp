@@ -502,7 +502,11 @@ void render_getparam(void *hrender, int id, void *param)
         if (vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param  = -1; // means completed
         } else {
-            *(int64_t*)param = vdev->apts > vdev->vpts ? vdev->apts : vdev->vpts;
+            if (vdev->apts >= 0 || vdev->vpts >= 0) {
+                *(int64_t*)param = vdev->apts > vdev->vpts ? vdev->apts : vdev->vpts;
+            } else {
+                *(int64_t*)param = AV_NOPTS_VALUE;
+            }
         }
         break;
     case PARAM_AUDIO_VOLUME:

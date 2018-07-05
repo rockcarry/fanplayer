@@ -366,8 +366,12 @@ static int player_prepare(PLAYER *player)
 
     // open input file
     AVDictionary *opts = NULL;
-//  av_dict_set(&opts, "rtsp_transport", "udp", 0);
-//  av_dict_set(&opts, "buffer_size", "1048576", 0);
+    /*
+    av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+    av_dict_set(&opts, "buffer_size", "1048576", 0);
+    av_dict_set(&opts, "analyzeduration", "500000", 0);
+    player->avformat_context->flags |= AVFMT_FLAG_NOBUFFER;
+    */
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];
         sprintf(vsize, "%dx%d", player->init_params.video_vwidth, player->init_params.video_vheight);
