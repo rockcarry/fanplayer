@@ -62,6 +62,7 @@ public:
     afx_msg void   OnVRenderType();
     afx_msg void   OnTakeSnapshot();
     afx_msg void   OnStepForward();
+    afx_msg void   OnStepBackward();
     afx_msg void   OnPlaySpeedDec();
     afx_msg void   OnPlaySpeedInc();
     afx_msg void   OnPlaySpeedType();

@@ -46,9 +46,8 @@ enum {
 
 // seek flags
 enum {
-    SEEK_FAST,
-    SEEK_PRECISELY,
-    SEEK_STEP,
+    SEEK_STEP_FORWARD = 1,
+    SEEK_STEP_BACKWARD,
 };
 
 // param

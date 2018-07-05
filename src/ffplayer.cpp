@@ -56,7 +56,10 @@ typedef struct {
     #define PS_CLOSE      (1 << 6)  // close player
     int              player_status;
     int              seek_req ;
+    int64_t          seek_pos ;
     int64_t          seek_dest;
+    int64_t          seek_diff;
+    int64_t          seek_vpts[2];
     int64_t          start_pts;
 
     pthread_t        avdemux_thread;
@@ -483,7 +486,7 @@ static void player_handle_fseek_flag(PLAYER *player)
     }
 
     // seek frame
-    av_seek_frame(player->avformat_context, -1, player->seek_dest / 1000 * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
+    av_seek_frame(player->avformat_context, -1, player->seek_pos / 1000 * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
     if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
     if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
 
@@ -610,7 +613,7 @@ static void* audio_decode_thread_proc(void *param)
                 aframe->pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
                 //++ for seek operation
                 if (player->player_status & PS_A_SEEK) {
-                    if (player->seek_dest - aframe->pts < 100) {
+                    if (player->seek_dest - aframe->pts <= player->seek_diff) {
                         player->player_status &= ~PS_A_SEEK;
                     }
                     if ((player->player_status & PS_R_PAUSE) && player->vstream_index == -1) {
@@ -681,9 +684,11 @@ static void* video_decode_thread_proc(void *param)
                 do {
                     if (vfilter_graph_output(player, vframe) < 0) break;
                     vframe->pts = av_rescale_q(av_frame_get_best_effort_timestamp(vframe), player->vstream_timebase, TIMEBASE_MS);
+                    player->seek_vpts[1] = player->seek_vpts[0];
+                    player->seek_vpts[0] = vframe->pts;
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
-                        if (player->seek_dest - vframe->pts < 100) {
+                        if (player->seek_dest - vframe->pts <= player->seek_diff) {
                             player->player_status &= ~PS_V_SEEK;
                             if (player->player_status & PS_R_PAUSE) {
                                 render_pause(player->render);
@@ -890,19 +895,25 @@ void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
 void player_seek(void *hplayer, int64_t ms, int type)
 {
     if (!hplayer) return;
-    PLAYER *player   = (PLAYER*)hplayer;
-    int64_t startpts = 0;
+    PLAYER *player = (PLAYER*)hplayer;
 
-    //++ seek step
-    if (type == SEEK_STEP) {
+    switch (type) {
+    case SEEK_STEP_FORWARD:
         render_pause(player->render);
         render_setparam(player->render, PARAM_RENDER_SEEK_STEP, NULL);
         return;
+    case SEEK_STEP_BACKWARD:
+        player->seek_dest = player->seek_vpts[1];
+        player->seek_pos  = player->seek_vpts[1] - 500;
+        player->seek_diff = 0;
+        player->player_status |= PS_R_PAUSE;
+        break;
+    default:
+        player->seek_dest = player->start_pts + ms;
+        player->seek_pos  = player->start_pts + ms;
+        player->seek_diff = 100;
+        break;
     }
-    //-- seek step
-
-    // set seek_dest
-    player->seek_dest = player->start_pts + ms;
 
     // make render run first
     render_start(player->render);

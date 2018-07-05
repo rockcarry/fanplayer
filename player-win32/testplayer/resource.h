@@ -13,18 +13,20 @@
 #define ID_VRENDER_TYPE                 32776
 #define ID_TAKE_SNAPSHOT                32777
 #define ID_STEP_FORWARD                 32778
-#define ID_PLAY_SPEED_DEC               32779
-#define ID_PLAY_SPEED_INC               32780
-#define ID_PLAY_SPEED_TYPE              32781
-#define ID_VDEVD3D_ROTATE               32782
-#define ID_RECORD_VIDEO                 32783
+#define ID_STEP_BACKWARD                32779
+#define ID_PLAY_SPEED_DEC               32780
+#define ID_PLAY_SPEED_INC               32781
+#define ID_PLAY_SPEED_TYPE              32782
+#define ID_VDEVD3D_ROTATE               32783
+#define ID_RECORD_VIDEO                 32784
+
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
-#define _APS_NEXT_COMMAND_VALUE         32785
+#define _APS_NEXT_COMMAND_VALUE         32787
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

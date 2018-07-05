@@ -168,6 +168,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_VIDEO_STREAM   , &CplayerDlg::OnVideoStream  )
     ON_COMMAND(ID_TAKE_SNAPSHOT  , &CplayerDlg::OnTakeSnapshot )
     ON_COMMAND(ID_STEP_FORWARD   , &CplayerDlg::OnStepForward  )
+    ON_COMMAND(ID_STEP_BACKWARD  , &CplayerDlg::OnStepBackward )
     ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec )
     ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc )
     ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType)
@@ -318,7 +319,7 @@ void CplayerDlg::OnLButtonDown(UINT nFlags, CPoint point)
             LONGLONG total = 1;
             player_getparam(m_ffPlayer, PARAM_MEDIA_DURATION, &total);
             KillTimer(TIMER_ID_PROGRESS);
-            player_seek(m_ffPlayer, total * point.x / m_rtClient.right, SEEK_PRECISELY);
+            player_seek(m_ffPlayer, total * point.x / m_rtClient.right, 0);
             SetTimer (TIMER_ID_PROGRESS, 100, NULL);
         } else {
             if (!m_bPlayPause) player_pause(m_ffPlayer);
@@ -375,7 +376,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             player_setrect(m_ffPlayer, 1, 0, 0, m_rtClient.right, m_rtClient.bottom - 2);
             if (m_bResetPlayer) {
                 if (!m_bPlayPause ) player_play(m_ffPlayer);
-                if (!m_bLiveStream) player_seek(m_ffPlayer, m_llLastPos, SEEK_PRECISELY);
+                if (!m_bLiveStream) player_seek(m_ffPlayer, m_llLastPos, 0);
                 if ( m_strTxt[0]  ) PlayerShowText(2000);
                 m_bResetPlayer = FALSE;
             } else {
@@ -462,9 +463,17 @@ void CplayerDlg::OnTakeSnapshot()
 
 void CplayerDlg::OnStepForward()
 {
-    player_seek(m_ffPlayer, 0, SEEK_STEP);
+    player_seek(m_ffPlayer, 0, SEEK_STEP_FORWARD);
     m_bPlayPause = TRUE;
     strcpy(m_strTxt, "step forward");
+    PlayerShowText(2000);
+}
+
+void CplayerDlg::OnStepBackward()
+{
+    player_seek(m_ffPlayer, 0, SEEK_STEP_BACKWARD);
+    m_bPlayPause = TRUE;
+    strcpy(m_strTxt, "step backward");
     PlayerShowText(2000);
 }
 
@@ -523,3 +532,4 @@ void CplayerDlg::OnRecordVideo()
     sprintf(m_strTxt, "recording %s", m_bIsRecording ? "started" : "stoped");
     PlayerShowText(2000);
 }
+
