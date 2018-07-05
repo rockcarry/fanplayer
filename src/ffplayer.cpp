@@ -479,7 +479,7 @@ static void player_handle_fseek_flag(PLAYER *player)
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
 
     // set audio & video decoding pause flags
-    player->player_status |= PAUSE_REQ;
+    player->player_status |= PAUSE_REQ | player->seek_req;
     player->player_status &=~PAUSE_ACK;
 
     // make render run
@@ -498,9 +498,6 @@ static void player_handle_fseek_flag(PLAYER *player)
 
     pktqueue_reset(player->pktqueue); // reset pktqueue
     render_reset  (player->render  ); // reset render
-
-    // set seek request flags
-    player->player_status |= player->seek_req;
 
     // make audio & video decoding thread resume
     player->player_status &= ~(PAUSE_REQ|PAUSE_ACK);
@@ -902,6 +899,11 @@ void player_seek(void *hplayer, int64_t ms, int type)
 {
     if (!hplayer) return;
     PLAYER *player = (PLAYER*)hplayer;
+
+    if (player->player_status & (PS_F_SEEK | player->seek_req)) {
+        av_log(NULL, AV_LOG_WARNING, "seek busy !\n");
+        return;
+    }
 
     switch (type) {
     case SEEK_STEP_FORWARD:
