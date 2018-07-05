@@ -36,6 +36,7 @@ cd ffmpeg
 --disable-muxers   \
 --disable-filters  \
 --disable-swscale-alpha \
+--disable-outdev=sdl2 \
 --enable-encoder=mjpeg \
 --enable-encoder=apng \
 --enable-encoder=libx264 \
