@@ -474,11 +474,17 @@ static void player_handle_fseek_flag(PLAYER *player)
 {
     int PAUSE_REQ = 0;
     int PAUSE_ACK = 0;
+
     if (player->astream_index != -1) { PAUSE_REQ |= PS_A_PAUSE; PAUSE_ACK |= PS_A_PAUSE << 16; }
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
-    // make audio & video decoding thread pause
+
+    // set audio & video decoding pause flags
     player->player_status |= PAUSE_REQ;
     player->player_status &=~PAUSE_ACK;
+
+    // make render run
+    render_start(player->render);
+
     // wait for pause done
     while ((player->player_status & PAUSE_ACK) != PAUSE_ACK) {
         if (player->player_status & PS_CLOSE) return;
@@ -915,11 +921,9 @@ void player_seek(void *hplayer, int64_t ms, int type)
         break;
     }
 
-    // make render run first
-    render_start(player->render);
-
     // set PS_F_SEEK flag
     player->player_status |= PS_F_SEEK;
+
 }
 
 int player_snapshot(void *hplayer, char *file, int w, int h, int waitt)
