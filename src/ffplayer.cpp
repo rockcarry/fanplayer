@@ -58,8 +58,9 @@ typedef struct {
     int              seek_req ;
     int64_t          seek_pos ;
     int64_t          seek_dest;
-    int64_t          seek_diff;
-    int64_t          seek_vpts[2];
+    int64_t          seek_vpts;
+    int              seek_diff;
+    int              seek_sidx;
     int64_t          start_pts;
 
     pthread_t        avdemux_thread;
@@ -492,7 +493,7 @@ static void player_handle_fseek_flag(PLAYER *player)
     }
 
     // seek frame
-    av_seek_frame(player->avformat_context, -1, player->seek_pos / 1000 * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
+    av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
     if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
     if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
 
@@ -686,9 +687,8 @@ static void* video_decode_thread_proc(void *param)
                 vfilter_graph_input(player, vframe);
                 do {
                     if (vfilter_graph_output(player, vframe) < 0) break;
-                    vframe->pts = av_rescale_q(av_frame_get_best_effort_timestamp(vframe), player->vstream_timebase, TIMEBASE_MS);
-                    player->seek_vpts[1] = player->seek_vpts[0];
-                    player->seek_vpts[0] = vframe->pts;
+                    player->seek_vpts = av_frame_get_best_effort_timestamp(vframe);
+                    vframe->pts       = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
                         if (player->seek_dest - vframe->pts <= player->seek_diff) {
@@ -898,7 +898,8 @@ void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
 void player_seek(void *hplayer, int64_t ms, int type)
 {
     if (!hplayer) return;
-    PLAYER *player = (PLAYER*)hplayer;
+    PLAYER    *player = (PLAYER*)hplayer;
+    AVRational frate;
 
     if (player->player_status & (PS_F_SEEK | player->seek_req)) {
         av_log(NULL, AV_LOG_WARNING, "seek busy !\n");
@@ -911,15 +912,18 @@ void player_seek(void *hplayer, int64_t ms, int type)
         render_setparam(player->render, PARAM_RENDER_SEEK_STEP, NULL);
         return;
     case SEEK_STEP_BACKWARD:
-        player->seek_dest = player->seek_vpts[1];
-        player->seek_pos  = player->seek_vpts[1] - 500;
+        frate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
+        player->seek_dest = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS) - 1000 * frate.den / frate.num - 1;
+        player->seek_pos  = player->seek_vpts - 1;
         player->seek_diff = 0;
+        player->seek_sidx = player->vstream_index;
         player->player_status |= PS_R_PAUSE;
         break;
     default:
-        player->seek_dest = player->start_pts + ms;
-        player->seek_pos  = player->start_pts + ms;
+        player->seek_dest =  player->start_pts + ms;
+        player->seek_pos  = (player->start_pts + ms) * AV_TIME_BASE / 1000;
         player->seek_diff = 100;
+        player->seek_sidx = -1;
         break;
     }
 
