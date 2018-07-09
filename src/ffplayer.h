@@ -175,7 +175,13 @@ player_pause    暂停播放
 player_seek     跳转到指定位置
     hplayer     - 指向 player_open 返回的 player 对象
     ms          - 指定位置，以毫秒为单位
-    type        - 指定类型，SEEK_FAST / SEEK_PRECISELY
+    type        - 指定类型，0 / SEEK_STEP_FORWARD / SEEK_STEP_BACKWARD
+    如果 type 为 0 则是正常的 seek 操作，ms 指定的是 seek 到的位置，毫秒为单位
+    如果 type 为 SEEK_STEP_FORWARD，则会单步向前播放一帧然后暂停
+    如果 type 为 SEEK_STEP_BACKWARD，则会单步回退播放一帧然后暂停
+    使用 SEEK_STEP_BACKWARD 的 seek 方式时，需要传入 ms 参数，这个函数的含义是
+    往回搜索的时间范围，通常情况下传入 -1 即可。但是对于一些特殊视频，传入 -1
+    可能没法正确执行会退操作，可以尝试修改为 -500 或则更大
 
 player_setrect  设置显示区域，有两种显示区域，视频显示区和视觉效果显示区
     hplayer     - 指向 player_open 返回的 player 对象

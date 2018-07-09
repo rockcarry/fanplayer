@@ -914,7 +914,7 @@ void player_seek(void *hplayer, int64_t ms, int type)
     case SEEK_STEP_BACKWARD:
         frate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
         player->seek_dest = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS) - 1000 * frate.den / frate.num - 1;
-        player->seek_pos  = player->seek_vpts - 1;
+        player->seek_pos  = player->seek_vpts + av_rescale_q(ms, TIMEBASE_MS, player->vstream_timebase);
         player->seek_diff = 0;
         player->seek_sidx = player->vstream_index;
         player->player_status |= PS_R_PAUSE;

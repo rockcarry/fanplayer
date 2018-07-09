@@ -463,7 +463,7 @@ void CplayerDlg::OnTakeSnapshot()
 
 void CplayerDlg::OnStepForward()
 {
-    player_seek(m_ffPlayer, 0, SEEK_STEP_FORWARD);
+    player_seek(m_ffPlayer, +1, SEEK_STEP_FORWARD);
     m_bPlayPause = TRUE;
     strcpy(m_strTxt, "step forward");
     PlayerShowText(2000);
@@ -471,7 +471,7 @@ void CplayerDlg::OnStepForward()
 
 void CplayerDlg::OnStepBackward()
 {
-    player_seek(m_ffPlayer, 0, SEEK_STEP_BACKWARD);
+    player_seek(m_ffPlayer, -1, SEEK_STEP_BACKWARD);
     m_bPlayPause = TRUE;
     strcpy(m_strTxt, "step backward");
     PlayerShowText(2000);
