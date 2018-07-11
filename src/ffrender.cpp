@@ -81,7 +81,7 @@ typedef struct
 
 #if CONFIG_ENABLE_SNAPSHOT
     // snapshot
-    char           snapfile[MAX_PATH];
+    char           snapfile[PATH_MAX];
     int            snapwidth;
     int            snapheight;
 #endif

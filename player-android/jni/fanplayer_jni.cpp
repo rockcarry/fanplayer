@@ -78,7 +78,7 @@ static void JNICALL nativeSeek(JNIEnv *env, jobject obj, jlong hplayer, jlong ms
 {
     DO_USE_VAR(env);
     DO_USE_VAR(obj);
-    player_seek((void*)hplayer, ms, SEEK_PRECISELY);
+    player_seek((void*)hplayer, ms, 0);
 }
 
 /*

@@ -68,9 +68,7 @@ typedef struct {
     pthread_t        vdecode_thread;
 
     AVFilterGraph   *vfilter_graph;
-    AVFilterContext *vfilter_source_ctx;
-    AVFilterContext *vfilter_yadif_ctx;
-    AVFilterContext *vfilter_rotate_ctx;
+    AVFilterContext *vfilter_src_ctx;
     AVFilterContext *vfilter_sink_ctx;
 
     // player init timeout, and init params
@@ -79,7 +77,8 @@ typedef struct {
     PLAYER_INIT_PARAMS init_params;
 
     // save url and appdata
-    char             url[MAX_PATH];
+    char             dir[PATH_MAX];
+    char             url[PATH_MAX];
     void            *appdata;
 
     // recorder used for recording
@@ -115,20 +114,18 @@ static int interrupt_callback(void *param)
 static void vfilter_graph_init(PLAYER *player)
 {
     if (!player->vcodec_context) return;
-    AVFilter *filter_source  = avfilter_get_by_name("buffer");
-    AVFilter *filter_yadif   = avfilter_get_by_name("yadif" );
-    AVFilter *filter_rotate  = avfilter_get_by_name("rotate");
-    AVFilter *filter_sink    = avfilter_get_by_name("buffersink");
-    AVCodecContext *vdec_ctx = player->vcodec_context;
+    AVFilter       *filter_src  = avfilter_get_by_name("buffer"    );
+    AVFilter       *filter_sink = avfilter_get_by_name("buffersink");
+    AVCodecContext *vdec_ctx    = player->vcodec_context;
 
-    int  ow = vdec_ctx->width ;
-    int  oh = vdec_ctx->height;
-    char args[256];
-    int  ret, i;
+    char temp[256];
+    char fstr[256];
+    int  ret;
 
     //++ check if no filter used
     if (  !player->init_params.video_deinterlace
-       && !player->init_params.video_rotate ) {
+       && !player->init_params.video_rotate
+       && !player->init_params.filter_string[0] ) {
         return;
     }
     //-- check if no filter used
@@ -136,65 +133,65 @@ static void vfilter_graph_init(PLAYER *player)
     player->vfilter_graph = avfilter_graph_alloc();
     if (!player->vfilter_graph) return;
 
-    // in & out filter
-    sprintf(args, "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+    //++ create in & out filter
+    sprintf(temp, "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
             vdec_ctx->width, vdec_ctx->height, vdec_ctx->pix_fmt,
             vdec_ctx->time_base.num, vdec_ctx->time_base.den,
             vdec_ctx->sample_aspect_ratio.num, vdec_ctx->sample_aspect_ratio.den);
-    avfilter_graph_create_filter(&player->vfilter_source_ctx, filter_source, "in" , args, NULL, player->vfilter_graph);
-    avfilter_graph_create_filter(&player->vfilter_sink_ctx  , filter_sink  , "out", NULL, NULL, player->vfilter_graph);
+    avfilter_graph_create_filter(&player->vfilter_src_ctx, filter_src, "in", temp, NULL, player->vfilter_graph);
 
-    // yadif filter
-    if (player->init_params.video_deinterlace) {
-        avfilter_graph_create_filter(&player->vfilter_yadif_ctx, filter_yadif,
-            "yadif", "mode=send_frame:parity=auto:deint=interlaced", NULL, player->vfilter_graph);
-    }
+    enum AVPixelFormat pixfmts[] = { vdec_ctx->pix_fmt, AV_PIX_FMT_NONE };
+    AVBufferSinkParams params    = { pixfmts };
+    avfilter_graph_create_filter(&player->vfilter_sink_ctx, filter_sink, "out", NULL, &params, player->vfilter_graph);
+    //-- create in & out filter
 
-    // rotate filter
+    //++ generate filter string according to deinterlace and rotation
     if (player->init_params.video_rotate) {
-        ow = abs(int(vdec_ctx->width  * cos(player->init_params.video_rotate * M_PI / 180)))
-           + abs(int(vdec_ctx->height * sin(player->init_params.video_rotate * M_PI / 180)));
-        oh = abs(int(vdec_ctx->width  * sin(player->init_params.video_rotate * M_PI / 180)))
-           + abs(int(vdec_ctx->height * cos(player->init_params.video_rotate * M_PI / 180)));
-        sprintf(args, "angle=%d*PI/180:ow=%d:oh=%d", player->init_params.video_rotate, ow, oh);
-        avfilter_graph_create_filter(&player->vfilter_rotate_ctx, filter_rotate, "rotate", args, NULL, player->vfilter_graph);
+        int ow = abs(int(vdec_ctx->width  * cos(player->init_params.video_rotate * M_PI / 180)))
+               + abs(int(vdec_ctx->height * sin(player->init_params.video_rotate * M_PI / 180)));
+        int oh = abs(int(vdec_ctx->width  * sin(player->init_params.video_rotate * M_PI / 180)))
+               + abs(int(vdec_ctx->height * cos(player->init_params.video_rotate * M_PI / 180)));
+        player->init_params.video_owidth  = ow;
+        player->init_params.video_oheight = oh;
+        sprintf(temp, "rotate=%d*PI/180:%d:%d", player->init_params.video_rotate, ow, oh);
     }
+    strcpy(fstr, player->init_params.video_deinterlace ? "yadif=0:-1:1" : "");
+    strcat(fstr, player->init_params.video_deinterlace && player->init_params.video_rotate ? "[a];[a]" : "");
+    strcat(fstr, player->init_params.video_rotate ? temp : "");
+    chdir(player->dir);
+    //-- generate filter string according to deinterlace and rotation
 
-    //++ connect filters
-    AVFilterContext *filter_pins[] = {
-        player->vfilter_source_ctx,
-        player->vfilter_yadif_ctx,
-        player->vfilter_rotate_ctx,
-        player->vfilter_sink_ctx,
-    };
-    AVFilterContext *in  = filter_pins[0];
-    AVFilterContext *out = NULL;
-    for (i=1; i<(int)(sizeof(filter_pins)/sizeof(filter_pins[0])); i++) {
-        out = filter_pins[i];
-        if (!out) continue;
-        if ( in ) avfilter_link(in, 0, out, 0);
-        in = out;
+    AVFilterInOut *inputs  = avfilter_inout_alloc();
+    AVFilterInOut *outputs = avfilter_inout_alloc();
+    inputs->name        = av_strdup("out");
+    inputs->filter_ctx  = player->vfilter_sink_ctx;
+    inputs->pad_idx     = 0;
+    inputs->next        = NULL;
+    outputs->name       = av_strdup("in");
+    outputs->filter_ctx = player->vfilter_src_ctx;
+    outputs->pad_idx    = 0;
+    outputs->next       = NULL;
+    ret = avfilter_graph_parse_ptr(player->vfilter_graph, player->init_params.filter_string[0] ? player->init_params.filter_string : fstr, &inputs, &outputs, NULL);
+    avfilter_inout_free(&inputs );
+    avfilter_inout_free(&outputs);
+    if (ret < 0) {
+        av_log(NULL, AV_LOG_WARNING, "avfilter_graph_parse_ptr failed !\n");
+        goto failed;
     }
-    //-- connect filters
 
     // config filter graph
     ret = avfilter_graph_config(player->vfilter_graph, NULL);
     if (ret < 0) {
-        avfilter_graph_free(&player->vfilter_graph);
-        player->vfilter_graph      = NULL;
-        player->vfilter_source_ctx = NULL;
-        player->vfilter_sink_ctx   = NULL;
-        player->vfilter_yadif_ctx  = NULL;
-        player->vfilter_rotate_ctx = NULL;
+        av_log(NULL, AV_LOG_WARNING, "avfilter_graph_config failed !\n");
+        goto failed;
     }
 
-    // update init params
-    if (!player->vfilter_yadif_ctx ) player->init_params.video_deinterlace = 0;
-    if (!player->vfilter_rotate_ctx) {
-        player->init_params.video_rotate  = 0;
-    } else {
-        player->init_params.video_owidth  = ow;
-        player->init_params.video_oheight = oh;
+failed:
+    if (ret < 0) {
+        avfilter_graph_free(&player->vfilter_graph);
+        player->vfilter_graph    = NULL;
+        player->vfilter_src_ctx  = NULL;
+        player->vfilter_sink_ctx = NULL;
     }
 }
 
@@ -202,17 +199,15 @@ static void vfilter_graph_free(PLAYER *player)
 {
     if (!player->vfilter_graph) return;
     avfilter_graph_free(&player->vfilter_graph);
-    player->vfilter_graph      = NULL;
-    player->vfilter_source_ctx = NULL;
-    player->vfilter_sink_ctx   = NULL;
-    player->vfilter_yadif_ctx  = NULL;
-    player->vfilter_rotate_ctx = NULL;
+    player->vfilter_graph    = NULL;
+    player->vfilter_src_ctx  = NULL;
+    player->vfilter_sink_ctx = NULL;
 }
 
 static void vfilter_graph_input(PLAYER *player, AVFrame *frame)
 {
     if (!player->vfilter_graph) return;
-    int ret = av_buffersrc_add_frame_flags(player->vfilter_source_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    int ret = av_buffersrc_add_frame(player->vfilter_src_ctx, frame);
     if (ret != 0) {
         av_log(NULL, AV_LOG_WARNING, "av_buffersrc_add_frame_flags failed !\n");
     }
@@ -767,6 +762,7 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     //-- for player init timeout
 
     //++ for player_prepare
+    getcwd(player->dir, sizeof(player->dir));
     strcpy(player->url, file);
 #ifdef WIN32
     player->appdata = appdata;
@@ -1051,45 +1047,47 @@ void player_send_message(void *extra, int32_t msg, int64_t param) {
 }
 
 //++ load player init params from string
-static int parse_params(const char *str, const char *key)
+static char* parse_params(const char *str, const char *key, char *val, int len)
 {
-    char  t[12];
-    char *p = (char*)strstr(str, key);
+    char *p    = (char*)strstr(str, key);
+    int   flag = 0;
     int   i;
 
-    if (!p) return 0;
+    if (!p) return NULL;
     p += strlen(key);
-    if (*p == '\0') return 0;
+    if (*p == '\0') return NULL;
 
     while (1) {
         if (*p != ' ' && *p != '=' && *p != ':') break;
         else p++;
     }
 
-    for (i=0; i<12; i++) {
-        if (*p == ',' || *p == ';' || *p == '\n' || *p == '\0') {
-            t[i] = '\0';
+    for (i=0; i<len; i++) {
+        if (*p == '\\') {
+            p++;
+        } else if (*p == ';' || *p == '\n' || *p == '\0') {
             break;
-        } else {
-            t[i] = *p++;
         }
+        val[i] = *p++;
     }
-    t[11] = '\0';
-    return atoi(t);
+    val[i] = val[len-1] = '\0';
+    return val;
 }
 
 void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
 {
-    params->video_stream_cur    = parse_params(str, "video_stream_cur"   );
-    params->video_thread_count  = parse_params(str, "video_thread_count" );
-    params->video_hwaccel       = parse_params(str, "video_hwaccel"      );
-    params->video_deinterlace   = parse_params(str, "video_deinterlace"  );
-    params->video_rotate        = parse_params(str, "video_rotate"       );
-    params->audio_stream_cur    = parse_params(str, "audio_stream_cur"   );
-    params->subtitle_stream_cur = parse_params(str, "subtitle_stream_cur");
-    params->vdev_render_type    = parse_params(str, "vdev_render_type"   );
-    params->adev_render_type    = parse_params(str, "adev_render_type"   );
-    params->init_timeout        = parse_params(str, "init_timeout"       );
-    params->open_syncmode       = parse_params(str, "open_syncmode"      );
+    char value[16];
+    params->video_stream_cur    = atoi(parse_params(str, "video_stream_cur"   , value, sizeof(value)) ? value : "0");
+    params->video_thread_count  = atoi(parse_params(str, "video_thread_count" , value, sizeof(value)) ? value : "0");
+    params->video_hwaccel       = atoi(parse_params(str, "video_hwaccel"      , value, sizeof(value)) ? value : "0");
+    params->video_deinterlace   = atoi(parse_params(str, "video_deinterlace"  , value, sizeof(value)) ? value : "0");
+    params->video_rotate        = atoi(parse_params(str, "video_rotate"       , value, sizeof(value)) ? value : "0");
+    params->audio_stream_cur    = atoi(parse_params(str, "audio_stream_cur"   , value, sizeof(value)) ? value : "0");
+    params->subtitle_stream_cur = atoi(parse_params(str, "subtitle_stream_cur", value, sizeof(value)) ? value : "0");
+    params->vdev_render_type    = atoi(parse_params(str, "vdev_render_type"   , value, sizeof(value)) ? value : "0");
+    params->adev_render_type    = atoi(parse_params(str, "adev_render_type"   , value, sizeof(value)) ? value : "0");
+    params->init_timeout        = atoi(parse_params(str, "init_timeout"       , value, sizeof(value)) ? value : "0");
+    params->open_syncmode       = atoi(parse_params(str, "open_syncmode"      , value, sizeof(value)) ? value : "0");
+    parse_params(str, "filter_string", params->filter_string, sizeof(params->filter_string));
 }
 //-- load player init params from string

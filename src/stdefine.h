@@ -6,6 +6,7 @@
 #ifdef WIN32
 // headers
 #include <windows.h>
+#include <direct.h>
 #include <inttypes.h>
 
 // disable warnings
@@ -15,6 +16,11 @@
 #define CONFIG_ENABLE_VEFFECT    1
 #define CONFIG_ENABLE_SNAPSHOT   1
 #define CONFIG_ENABLE_SOUNDTOUCH 1
+
+#define PATH_MAX   MAX_PATH
+#define strcasecmp stricmp   
+#define getcwd     _getcwd
+#define chdir      _chdir
 #endif
 
 
@@ -22,10 +28,8 @@
 // headers
 #include <limits.h>
 #include <inttypes.h>
+#include <unistd.h>
 #include <android/log.h>
-
-#define MAX_PATH  PATH_MAX
-#define stricmp   strcasecmp
 
 typedef struct {
     long left;

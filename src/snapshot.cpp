@@ -31,11 +31,10 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     av_register_all();
 
     fileext = file + strlen(file) - 3;
-    if (stricmp(fileext, "png") == 0) {
+    if (strcasecmp(fileext, "png") == 0) {
         codecid = AV_CODEC_ID_APNG;
         swsofmt = AV_PIX_FMT_RGB24;
-    }
-    else {
+    } else {
         codecid = AV_CODEC_ID_MJPEG;
         swsofmt = AV_PIX_FMT_YUVJ420P;
     }

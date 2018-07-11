@@ -107,31 +107,33 @@ enum {
 // 的（比如 video_vwidth, video_vheight），需要等到接收到 MSG_OPEN_DONE 消息后才能获取有效的参数。同步打
 // 开方式则不会有这个问题，因为 player_open 完成后已经做完了全部的初始化工作。
 typedef struct {
-    int video_vwidth;             // wr video actual width
-    int video_vheight;            // wr video actual height
-    int video_owidth;             // r  video output width  (after rotate)
-    int video_oheight;            // r  video output height (after rotate)
-    int video_frame_rate;         // wr 视频帧率
-    int video_stream_total;       // r  视频流总数
-    int video_stream_cur;         // wr 当前视频流
-    int video_thread_count;       // wr 视频解码线程数
-    int video_hwaccel;            // wr 视频硬解码使能
-    int video_deinterlace;        // wr 视频反交错使能
-    int video_rotate;             // wr 视频旋转角度
+    int  video_vwidth;             // wr video actual width
+    int  video_vheight;            // wr video actual height
+    int  video_owidth;             // r  video output width  (after rotate)
+    int  video_oheight;            // r  video output height (after rotate)
+    int  video_frame_rate;         // wr 视频帧率
+    int  video_stream_total;       // r  视频流总数
+    int  video_stream_cur;         // wr 当前视频流
+    int  video_thread_count;       // wr 视频解码线程数
+    int  video_hwaccel;            // wr 视频硬解码使能
+    int  video_deinterlace;        // wr 视频反交错使能
+    int  video_rotate;             // wr 视频旋转角度
 
-    int audio_channels;           // r  音频通道数
-    int audio_sample_rate;        // r  音频采样率
-    int audio_stream_total;       // r  音频流总数
-    int audio_stream_cur;         // wr 当前音频流
+    int  audio_channels;           // r  音频通道数
+    int  audio_sample_rate;        // r  音频采样率
+    int  audio_stream_total;       // r  音频流总数
+    int  audio_stream_cur;         // wr 当前音频流
 
-    int subtitle_stream_total;    // r  字幕流总数
-    int subtitle_stream_cur;      // wr 当前字幕流
+    int  subtitle_stream_total;    // r  字幕流总数
+    int  subtitle_stream_cur;      // wr 当前字幕流
 
-    int vdev_render_type;         // w  vdev 类型
-    int adev_render_type;         // w  adev 类型
+    int  vdev_render_type;         // w  vdev 类型
+    int  adev_render_type;         // w  adev 类型
 
-    int init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
-    int open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
+    int  init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
+    int  open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
+
+    char filter_string[256];       // w  自定义的 video filter string
 } PLAYER_INIT_PARAMS;
 // video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
 // 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1

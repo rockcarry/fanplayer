@@ -48,6 +48,10 @@ cd ffmpeg
 --enable-filter=yadif \
 --enable-filter=rotate \
 --enable-filter=scale \
+--enable-filter=movie \
+--enable-filter=overlay \
+--enable-filter=hflip \
+--enable-filter=vflip \
 --enable-asm \
 --enable-gpl \
 --enable-version3 \
