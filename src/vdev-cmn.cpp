@@ -179,12 +179,9 @@ void vdev_avsync_and_complete(void *ctxt)
         }
 
         sysclock= c->start_pts + (tickcur - c->start_tick) * c->speed / 100;
-        avdiff  = (int)(c->apts  - c->vpts - c->tickavdiff); // diff between audio and video pts
         scdiff  = (int)(sysclock - c->vpts - c->tickavdiff); // diff between system clock and video pts
-
-        if (c->apts <= 0) { // if apts is invalid, sync video to system clock
-            avdiff = scdiff;
-        }
+        avdiff  = (int)(c->apts  - c->vpts - c->tickavdiff); // diff between audio and video pts
+        avdiff  = c->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
 
         if (tickdiff - tickframe >  5) c->ticksleep--;
         if (tickdiff - tickframe < -5) c->ticksleep++;

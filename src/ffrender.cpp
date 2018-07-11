@@ -196,12 +196,90 @@ void render_close(void *hrender)
     free(render);
 }
 
+#if CONFIG_ENABLE_SOUNDTOUCH
+static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
+{
+    int16_t  buf[1024];
+    int16_t *out = buf;
+    int      num_samp;
+    int      num_st;
+
+    num_samp = swr_convert(render->swr_context,
+        (uint8_t**)&out, 1024 / 2,
+        (const uint8_t**)audio->extended_data, audio->nb_samples);
+    audio->extended_data = NULL;
+    audio->nb_samples    = 0;
+
+    soundtouch_putSamples_i16(render->stcontext, out, num_samp);
+    num_st = soundtouch_numSamples(render->stcontext);
+    do {
+        if (render->adev_buf_avail == 0) {
+            adev_lock(render->adev, &render->adev_hdr_cur);
+            if (render->adev_hdr_cur) {
+                render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
+                render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+            }
+#if CONFIG_ENABLE_VEFFECT
+            if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
+                veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
+                    render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
+            }
+#endif
+        }
+        num_st = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
+        render->adev_buf_avail -= num_st * 4;
+        render->adev_buf_cur   += num_st * 4;
+        if (render->adev_buf_avail == 0) {
+            audio->pts += 10 * render->speed_value_cur * render->frame_rate.den / render->frame_rate.num;
+            adev_unlock(render->adev, audio->pts);
+        }
+    } while (num_st != 0);
+
+    return num_samp;
+}
+#endif
+
+static int render_audio_swresample(RENDER *render, AVFrame *audio)
+{
+    int num_samp;
+
+    if (render->adev_buf_avail == 0) {
+        adev_lock(render->adev, &render->adev_hdr_cur);
+        if (render->adev_hdr_cur) {
+            render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
+            render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
+        }
+#if CONFIG_ENABLE_VEFFECT
+        if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
+            veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
+                render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
+        }
+#endif
+    }
+
+    //++ do resample audio data ++//
+    num_samp = swr_convert(render->swr_context,
+        (uint8_t**)&render->adev_buf_cur, render->adev_buf_avail / 4,
+        (const uint8_t**)audio->extended_data, audio->nb_samples);
+    audio->extended_data    = NULL;
+    audio->nb_samples       = 0;
+    render->adev_buf_avail -= num_samp * 4;
+    render->adev_buf_cur   += num_samp * 4;
+    //-- do resample audio data --//
+
+    if (render->adev_buf_avail == 0) {
+        audio->pts += 10 * render->speed_value_cur * render->frame_rate.den / render->frame_rate.num;
+        adev_unlock(render->adev, audio->pts);
+    }
+
+    return num_samp;
+}
+
 void render_audio(void *hrender, AVFrame *audio)
 {
     if (!hrender) return;
     RENDER *render  = (RENDER*)hrender;
-    int     sampnum = 0;
-    int64_t apts    = audio->pts;
+    int     sampnum;
 
     do {
         if (  render->speed_value_cur != render->speed_value_new
@@ -228,69 +306,11 @@ void render_audio(void *hrender, AVFrame *audio)
 
 #if CONFIG_ENABLE_SOUNDTOUCH
         if (render->speed_type_cur && render->speed_value_cur != 100) {
-            int16_t  temp[1024];
-            int16_t *buf = temp;
-            int      stnum;
-            sampnum = swr_convert(render->swr_context,
-                (uint8_t**)&buf, 1024 / 2,
-                (const uint8_t**)audio->extended_data, audio->nb_samples);
-            audio->extended_data    = NULL;
-            audio->nb_samples       = 0;
-
-            soundtouch_putSamples_i16(render->stcontext, buf, sampnum);
-            stnum = soundtouch_numSamples(render->stcontext);
-            do {
-                if (render->adev_buf_avail == 0) {
-                    adev_lock(render->adev, &render->adev_hdr_cur);
-                    if (render->adev_hdr_cur) {
-                        render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-                        render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
-                    }
-#if CONFIG_ENABLE_VEFFECT
-                    if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
-                        veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
-                            render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
-                    }
-#endif
-                }
-                stnum = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
-                render->adev_buf_avail -= stnum * 4;
-                render->adev_buf_cur   += stnum * 4;
-                if (render->adev_buf_avail == 0) {
-                    apts += 10 * render->speed_value_cur * render->frame_rate.den / render->frame_rate.num;
-                    adev_unlock(render->adev, apts);
-                }
-            } while (stnum != 0);
+            sampnum = render_audio_soundtouch(render, audio);
         } else
 #endif
         {
-            if (render->adev_buf_avail == 0) {
-                adev_lock(render->adev, &render->adev_hdr_cur);
-                if (render->adev_hdr_cur) {
-                    render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-                    render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
-                }
-#if CONFIG_ENABLE_VEFFECT
-                    if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
-                        veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
-                            render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
-                    }
-#endif
-            }
-            //++ do resample audio data ++//
-            sampnum = swr_convert(render->swr_context,
-                (uint8_t**)&render->adev_buf_cur, render->adev_buf_avail / 4,
-                (const uint8_t**)audio->extended_data, audio->nb_samples);
-            audio->extended_data    = NULL;
-            audio->nb_samples       = 0;
-            render->adev_buf_avail -= sampnum * 4;
-            render->adev_buf_cur   += sampnum * 4;
-            //-- do resample audio data --//
-
-            if (render->adev_buf_avail == 0) {
-                apts += 10 * render->speed_value_cur * render->frame_rate.den / render->frame_rate.num;
-                adev_unlock(render->adev, apts);
-            }
+            sampnum = render_audio_swresample(render, audio);
         }
     } while (sampnum > 0);
 }
