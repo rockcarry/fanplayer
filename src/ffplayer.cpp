@@ -905,7 +905,7 @@ void player_seek(void *hplayer, int64_t ms, int type)
     switch (type) {
     case SEEK_STEP_FORWARD:
         render_pause(player->render);
-        render_setparam(player->render, PARAM_RENDER_SEEK_STEP, NULL);
+        render_setparam(player->render, PARAM_RENDER_STEPFORWARD, NULL);
         return;
     case SEEK_STEP_BACKWARD:
         frate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;

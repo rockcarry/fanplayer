@@ -94,7 +94,7 @@ enum {
 
     //++ for render
     PARAM_RENDER_GET_CONTEXT = 0x4000,
-    PARAM_RENDER_SEEK_STEP,
+    PARAM_RENDER_STEPFORWARD,
     //-- for render
 };
 

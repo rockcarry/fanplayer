@@ -183,8 +183,7 @@ void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate)
         exit(0);
     }
 
-    LOGFONT logfont;
-    memset(&logfont, 0, sizeof(logfont));
+    LOGFONT logfont = {};
     wcscpy(logfont.lfFaceName, TEXT(DEF_FONT_NAME));
     logfont.lfHeight = DEF_FONT_SIZE;
     ctxt->hfont = CreateFontIndirect(&logfont);

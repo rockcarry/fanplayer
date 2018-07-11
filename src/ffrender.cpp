@@ -73,10 +73,10 @@ typedef struct
 #endif
 
     // render status
-    #define RENDER_CLOSE    (1 << 0)
-    #define RENDER_PAUSE    (1 << 1)
-    #define RENDER_SNAPSHOT (1 << 2)  // take snapshot
-    #define RENDER_SEEKSTEP (1 << 3)  // seek step
+    #define RENDER_CLOSE       (1 << 0)
+    #define RENDER_PAUSE       (1 << 1)
+    #define RENDER_SNAPSHOT    (1 << 2)  // take snapshot
+    #define RENDER_STEPFORWARD (1 << 3)  // step forward
     int            render_status;
 
 #if CONFIG_ENABLE_SNAPSHOT
@@ -311,10 +311,6 @@ void render_video(void *hrender, AVFrame *video)
 {
     if (!hrender) return;
     RENDER  *render = (RENDER*)hrender;
-    AVFrame  picture;
-
-    // init picture
-    memset(&picture, 0, sizeof(AVFrame));
 
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
@@ -328,8 +324,7 @@ void render_video(void *hrender, AVFrame *video)
             render->rect_hcur = render->rect_hnew;
 
             // vdev set rect
-            vdev_setrect(render->vdev, render->rect_xcur, render->rect_ycur,
-                render->rect_wcur, render->rect_hcur);
+            vdev_setrect(render->vdev, render->rect_xcur, render->rect_ycur, render->rect_wcur, render->rect_hcur);
 
             // we need recreate sws
             if (!render->sws_context) {
@@ -344,6 +339,9 @@ void render_video(void *hrender, AVFrame *video)
         if (video->format == AV_PIX_FMT_DXVA2_VLD) {
             vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, video);
         } else {
+            AVFrame picture;
+            picture.data[0]     = NULL;
+            picture.linesize[0] = 0;
             vdev_lock(render->vdev, picture.data, picture.linesize);
             if (picture.data[0] && video->pts != -1) {
                 sws_scale(render->sws_context, video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize);
@@ -358,14 +356,10 @@ void render_video(void *hrender, AVFrame *video)
             render->render_status &= ~RENDER_SNAPSHOT;
         }
 #endif
+    } while ((render->render_status & RENDER_PAUSE) && !(render->render_status & RENDER_STEPFORWARD));
 
-        //++ seek step
-        if (render->render_status & RENDER_SEEKSTEP) {
-            render->render_status &= ~RENDER_SEEKSTEP;
-            break;
-        }
-        //-- seek step
-    } while (render->render_status & RENDER_PAUSE);
+    // clear step forward flag
+    render->render_status &= ~RENDER_STEPFORWARD;
 }
 
 void render_setrect(void *hrender, int type, int x, int y, int w, int h)
@@ -485,8 +479,8 @@ void render_setparam(void *hrender, int id, void *param)
     case PARAM_VDEV_D3D_ROTATE:
         vdev_setparam(render->vdev, id, param);
         break;
-    case PARAM_RENDER_SEEK_STEP:
-        render->render_status |= RENDER_SEEKSTEP;
+    case PARAM_RENDER_STEPFORWARD:
+        render->render_status |= RENDER_STEPFORWARD;
         break;
     }
 }

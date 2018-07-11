@@ -123,9 +123,8 @@ int recorder_packet(void *ctxt, AVPacket *pkt)
 
     AVStream *is = recorder->ifc->streams[pkt->stream_index];
     AVStream *os = recorder->ofc->streams[pkt->stream_index];
-    AVPacket  packet;
+    AVPacket  packet = {};
 
-    memset(&packet, 0, sizeof(AVPacket));
     av_packet_ref(&packet, pkt);
     packet.pts = av_rescale_q_rnd(packet.pts, is->time_base, os->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
     packet.dts = av_rescale_q_rnd(packet.dts, is->time_base, os->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
