@@ -46,11 +46,11 @@ void adev_syncapts(void *ctxt, int64_t *apts)
     c->apts = apts;
 }
 
-void adev_curdata(void *ctxt, void **buf, int *len)
+void adev_bufcur(void *ctxt, void **buf, int *len)
 {
     if (!ctxt) return;
     ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
-    if (buf) *buf = c->curdata;
+    if (buf) *buf = c->bufcur;
     if (len) *len = c->buflen;
 }
 

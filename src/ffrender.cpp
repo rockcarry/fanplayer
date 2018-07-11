@@ -69,7 +69,6 @@ typedef struct
     int            veffect_y;
     int            veffect_w;
     int            veffect_h;
-    pthread_t      veffect_thread;
 #endif
 
     // render status
@@ -103,27 +102,6 @@ static void render_setspeed(RENDER *render, int speed)
     }
 }
 
-#if CONFIG_ENABLE_VEFFECT
-static void* render_veffect_thread(void *param)
-{
-    RENDER *render = (RENDER*)param;
-    int     timeus = 1000000LL * render->frame_rate.den / render->frame_rate.num;
-    while (!(render->render_status & RENDER_CLOSE)) {
-        if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
-            void *buf = NULL;
-            int   len = 0;
-            adev_curdata  (render->adev, &buf, &len);
-            veffect_render(render->veffect_context,
-                render->veffect_x, render->veffect_y,
-                render->veffect_w, render->veffect_h,
-                render->veffect_type, buf, len);
-        }
-        av_usleep(timeus);
-    }
-    return NULL;
-}
-#endif
-
 // º¯ÊıÊµÏÖ
 void* render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_layout,
                   int vdevtype, void *surface, AVRational frate, AVPixelFormat pixfmt, int w, int h)
@@ -153,7 +131,6 @@ void* render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_lay
     // init for visual effect
 #if CONFIG_ENABLE_VEFFECT
     render->veffect_context = veffect_create(surface);
-    pthread_create(&render->veffect_thread, NULL, render_veffect_thread, render);
 #endif
 
 #if CONFIG_ENABLE_SOUNDTOUCH
@@ -190,7 +167,6 @@ void render_close(void *hrender)
     render->render_status = RENDER_CLOSE;
 
 #if CONFIG_ENABLE_VEFFECT
-    pthread_join(render->veffect_thread, NULL);
     veffect_destroy(render->veffect_context);
 #endif
 
@@ -270,6 +246,12 @@ void render_audio(void *hrender, AVFrame *audio)
                         render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
                         render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
                     }
+#if CONFIG_ENABLE_VEFFECT
+                    if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
+                        veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
+                            render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
+                    }
+#endif
                 }
                 stnum = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
                 render->adev_buf_avail -= stnum * 4;
@@ -288,6 +270,12 @@ void render_audio(void *hrender, AVFrame *audio)
                     render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
                     render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
                 }
+#if CONFIG_ENABLE_VEFFECT
+                    if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
+                        veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
+                            render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
+                    }
+#endif
             }
             //++ do resample audio data ++//
             sampnum = swr_convert(render->swr_context,
@@ -470,7 +458,7 @@ void render_setparam(void *hrender, int id, void *param)
             veffect_render(render->veffect_context,
                 render->veffect_x, render->veffect_y,
                 render->veffect_w, render->veffect_h,
-                VISUAL_EFFECT_DISABLE, 0, 0);
+                VISUAL_EFFECT_DISABLE, render->adev);
         }
         break;
 #endif

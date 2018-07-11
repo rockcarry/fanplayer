@@ -346,7 +346,7 @@ static int player_prepare(PLAYER *player)
     int           arate   = 0;
     int           aformat = 0;
     uint64_t      alayout = 0;
-    AVRational    vrate   = { 21, 1 };
+    AVRational    vrate   = { 20, 1 };
     AVPixelFormat vformat = AV_PIX_FMT_YUV420P;
     int           ret     = -1;
 
@@ -421,7 +421,7 @@ static int player_prepare(PLAYER *player)
     if (player->vstream_index != -1) {
         vrate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
         if (vrate.num / vrate.den > 100) {
-            vrate.num = 21;
+            vrate.num = 20;
             vrate.den = 1;
         }
         vformat = player->vcodec_context->pix_fmt;

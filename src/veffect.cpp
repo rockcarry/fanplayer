@@ -155,8 +155,7 @@ typedef struct {
 // 内部函数实现
 static void resize_veffect_ifneeded(VEFFECT *ve, int w, int h)
 {
-    if (!ve->hbmp || ve->w != w || ve->h != h)
-    {
+    if (!ve->hbmp || ve->w != w || ve->h != h) {
         //++ re-create bitmap for draw buffer
         BITMAPINFO bmpinfo = {0};
         bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
@@ -341,10 +340,13 @@ void veffect_destroy(void *ctxt)
     free(ve);
 }
 
-void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *buf, int len)
+void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *adev)
 {
-    VEFFECT *ve = (VEFFECT*)ctxt;
+    VEFFECT *ve  = (VEFFECT*)ctxt;
+    void    *buf = NULL;
+    int      len = 0;
 
+    adev_bufcur(adev, &buf, &len);
     if (!ve->data_buf) {
         ve->data_len = 1 << (int)(log(len/4.0)/log(2.0));
         ve->data_buf = (float*)calloc(ve->data_len, sizeof(float) * 2);
@@ -364,6 +366,7 @@ void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *buf,
             float *fdst = (float*)ve->data_buf;
             int    snum = len / 4;
             int    i;
+            if (!ssrc) break;
             for (i=0; i<snum; i++) {
                 *fdst = (float)(((int)ssrc[0] + (int)ssrc[1]) / 2 + 0x7fff);
                 fdst += 1;
@@ -378,6 +381,7 @@ void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *buf,
             float *fsrc = (float*)ve->data_buf;
             float *fdst = (float*)ve->data_buf;
             int    i;
+            if (!ssrc) break;
             for (i=0; i<ve->data_len; i++) {
                 *fdst++ = (float)((ssrc[0] + ssrc[1]) / 2);
                 *fdst++ = 0;

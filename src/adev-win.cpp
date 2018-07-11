@@ -25,7 +25,7 @@ static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD dwInstance, DWOR
     switch (uMsg)
     {
     case WOM_DONE:
-        memcpy(c->curdata, c->pWaveHdr[c->head].lpData, c->buflen);
+        c->bufcur = (int16_t*)c->pWaveHdr[c->head].lpData;
         if (c->apts) *c->apts = c->ppts[c->head];
         av_log(NULL, AV_LOG_DEBUG, "apts: %lld\n", *c->apts);
         if (++c->head == c->bufnum) c->head = 0;
@@ -59,8 +59,7 @@ void* adev_create(int type, int bufnum, int buflen)
     ctxt->ppts     = (int64_t*)calloc(bufnum, sizeof(int64_t));
     ctxt->pWaveHdr = (WAVEHDR*)calloc(bufnum, (sizeof(WAVEHDR) + buflen));
     ctxt->bufsem   = CreateSemaphore(NULL, bufnum, bufnum, NULL);
-    ctxt->curdata  = (int16_t*)calloc(1, buflen);
-    if (!ctxt->ppts || !ctxt->pWaveHdr || !ctxt->bufsem || !ctxt->curdata) {
+    if (!ctxt->ppts || !ctxt->pWaveHdr || !ctxt->bufsem) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate waveout buffer and waveout semaphore !\n");
         exit(0);
     }
@@ -78,7 +77,6 @@ void* adev_create(int type, int bufnum, int buflen)
         CloseHandle(ctxt->bufsem);
         free(ctxt->ppts    );
         free(ctxt->pWaveHdr);
-        free(ctxt->curdata );
         free(ctxt);
         return NULL;
     }
@@ -121,7 +119,6 @@ void adev_destroy(void *ctxt)
     // free memory
     free(c->ppts    );
     free(c->pWaveHdr);
-    free(c->curdata );
     free(c);
 }
 

@@ -20,14 +20,12 @@ typedef struct
 //++ adev context common members
 #define ADEV_COMMON_MEMBERS         \
     int64_t *ppts;                  \
+    int16_t *bufcur;                \
     int      bufnum;                \
     int      buflen;                \
     int      head;                  \
     int      tail;                  \
     int64_t *apts;                  \
-                                    \
-    /* store current audio data */  \
-    int16_t *curdata;               \
                                     \
     /* software volume */           \
     int      vol_scaler[256];       \
@@ -48,7 +46,7 @@ void  adev_unlock  (void *ctxt, int64_t pts);
 void  adev_pause   (void *ctxt, int pause);
 void  adev_reset   (void *ctxt);
 void  adev_syncapts(void *ctxt, int64_t *apts);
-void  adev_curdata (void *ctxt, void **buf, int *len);
+void  adev_bufcur  (void *ctxt, void **buf, int *len);
 void  adev_setparam(void *ctxt, int id, void *param);
 void  adev_getparam(void *ctxt, int id, void *param);
 
