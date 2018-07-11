@@ -430,7 +430,6 @@ void CplayerDlg::OnVideoMode()
     player_getparam(m_ffPlayer, PARAM_VIDEO_MODE, &mode);
     mode++; mode %= VIDEO_MODE_MAX_NUM;
     player_setparam(m_ffPlayer, PARAM_VIDEO_MODE, &mode);
-
     sprintf(m_strTxt, "video mode: %d", mode);
     PlayerShowText(2000);
 }

@@ -220,9 +220,9 @@ static void vdev_d3d_unlock(void *ctxt, int64_t pts)
 
 static void vdev_d3d_setrect(void *ctxt, int x, int y, int w, int h)
 {
-    VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
-    D3DSURFACE_DESC desc;
-    if (c->surfw && SUCCEEDED(c->surfw->GetDesc(&desc))) {
+    VDEVD3DCTXT    *c    = (VDEVD3DCTXT*)ctxt;
+    D3DSURFACE_DESC desc = {};
+    if (!c->surfw || SUCCEEDED(c->surfw->GetDesc(&desc))) {
         if (desc.Width != w || desc.Height != h) {
             c->status |= VDEV_D3D_SET_RECT;
         }
