@@ -6,7 +6,6 @@
 #ifdef WIN32
 // headers
 #include <windows.h>
-#include <direct.h>
 #include <inttypes.h>
 
 // disable warnings
@@ -18,9 +17,7 @@
 #define CONFIG_ENABLE_SOUNDTOUCH 1
 
 #define PATH_MAX   MAX_PATH
-#define strcasecmp stricmp   
-#define getcwd     _getcwd
-#define chdir      _chdir
+#define strcasecmp stricmp
 #endif
 
 

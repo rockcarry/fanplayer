@@ -77,7 +77,6 @@ typedef struct {
     PLAYER_INIT_PARAMS init_params;
 
     // save url and appdata
-    char             dir[PATH_MAX];
     char             url[PATH_MAX];
     void            *appdata;
 
@@ -158,7 +157,6 @@ static void vfilter_graph_init(PLAYER *player)
     strcpy(fstr, player->init_params.video_deinterlace ? "yadif=0:-1:1" : "");
     strcat(fstr, player->init_params.video_deinterlace && player->init_params.video_rotate ? "[a];[a]" : "");
     strcat(fstr, player->init_params.video_rotate ? temp : "");
-    chdir(player->dir);
     //-- generate filter string according to deinterlace and rotation
 
     AVFilterInOut *inputs  = avfilter_inout_alloc();
@@ -762,7 +760,6 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     //-- for player init timeout
 
     //++ for player_prepare
-    getcwd(player->dir, sizeof(player->dir));
     strcpy(player->url, file);
 #ifdef WIN32
     player->appdata = appdata;
