@@ -173,7 +173,7 @@ void vdev_avsync_and_complete(void *ctxt)
         c->ticklast = tickcur;
 
         // re-calculate start_pts & start_tick if needed
-        if (c->start_pts == AV_NOPTS_VALUE) {
+        if (c->start_pts < 0) {
             c->start_pts = c->vpts;
             c->start_tick= tickcur;
         }
