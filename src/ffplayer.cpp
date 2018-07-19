@@ -752,12 +752,10 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     if (!player->avformat_context) goto error_handler;
 
     //++ for player init timeout
-    if (player->init_params.init_timeout > 0) {
-        player->avformat_context->interrupt_callback.callback = interrupt_callback;
-        player->avformat_context->interrupt_callback.opaque   = player;
-        player->init_timetick = av_gettime_relative();
-        player->init_timeout  = player->init_params.init_timeout * 1000;
-    }
+    player->avformat_context->interrupt_callback.callback = interrupt_callback;
+    player->avformat_context->interrupt_callback.opaque   = player;
+    player->init_timetick = av_gettime_relative();
+    player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
     //-- for player init timeout
 
     //++ for player_prepare
