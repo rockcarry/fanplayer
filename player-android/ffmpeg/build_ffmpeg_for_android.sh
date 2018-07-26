@@ -70,6 +70,7 @@ cd ffmpeg
 --enable-version3 \
 --enable-nonfree \
 --enable-libx264 \
+--enable-librtmp \
 --enable-jni \
 --enable-mediacodec \
 --enable-decoder=h264_mediacodec \

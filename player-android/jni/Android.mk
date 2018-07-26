@@ -28,7 +28,7 @@ LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -Os -mfpu=neon-vfp
 LOCAL_CXXFLAGS += -DHAVE_PTHREADS
 LOCAL_LDLIBS   += -lz -llog -landroid
 
-LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libx264 libsoundtouch
+LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libx264 librtmp libsoundtouch
 
 LOCAL_MULTILIB := 32
 
@@ -74,6 +74,11 @@ include $(PREBUILT_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := libx264
 LOCAL_SRC_FILES := $(LOCAL_PATH)/../ffmpeg/lib/libx264.a
+include $(PREBUILT_STATIC_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := librtmp
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../ffmpeg/lib/librtmp.a
 include $(PREBUILT_STATIC_LIBRARY)
 #-- ffmpeg prebuilt static libraries
 

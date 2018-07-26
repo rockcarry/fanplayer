@@ -1,0 +1,13 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+incdir=${prefix}/include
+
+Name: librtmp
+Description: RTMP implementation
+Version: v2.4
+Requires: 
+URL: http://rtmpdump.mplayerhq.hu
+Libs: -L${libdir} -lrtmp -lz 
+Libs.private: 
+Cflags: -I${incdir}
