@@ -403,7 +403,6 @@ static int player_prepare(PLAYER *player)
                 goto done;
             }
         } else {
-            player_send_message(player->appdata, MSG_STREAM_CONNECTED, (int64_t)player);
             av_log(NULL, AV_LOG_INFO, "successed to open url: %s !\n", url);
             break;
         }
@@ -520,7 +519,9 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
         VDEV_COMMON_CTXT *vdev = NULL;
         player_getparam(player, PARAM_VDEV_GET_CONTEXT, &vdev);
         if (vdev) vdev->status |= VDEV_ERASE_BG1;
+        player_send_message(player->appdata, MSG_STREAM_DISCONNECT, (int64_t)player);
         player_prepare(player);
+        player_send_message(player->appdata, MSG_STREAM_CONNECTED , (int64_t)player);
         if (vdev) vdev->status &=~VDEV_ERASE_BG1;
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
@@ -567,7 +568,6 @@ static void* av_demux_thread_proc(void *param)
             av_packet_unref(packet); // free packet
             if (  player->init_params.auto_reconnect > 0
                && av_gettime_relative() - player->tick_demux > player->init_params.auto_reconnect * 1000) {
-                player_send_message(player->appdata, MSG_STREAM_DISCONNECT, (int64_t)player);
                 handle_fseek_or_reconnect(player, 1);
             } else {
                 pktqueue_free_cancel(player->pktqueue, packet);
