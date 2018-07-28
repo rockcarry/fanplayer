@@ -14,7 +14,8 @@ extern "C" {
 #define VDEV_CLOSE      (1 << 0)
 #define VDEV_PAUSE      (1 << 1)
 #define VDEV_COMPLETED  (1 << 2)
-#define VDEV_REFRESHBG  (1 << 3)
+#define VDEV_ERASE_BG0  (1 << 3)
+#define VDEV_ERASE_BG1  (1 << 4)
 #define DEF_FONT_SIZE    32
 #define DEF_FONT_NAME   "Arial"
 
@@ -96,7 +97,7 @@ void  vdev_reset   (void *ctxt);
 void  vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
-void  vdev_refresh_background (void *ctxt);
+int   vdev_refresh_background (void *ctxt);
 void  vdev_avsync_and_complete(void *ctxt);
 
 #ifdef __cplusplus

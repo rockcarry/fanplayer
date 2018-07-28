@@ -29,12 +29,7 @@ static void* video_render_thread_proc(void *param)
         sem_wait(&c->semr);
         if (c->status & VDEV_CLOSE) break;
 
-        if (c->status & VDEV_REFRESHBG) {
-            c->status &= ~VDEV_REFRESHBG;
-            vdev_refresh_background(c);
-        }
-
-        if (c->ppts[c->head] != -1) {
+        if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
             SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
             if (c->textt) {
                 SetTextColor(c->hdcsrc, c->textc & 0xffffff);

@@ -75,6 +75,7 @@ typedef struct {
     int64_t            init_timetick;
     int64_t            init_timeout;
     PLAYER_INIT_PARAMS init_params;
+    int64_t            tick_demux;
 
     // save url and appdata
     char             url[PATH_MAX];
@@ -361,6 +362,14 @@ static int player_prepare(PLAYER *player)
     }
     //-- for avdevice
 
+    // allocate avformat_context
+    player->avformat_context = avformat_alloc_context();
+    if (!player->avformat_context) goto done;
+
+    // setup interrupt_callback
+    player->avformat_context->interrupt_callback.callback = interrupt_callback;
+    player->avformat_context->interrupt_callback.opaque   = player;
+
     // open input file
     AVDictionary *opts = NULL;
     /*
@@ -379,18 +388,35 @@ static int player_prepare(PLAYER *player)
         sprintf(frate, "%d", player->init_params.video_frame_rate);
         av_dict_set(&opts, "framerate" , frate, 0);
     }
-    if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
-        av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
-        goto done;
+
+    // set init_timetick & init_timeout
+    player->init_timetick = av_gettime_relative();
+    player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
+
+    while (1) {
+        if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
+            if (player->init_params.auto_reconnect > 0 && !(player->player_status & PS_CLOSE)) {
+                av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", url);
+                av_usleep(100*1000);
+            } else {
+                av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
+                goto done;
+            }
+        } else {
+            player_send_message(player->appdata, MSG_STREAM_CONNECTED, (int64_t)player);
+            av_log(NULL, AV_LOG_INFO, "successed to open url: %s !\n", url);
+            break;
+        }
     }
+
+    // set init_timeout to -1
+    player->init_timeout = -1;
+
     // find stream info
     if (avformat_find_stream_info(player->avformat_context, NULL) < 0) {
         av_log(NULL, AV_LOG_ERROR, "failed to find stream info !\n");
         goto done;
     }
-
-    // set init_timeout to -1
-    player->init_timeout = -1;
 
     // get start_pts
     if (player->avformat_context->start_time > 0) {
@@ -464,7 +490,7 @@ done:
     return ret;
 }
 
-static void player_handle_fseek_flag(PLAYER *player)
+static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
 {
     int PAUSE_REQ = 0;
     int PAUSE_ACK = 0;
@@ -485,10 +511,22 @@ static void player_handle_fseek_flag(PLAYER *player)
         av_usleep(20*1000);
     }
 
-    // seek frame
-    av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
-    if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
-    if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
+    if (reconnect) {
+        vfilter_graph_free(player);
+        if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
+        if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
+        if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
+
+        VDEV_COMMON_CTXT *vdev = NULL;
+        player_getparam(player, PARAM_VDEV_GET_CONTEXT, &vdev);
+        if (vdev) vdev->status |= VDEV_ERASE_BG1;
+        player_prepare(player);
+        if (vdev) vdev->status &=~VDEV_ERASE_BG1;
+    } else {
+        av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
+        if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
+        if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
+    }
 
     pktqueue_reset(player->pktqueue); // reset pktqueue
     render_reset  (player->render  ); // reset render
@@ -517,7 +555,7 @@ static void* av_demux_thread_proc(void *param)
         //++ when player seek ++//
         if (player->player_status & PS_F_SEEK) {
             player->player_status &= ~PS_F_SEEK;
-            player_handle_fseek_flag(player);
+            handle_fseek_or_reconnect(player, 0);
         }
         //-- when player seek --//
 
@@ -527,8 +565,17 @@ static void* av_demux_thread_proc(void *param)
         retv = av_read_frame(player->avformat_context, packet);
         if (retv < 0) {
             av_packet_unref(packet); // free packet
-            pktqueue_free_cancel(player->pktqueue, packet);
-            av_usleep(20*1000); continue;
+            if (  player->init_params.auto_reconnect > 0
+               && av_gettime_relative() - player->tick_demux > player->init_params.auto_reconnect * 1000) {
+                player_send_message(player->appdata, MSG_STREAM_DISCONNECT, (int64_t)player);
+                handle_fseek_or_reconnect(player, 1);
+            } else {
+                pktqueue_free_cancel(player->pktqueue, packet);
+                av_usleep(20*1000);
+            }
+            continue;
+        } else {
+            player->tick_demux = av_gettime_relative();
         }
 
         // audio
@@ -746,17 +793,6 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     if (params) {
         memcpy(&player->init_params, params, sizeof(PLAYER_INIT_PARAMS));
     }
-
-    // allocate avformat_context
-    player->avformat_context = avformat_alloc_context();
-    if (!player->avformat_context) goto error_handler;
-
-    //++ for player init timeout
-    player->avformat_context->interrupt_callback.callback = interrupt_callback;
-    player->avformat_context->interrupt_callback.opaque   = player;
-    player->init_timetick = av_gettime_relative();
-    player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
-    //-- for player init timeout
 
     //++ for player_prepare
     strcpy(player->url, file);
@@ -1084,6 +1120,7 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->adev_render_type    = atoi(parse_params(str, "adev_render_type"   , value, sizeof(value)) ? value : "0");
     params->init_timeout        = atoi(parse_params(str, "init_timeout"       , value, sizeof(value)) ? value : "0");
     params->open_syncmode       = atoi(parse_params(str, "open_syncmode"      , value, sizeof(value)) ? value : "0");
+    params->auto_reconnect      = atoi(parse_params(str, "auto_reconnect"     , value, sizeof(value)) ? value : "0");
     parse_params(str, "filter_string", params->filter_string, sizeof(params->filter_string));
 }
 //-- load player init params from string

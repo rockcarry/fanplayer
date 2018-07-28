@@ -10,11 +10,13 @@ extern "C" {
 
 // 常量定义
 // message
-#define MSG_FANPLAYER       (WM_APP + 1)
-#define MSG_OPEN_DONE       (('O' << 24) | ('P' << 16) | ('E' << 8) | ('N' << 0))
-#define MSG_OPEN_FAILED     (('F' << 24) | ('A' << 16) | ('I' << 8) | ('L' << 0))
-#define MSG_PLAY_COMPLETED  (('E' << 24) | ('N' << 16) | ('D' << 8) | (' ' << 0))
-#define MSG_TAKE_SNAPSHOT   (('S' << 24) | ('N' << 16) | ('A' << 8) | ('P' << 0))
+#define MSG_FANPLAYER         (WM_APP + 1)
+#define MSG_OPEN_DONE         (('O' << 24) | ('P' << 16) | ('E' << 8) | ('N' << 0))
+#define MSG_OPEN_FAILED       (('F' << 24) | ('A' << 16) | ('I' << 8) | ('L' << 0))
+#define MSG_PLAY_COMPLETED    (('E' << 24) | ('N' << 16) | ('D' << 8) | (' ' << 0))
+#define MSG_TAKE_SNAPSHOT     (('S' << 24) | ('N' << 16) | ('A' << 8) | ('P' << 0))
+#define MSG_STREAM_CONNECTED  (('C' << 24) | ('N' << 16) | ('C' << 8) | ('T' << 0))
+#define MSG_STREAM_DISCONNECT (('D' << 24) | ('I' << 16) | ('S' << 8) | ('C' << 0))
 
 // adev render type
 enum {
@@ -132,6 +134,7 @@ typedef struct {
 
     int  init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
     int  open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
+    int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
 
     char filter_string[256];       // w  自定义的 video filter string
 } PLAYER_INIT_PARAMS;
