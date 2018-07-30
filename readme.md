@@ -29,6 +29,7 @@ features
 13.mediacodec hardware decoding on android
 14.dxva2 hardware acceleration on windows
 15.rotation for direct3d video rendering
+16.support auto-reconnect for live stream playing
 
 
 testplayer
@@ -47,7 +48,7 @@ ctrl+B    - step seek backward
 ctrl+up   - play speed up  
 ctrl+down - play speed down  
 ctrl+T    - switch speed type  
-ctrl+X    - rotate video only for d3d rendering mode  
+ctrl+X    - rotate video (only for d3d rendering mode)  
 ctrl+C    - record current playing media to record.mp4 file  
 
 
