@@ -347,6 +347,7 @@ static int player_prepare(PLAYER *player)
     uint64_t      alayout = 0;
     AVRational    vrate   = { 20, 1 };
     AVPixelFormat vformat = AV_PIX_FMT_YUV420P;
+    AVDictionary *opts    = NULL;
     int           ret     = -1;
 
     //++ for avdevice
@@ -371,7 +372,6 @@ static int player_prepare(PLAYER *player)
     player->avformat_context->interrupt_callback.opaque   = player;
 
     // open input file
-    AVDictionary *opts = NULL;
     /*
     av_dict_set(&opts, "rtsp_transport", "tcp", 0);
     av_dict_set(&opts, "buffer_size", "1048576", 0);
