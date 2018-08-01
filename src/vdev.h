@@ -11,13 +11,14 @@ extern "C" {
 #endif
 
 // 常量定义
-#define VDEV_CLOSE      (1 << 0)
-#define VDEV_PAUSE      (1 << 1)
-#define VDEV_COMPLETED  (1 << 2)
-#define VDEV_ERASE_BG0  (1 << 3)
-#define VDEV_ERASE_BG1  (1 << 4)
-#define DEF_FONT_SIZE    32
-#define DEF_FONT_NAME   "Arial"
+#define VDEV_CLOSE       (1 << 0)
+#define VDEV_PAUSE       (1 << 1)
+#define VDEV_COMPLETED   (1 << 2)
+#define VDEV_ERASE_BG0   (1 << 3)
+#define VDEV_ERASE_BG1   (1 << 4)
+#define VDEV_CONFIG_FONT (1 << 5)
+#define DEF_FONT_SIZE     32
+#define DEF_FONT_NAME    TEXT("Arial")
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS \
@@ -60,7 +61,9 @@ extern "C" {
     int       textx;                          \
     int       texty;                          \
     int       textc;                          \
-    char     *textt;                          \
+    TCHAR    *textt;                          \
+    TCHAR     font_name[32];                  \
+    int       font_size;                      \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8]); \
     void (*unlock  )(void *ctxt, int64_t pts);                         \
     void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
@@ -91,12 +94,18 @@ void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
-void  vdev_textout (void *ctxt, int x, int y, int color, char *text);
 void  vdev_pause   (void *ctxt, int pause);
 void  vdev_reset   (void *ctxt);
 void  vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
+
+#ifdef WIN32
+void  vdev_textout (void *ctxt, int x, int y, int color, TCHAR *text);
+void  vdev_textcfg (void *ctxt, TCHAR *fontname, int fontsize);
+#endif
+
+// internal helper function
 int   vdev_refresh_background (void *ctxt);
 void  vdev_avsync_and_complete(void *ctxt);
 

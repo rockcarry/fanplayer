@@ -1,4 +1,5 @@
 // 包含头文件
+#include <tchar.h>
 #include "vdev.h"
 
 extern "C" {
@@ -22,6 +23,9 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate);
 #endif
+    _tcscpy(c->font_name, DEF_FONT_NAME);
+    c->font_size = DEF_FONT_SIZE;
+    c->status   |= VDEV_CONFIG_FONT;
     return c;
 }
 
@@ -50,15 +54,6 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     c->w  = w; c->h  = h;
     c->status |= VDEV_ERASE_BG0;
     if (c->setrect) c->setrect(c, x, y, w, h);
-}
-
-void vdev_textout(void *ctxt, int x, int y, int color, char *text)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->textx = x;
-    c->texty = y;
-    c->textc = color;
-    c->textt = text;
 }
 
 void vdev_pause(void *ctxt, int pause)
@@ -126,6 +121,25 @@ void vdev_getparam(void *ctxt, int id, void *param)
     }
     if (c->getparam) c->getparam(c, id, param);
 }
+
+#ifdef WIN32
+void vdev_textout(void *ctxt, int x, int y, int color, TCHAR *text)
+{
+    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    c->textx = x;
+    c->texty = y;
+    c->textc = color;
+    c->textt = text;
+}
+
+void vdev_textcfg(void *ctxt, TCHAR *fontname, int fontsize)
+{
+    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    c->font_size = fontsize;
+    _tcscpy_s(c->font_name, _countof(c->font_name), fontname);
+    c->status |= VDEV_CONFIG_FONT;
+}
+#endif
 
 int vdev_refresh_background(void *ctxt)
 {

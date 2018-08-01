@@ -372,12 +372,8 @@ static int player_prepare(PLAYER *player)
     player->avformat_context->interrupt_callback.opaque   = player;
 
     // open input file
-    /*
-    av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+    av_dict_set(&opts, "rtsp_transport", "udp", 0);
     av_dict_set(&opts, "buffer_size", "1048576", 0);
-    av_dict_set(&opts, "analyzeduration", "500000", 0);
-    player->avformat_context->flags |= AVFMT_FLAG_NOBUFFER;
-    */
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];
         sprintf(vsize, "%dx%d", player->init_params.video_vwidth, player->init_params.video_vheight);
@@ -978,13 +974,6 @@ int player_record(void *hplayer, char *file)
     return 0;
 }
 
-void player_textout(void *hplayer, int x, int y, int color, char *text)
-{
-    void *vdev = NULL;
-    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
-    if (vdev) vdev_textout(vdev, x, y, color, text);
-}
-
 void player_setparam(void *hplayer, int id, void *param)
 {
     if (!hplayer) return;
@@ -1065,6 +1054,22 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     }
 }
+
+#ifdef WIN32
+void player_textout(void *hplayer, int x, int y, int color, TCHAR *text)
+{
+    void *vdev = NULL;
+    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
+    if (vdev) vdev_textout(vdev, x, y, color, text);
+}
+
+void player_textcfg(void *hplayer, TCHAR *fontname, int fontsize)
+{
+    void *vdev = NULL;
+    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
+    if (vdev) vdev_textcfg(vdev, fontname, fontsize);
+}
+#endif
 
 void player_send_message(void *extra, int32_t msg, int64_t param) {
 #ifdef WIN32

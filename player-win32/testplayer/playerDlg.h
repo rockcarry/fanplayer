@@ -30,8 +30,8 @@ protected:
     DECLARE_MESSAGE_MAP()
 
 private:
-    char m_strUrl[MAX_PATH];
-    char m_strTxt[MAX_PATH];
+    char  m_strUrl[MAX_PATH];
+    TCHAR m_strTxt[MAX_PATH];
     void *m_ffPlayer;
 
 private:

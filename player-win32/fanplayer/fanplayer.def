@@ -9,6 +9,7 @@ player_setrect
 player_snapshot
 player_record
 player_textout
+player_textcfg
 player_setparam
 player_getparam
 player_load_params

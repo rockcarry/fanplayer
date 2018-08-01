@@ -1,4 +1,5 @@
 // 包含头文件
+#include <tchar.h>
 #include <d3d9.h>
 #include <d3dx9.h>
 #include "vdev.h"
@@ -147,7 +148,17 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             RECT r = { c->textx, c->texty, rect.right, rect.bottom };
             c->pD3DDev->SetRenderTarget(0, c->surfw);
             if (!(c->textc >> 24)) c->textc |= (0xff << 24);
-            c->d3dfont->DrawTextA(c->textt, -1, &r, 0, c->textc);
+
+            if (c->status & VDEV_CONFIG_FONT) {
+                c->status &= ~VDEV_CONFIG_FONT;
+                if (c->d3dfont) c->d3dfont->Release();
+                LOGFONT logfont = {0};
+                _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), c->font_name);
+                logfont.lfHeight = c->font_size;
+                D3DXCreateFontIndirect(c->pD3DDev, &logfont, &c->d3dfont);
+            }
+
+            c->d3dfont->DrawText(c->textt, -1, &r, 0, c->textc);
             c->pD3DDev->EndScene();
             surf = c->surfw;
         }
@@ -387,11 +398,6 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->surfs[0]->Release();
     ctxt->surfs[0] = NULL;
     //-- try pixel format
-
-    LOGFONT logfont = {0};
-    wcscpy(logfont.lfFaceName, TEXT(DEF_FONT_NAME));
-    logfont.lfHeight = DEF_FONT_SIZE;
-    D3DXCreateFontIndirect(ctxt->pD3DDev, &logfont, &ctxt->d3dfont);
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);
