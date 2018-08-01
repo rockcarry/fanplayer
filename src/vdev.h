@@ -17,8 +17,6 @@ extern "C" {
 #define VDEV_ERASE_BG0   (1 << 3)
 #define VDEV_ERASE_BG1   (1 << 4)
 #define VDEV_CONFIG_FONT (1 << 5)
-#define DEF_FONT_SIZE     32
-#define DEF_FONT_NAME    TEXT("Arial")
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS \
@@ -101,6 +99,8 @@ void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
 
 #ifdef WIN32
+#define DEF_FONT_SIZE   32
+#define DEF_FONT_NAME   TEXT("Arial")
 void  vdev_textout (void *ctxt, int x, int y, int color, TCHAR *text);
 void  vdev_textcfg (void *ctxt, TCHAR *fontname, int fontsize);
 #endif
