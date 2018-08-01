@@ -32,11 +32,13 @@ typedef struct {
     AVCodecContext  *acodec_context;
     int              astream_index;
     AVRational       astream_timebase;
+    AVFrame          aframe;
 
     // video
     AVCodecContext  *vcodec_context;
     int              vstream_index;
     AVRational       vstream_timebase;
+    AVFrame          vframe;
 
     // pktqueue
     void            *pktqueue;
@@ -511,6 +513,8 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
         if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
         if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
         if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
+        av_frame_unref(&player->aframe); player->aframe.pts = -1;
+        av_frame_unref(&player->vframe); player->vframe.pts = -1;
 
         VDEV_COMMON_CTXT *vdev = NULL;
         player_getparam(player, PARAM_VDEV_GET_CONTEXT, &vdev);
@@ -608,13 +612,9 @@ static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-    AVFrame  *aframe = NULL;
     int64_t   apts;
 
-    aframe = av_frame_alloc();
-    if (!aframe) return NULL;
-    else aframe->pts = -1;
-
+    player->aframe.pts = -1;
     while (!(player->player_status & PS_CLOSE))
     {
         //++ when audio decode pause ++//
@@ -627,7 +627,7 @@ static void* audio_decode_thread_proc(void *param)
         // dequeue audio packet
         packet = pktqueue_audio_dequeue(player->pktqueue);
         if (packet == NULL) {
-//          render_audio(player->render, aframe);
+//          render_audio(player->render, &player->aframe);
             av_usleep(20*1000); continue;
         }
 
@@ -637,7 +637,7 @@ static void* audio_decode_thread_proc(void *param)
             int consumed = 0;
             int gotaudio = 0;
 
-            consumed = avcodec_decode_audio4(player->acodec_context, aframe, &gotaudio, packet);
+            consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
             if (consumed < 0) {
                 av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n");
                 break;
@@ -646,14 +646,14 @@ static void* audio_decode_thread_proc(void *param)
             if (gotaudio) {
                 AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
                 if (apts == AV_NOPTS_VALUE) {
-                    apts  = av_rescale_q(aframe->pts, av_codec_get_pkt_timebase(player->acodec_context), tb_sample_rate);
+                    apts  = av_rescale_q(player->aframe.pts, av_codec_get_pkt_timebase(player->acodec_context), tb_sample_rate);
                 } else {
-                    apts += aframe->nb_samples;
+                    apts += player->aframe.nb_samples;
                 }
-                aframe->pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
+                player->aframe.pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
                 //++ for seek operation
                 if (player->player_status & PS_A_SEEK) {
-                    if (player->seek_dest - aframe->pts <= player->seek_diff) {
+                    if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
                         player->player_status &= ~PS_A_SEEK;
                     }
                     if ((player->player_status & PS_R_PAUSE) && player->vstream_index == -1) {
@@ -661,7 +661,7 @@ static void* audio_decode_thread_proc(void *param)
                     }
                 }
                 //-- for seek operation
-                if (!(player->player_status & PS_A_SEEK)) render_audio(player->render, aframe);
+                if (!(player->player_status & PS_A_SEEK)) render_audio(player->render, &player->aframe);
             }
 
             packet->data += consumed;
@@ -675,7 +675,7 @@ static void* audio_decode_thread_proc(void *param)
         pktqueue_free_enqueue(player->pktqueue, packet);
     }
 
-    av_frame_free(&aframe);
+    av_frame_unref(&player->aframe);
 #ifdef ANDROID
     // need detach current thread
     get_jni_jvm()->DetachCurrentThread();
@@ -687,12 +687,8 @@ static void* video_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-    AVFrame  *vframe = NULL;
 
-    vframe = av_frame_alloc();
-    if (!vframe) return NULL;
-    else vframe->pts = -1;
-
+    player->vframe.pts = -1;
     while (!(player->player_status & PS_CLOSE)) {
         //++ when video decode pause ++//
         if (player->player_status & PS_V_PAUSE) {
@@ -704,7 +700,7 @@ static void* video_decode_thread_proc(void *param)
         // dequeue video packet
         packet = pktqueue_video_dequeue(player->pktqueue);
         if (packet == NULL) {
-            render_video(player->render, vframe);
+            render_video(player->render, &player->vframe);
             av_usleep(20*1000); continue;
         }
 
@@ -713,22 +709,22 @@ static void* video_decode_thread_proc(void *param)
             int consumed = 0;
             int gotvideo = 0;
 
-            consumed = avcodec_decode_video2(player->vcodec_context, vframe, &gotvideo, packet);
+            consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);
             if (consumed < 0) {
                 av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n");
                 break;
             }
 
             if (gotvideo) {
-                vfilter_graph_input(player, vframe);
+                vfilter_graph_input(player, &player->vframe);
                 do {
-                    if (vfilter_graph_output(player, vframe) < 0) break;
-//                  player->seek_vpts = av_frame_get_best_effort_timestamp(vframe);
-                    player->seek_vpts = vframe->pkt_dts; // if rtmp has problem, try to use this code
-                    vframe->pts       = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
+                    if (vfilter_graph_output(player, &player->vframe) < 0) break;
+//                  player->seek_vpts = av_frame_get_best_effort_timestamp(&player->vframe);
+                    player->seek_vpts = player->vframe.pkt_dts; // if rtmp has problem, try to use this code
+                    player->vframe.pts= av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
-                        if (player->seek_dest - vframe->pts <= player->seek_diff) {
+                        if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
                             player->player_status &= ~PS_V_SEEK;
                             if (player->player_status & PS_R_PAUSE) {
                                 render_pause(player->render);
@@ -736,7 +732,7 @@ static void* video_decode_thread_proc(void *param)
                         }
                     }
                     //-- for seek operation
-                    if (!(player->player_status & PS_V_SEEK)) render_video(player->render, vframe);
+                    if (!(player->player_status & PS_V_SEEK)) render_video(player->render, &player->vframe);
                 } while (player->vfilter_graph);
             }
 
@@ -751,7 +747,7 @@ static void* video_decode_thread_proc(void *param)
         pktqueue_free_enqueue(player->pktqueue, packet);
     }
 
-    av_frame_free(&vframe);
+    av_frame_unref(&player->vframe);
 #ifdef ANDROID
     // need detach current thread
     get_jni_jvm()->DetachCurrentThread();
