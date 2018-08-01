@@ -213,6 +213,11 @@ player_textout  在视频显示上叠加文字输出
     color       - 文字颜色
     text        - 文字字符串
 
+player_textcfg  叠加文字输出的字体设置
+    hplayer     - 指向 player_open 返回的 player 对象
+    fontname    - 字体名
+    fontsize    - 字体大小
+
 player_setparam 设置参数
     hplayer     - 指向 player_open 返回的 player 对象
     id          - 参数 id
