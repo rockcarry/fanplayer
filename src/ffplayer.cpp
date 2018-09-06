@@ -149,10 +149,10 @@ static void vfilter_graph_init(PLAYER *player)
 
     //++ generate filter string according to deinterlace and rotation
     if (player->init_params.video_rotate) {
-        int ow = abs(int(vdec_ctx->width  * cos(player->init_params.video_rotate * M_PI / 180)))
-               + abs(int(vdec_ctx->height * sin(player->init_params.video_rotate * M_PI / 180)));
-        int oh = abs(int(vdec_ctx->width  * sin(player->init_params.video_rotate * M_PI / 180)))
-               + abs(int(vdec_ctx->height * cos(player->init_params.video_rotate * M_PI / 180)));
+        int ow = abs((int)(vdec_ctx->width  * cos(player->init_params.video_rotate * M_PI / 180)))
+               + abs((int)(vdec_ctx->height * sin(player->init_params.video_rotate * M_PI / 180)));
+        int oh = abs((int)(vdec_ctx->width  * sin(player->init_params.video_rotate * M_PI / 180)))
+               + abs((int)(vdec_ctx->height * cos(player->init_params.video_rotate * M_PI / 180)));
         player->init_params.video_owidth  = ow;
         player->init_params.video_oheight = oh;
         sprintf(temp, "rotate=%d*PI/180:%d:%d", player->init_params.video_rotate, ow, oh);
@@ -318,6 +318,7 @@ static int get_stream_total(PLAYER *player, enum AVMediaType type) {
     return total;
 }
 
+#if 0
 static int get_stream_current(PLAYER *player, enum AVMediaType type) {
     int idx, cur, i;
     switch (type) {
@@ -333,6 +334,7 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
     }
     return cur;
 }
+#endif
 
 static int player_prepare(PLAYER *player)
 {
@@ -649,7 +651,7 @@ static void* audio_decode_thread_proc(void *param)
             if (gotaudio) {
                 AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
                 if (apts == AV_NOPTS_VALUE) {
-                    apts  = av_rescale_q(player->aframe.pts, av_codec_get_pkt_timebase(player->acodec_context), tb_sample_rate);
+                    apts  = av_rescale_q(player->aframe.pts, player->astream_timebase, tb_sample_rate);
                 } else {
                     apts += player->aframe.nb_samples;
                 }
@@ -989,10 +991,10 @@ void player_setparam(void *hplayer, int id, void *param)
         break;
     case PARAM_VDEV_D3D_ROTATE: {
             double radian = (*(int*)param) * M_PI / 180;
-            player->init_params.video_owidth = abs(int(player->vcodec_context->width  * cos(radian)))
-                                             + abs(int(player->vcodec_context->height * sin(radian)));
-            player->init_params.video_oheight= abs(int(player->vcodec_context->width  * sin(radian)))
-                                             + abs(int(player->vcodec_context->height * cos(radian)));
+            player->init_params.video_owidth = abs((int)(player->vcodec_context->width  * cos(radian)))
+                                             + abs((int)(player->vcodec_context->height * sin(radian)));
+            player->init_params.video_oheight= abs((int)(player->vcodec_context->width  * sin(radian)))
+                                             + abs((int)(player->vcodec_context->height * cos(radian)));
             render_setparam(player->render, id, param);
             player_setrect(hplayer, 0,
                 player->vdrect.left, player->vdrect.top,
@@ -1085,8 +1087,7 @@ void player_send_message(void *extra, int32_t msg, int64_t param) {
 //++ load player init params from string
 static char* parse_params(const char *str, const char *key, char *val, int len)
 {
-    char *p    = (char*)strstr(str, key);
-    int   flag = 0;
+    char *p = (char*)strstr(str, key);
     int   i;
 
     if (!p) return NULL;
