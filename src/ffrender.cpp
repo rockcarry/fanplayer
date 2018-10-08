@@ -211,7 +211,6 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
     audio->nb_samples    = 0;
 
     soundtouch_putSamples_i16(render->stcontext, out, num_samp);
-    num_st = soundtouch_numSamples(render->stcontext);
     do {
         if (render->adev_buf_avail == 0) {
             adev_lock(render->adev, &render->adev_hdr_cur);
