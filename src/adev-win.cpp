@@ -19,7 +19,7 @@ typedef struct
 } ADEV_CONTEXT;
 
 // 内部函数实现
-static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2)
+static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)dwInstance;
     switch (uMsg)
