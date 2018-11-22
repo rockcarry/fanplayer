@@ -41,8 +41,8 @@ static void* video_render_thread_proc(void *param)
                     if (c->hfont) DeleteObject(c->hfont);
                     c->hfont = hfont;
                 }
-                SetTextColor(c->hdcsrc, c->textc & 0xffffff);
-                TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcsclen(c->textt));
+                SetTextColor(c->hdcsrc, c->textc);
+                TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
             c->vpts = c->ppts[c->head];

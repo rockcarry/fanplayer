@@ -158,9 +158,9 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 
         IDirect3DSurface9_GetDC(c->surfw, &hdc);
         SelectObject(hdc, c->hfont);
-        SetTextColor(hdc, c->textc & 0xffffff);
+        SetTextColor(hdc, c->textc);
         SetBkMode   (hdc, TRANSPARENT);
-        TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcsclen(c->textt));
+        TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
         IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
 
         surf = c->surfw;

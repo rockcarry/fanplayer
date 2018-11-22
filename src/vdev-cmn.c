@@ -81,7 +81,7 @@ void vdev_reset(void *ctxt)
     c->head   = c->tail =  0;
 #endif//-- no need to reset vdev buffer queue
     c->apts   = c->vpts = AV_NOPTS_VALUE;
-    c->status = 0;
+    c->status&= VDEV_CONFIG_FONT;
 }
 
 void vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts)
