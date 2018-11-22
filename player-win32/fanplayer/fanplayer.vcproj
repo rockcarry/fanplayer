@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\dx9sdk\include;..\pthreads\include;..\ffmpeg\include;..\soundtouch\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;FFPLAYER_EXPORTS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -120,7 +120,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="..\dx9sdk\include;..\pthreads\include;..\ffmpeg\include;..\soundtouch\include"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;FFPLAYER_EXPORTS"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -183,51 +183,51 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\src\adev-cmn.cpp"
+				RelativePath="..\..\src\adev-cmn.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\adev-win.cpp"
+				RelativePath="..\..\src\adev-win.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\dxva2hwa.cpp"
+				RelativePath="..\..\src\dxva2hwa.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\ffplayer.cpp"
+				RelativePath="..\..\src\ffplayer.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\ffrender.cpp"
+				RelativePath="..\..\src\ffrender.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\pktqueue.cpp"
+				RelativePath="..\..\src\pktqueue.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\recorder.cpp"
+				RelativePath="..\..\src\recorder.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\snapshot.cpp"
+				RelativePath="..\..\src\snapshot.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\vdev-cmn.cpp"
+				RelativePath="..\..\src\vdev-cmn.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\vdev-d3d.cpp"
+				RelativePath="..\..\src\vdev-d3d.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\vdev-gdi.cpp"
+				RelativePath="..\..\src\vdev-gdi.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\veffect.cpp"
+				RelativePath="..\..\src\veffect.c"
 				>
 			</File>
 		</Filter>

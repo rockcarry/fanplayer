@@ -4,11 +4,9 @@
 #include <dxva2api.h>
 #include "dxva2hwa.h"
 
-extern "C" {
-#include <libavutil/hwcontext.h>
-#include <libavutil/hwcontext_dxva2.h>
-#include <libavcodec/dxva2.h>
-}
+#include "libavutil/hwcontext.h"
+#include "libavutil/hwcontext_dxva2.h"
+#include "libavcodec/dxva2.h"
 
 // 内部类型定义
 DEFINE_GUID(IID_IDirectXVideoDecoderService, 0xfc51a551,0xd5e7,0x11d9,0xaf,0x55,0x00,0x05,0x4e,0x43,0xff,0x02);
@@ -32,30 +30,30 @@ typedef struct dxva2_mode {
 
 static const dxva2_mode dxva2_modes[] = {
     /* MPEG-2 */
-    { DXVA2_ModeMPEG2_VLD,        AV_CODEC_ID_MPEG2VIDEO },
-    { DXVA2_ModeMPEG2and1_VLD,    AV_CODEC_ID_MPEG2VIDEO },
+    { &DXVA2_ModeMPEG2_VLD,        AV_CODEC_ID_MPEG2VIDEO },
+    { &DXVA2_ModeMPEG2and1_VLD,    AV_CODEC_ID_MPEG2VIDEO },
 
     /* H.264 */
-    { DXVA2_ModeH264_F,           AV_CODEC_ID_H264 },
-    { DXVA2_ModeH264_E,           AV_CODEC_ID_H264 },
+    { &DXVA2_ModeH264_F,           AV_CODEC_ID_H264 },
+    { &DXVA2_ModeH264_E,           AV_CODEC_ID_H264 },
 
     /* Intel specific H.264 mode */
-    { DXVADDI_Intel_ModeH264_E,   AV_CODEC_ID_H264 },
+    { &DXVADDI_Intel_ModeH264_E,   AV_CODEC_ID_H264 },
 
     /* VC-1 / WMV3 */
-    { DXVA2_ModeVC1_D2010,        AV_CODEC_ID_VC1  },
-    { DXVA2_ModeVC1_D2010,        AV_CODEC_ID_WMV3 },
-    { DXVA2_ModeVC1_D,            AV_CODEC_ID_VC1  },
-    { DXVA2_ModeVC1_D,            AV_CODEC_ID_WMV3 },
+    { &DXVA2_ModeVC1_D2010,        AV_CODEC_ID_VC1  },
+    { &DXVA2_ModeVC1_D2010,        AV_CODEC_ID_WMV3 },
+    { &DXVA2_ModeVC1_D,            AV_CODEC_ID_VC1  },
+    { &DXVA2_ModeVC1_D,            AV_CODEC_ID_WMV3 },
 
     /* HEVC/H.265 */
-    { DXVA2_ModeHEVC_VLD_Main,    AV_CODEC_ID_HEVC },
-    { DXVA2_ModeHEVC_VLD_Main10,  AV_CODEC_ID_HEVC },
+    { &DXVA2_ModeHEVC_VLD_Main,    AV_CODEC_ID_HEVC },
+    { &DXVA2_ModeHEVC_VLD_Main10,  AV_CODEC_ID_HEVC },
 
     /* VP8/9 */
-    { DXVA2_ModeVP9_VLD_Profile0, AV_CODEC_ID_VP9  },
+    { &DXVA2_ModeVP9_VLD_Profile0, AV_CODEC_ID_VP9  },
 
-    { GUID_NULL,                  (AVCodecID)0     }
+    { NULL }
 };
 
 typedef struct DXVA2Context {
@@ -72,8 +70,8 @@ typedef struct DXVA2Context {
 typedef struct {
     void  *hwaccel_d3ddev;
     void  *hwaccel_ctx;
-    int           (*hwaccel_get_buffer)(AVCodecContext *s, AVFrame *frame, int flags);
-    AVPixelFormat (*hwaccel_get_format)(AVCodecContext *s, const AVPixelFormat *fmts);
+    int  (*hwaccel_get_buffer)(AVCodecContext *s, AVFrame *frame, int flags);
+    enum AVPixelFormat (*hwaccel_get_format)(AVCodecContext *s, const enum AVPixelFormat *fmts);
 } HWACCEL;
 
 // 内部函数实现
@@ -85,7 +83,7 @@ static int dxva2_get_buffer(AVCodecContext *s, AVFrame *frame, int flags)
     return av_hwframe_get_buffer(ctx->hw_frames_ctx, frame, 0);
 }
 
-static AVPixelFormat dxva2_get_format(AVCodecContext *s, const AVPixelFormat *fmts)
+static enum AVPixelFormat dxva2_get_format(AVCodecContext *s, const enum AVPixelFormat *fmts)
 {
     return AV_PIX_FMT_DXVA2_VLD;
 }
@@ -125,7 +123,7 @@ static int dxva2_alloc(AVCodecContext *s)
     }
 
     hr = IDirect3DDeviceManager9_GetVideoService(device_hwctx->devmgr, device_handle,
-                                                 IID_IDirectXVideoDecoderService,
+                                                 &IID_IDirectXVideoDecoderService,
                                                  (void **)&ctx->decoder_service);
     IDirect3DDeviceManager9_CloseDeviceHandle(device_hwctx->devmgr, device_handle);
     if (FAILED(hr)) {
@@ -145,7 +143,7 @@ fail:
     return AVERROR(EINVAL);
 }
 
-static int dxva2_get_decoder_configuration(AVCodecContext *s, const GUID device_guid,
+static int dxva2_get_decoder_configuration(AVCodecContext *s, const GUID *device_guid,
                                            const DXVA2_VideoDesc *desc,
                                            DXVA2_ConfigPictureDecode *config)
 {
@@ -175,7 +173,7 @@ static int dxva2_get_decoder_configuration(AVCodecContext *s, const GUID device_
         } else {
             continue;
         }
-        if (IsEqualGUID(cfg->guidConfigBitstreamEncryption, DXVA2_NoEncrypt))
+        if (IsEqualGUID(&cfg->guidConfigBitstreamEncryption, &DXVA2_NoEncrypt))
             score += 16;
         if (score > best_score) {
             best_score = score;
@@ -219,7 +217,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
         goto fail;
     }
 
-    for (i=0; !IsEqualGUID(dxva2_modes[i].guid, GUID_NULL); i++) {
+    for (i=0; !IsEqualGUID(&dxva2_modes[i].guid, &GUID_NULL); i++) {
         D3DFORMAT *target_list = NULL;
         unsigned  target_count = 0;
         const dxva2_mode *mode = &dxva2_modes[i];
@@ -228,7 +226,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
         }
 
         for (j=0; j<guid_count; j++) {
-            if (IsEqualGUID(mode->guid, guid_list[j]))
+            if (IsEqualGUID(&mode->guid, &guid_list[j]))
                 break;
         }
         if (j == guid_count) {
@@ -248,13 +246,13 @@ static int dxva2_create_decoder(AVCodecContext *s)
         }
         CoTaskMemFree(target_list);
         if (target_format) {
-            device_guid = mode->guid;
+            device_guid = *mode->guid;
             break;
         }
     }
     CoTaskMemFree(guid_list);
 
-    if (IsEqualGUID(device_guid, GUID_NULL)) {
+    if (IsEqualGUID(&device_guid, &GUID_NULL)) {
         av_log(NULL, AV_LOG_INFO, "No decoder device for codec found\n");
         goto fail;
     }
@@ -263,7 +261,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
     desc.SampleHeight = s->coded_height;
     desc.Format       = target_format;
 
-    ret = dxva2_get_decoder_configuration(s, device_guid, &desc, &config);
+    ret = dxva2_get_decoder_configuration(s, &device_guid, &desc, &config);
     if (ret < 0) {
         goto fail;
     }
@@ -319,7 +317,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
         goto fail;
     }
 
-    hr = IDirectXVideoDecoderService_CreateVideoDecoder(ctx->decoder_service, device_guid,
+    hr = IDirectXVideoDecoderService_CreateVideoDecoder(ctx->decoder_service, &device_guid,
                                                         &desc, &config, frames_hwctx->surfaces,
                                                         frames_hwctx->nb_surfaces, &frames_hwctx->decoder_to_release);
     if (FAILED(hr)) {
@@ -335,7 +333,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
     dxva_ctx->surface       = frames_hwctx->surfaces;
     dxva_ctx->surface_count = frames_hwctx->nb_surfaces;
 
-    if (IsEqualGUID(ctx->decoder_guid, DXVADDI_Intel_ModeH264_E)) {
+    if (IsEqualGUID(&ctx->decoder_guid, &DXVADDI_Intel_ModeH264_E)) {
         dxva_ctx->workaround |= FF_DXVA2_WORKAROUND_INTEL_CLEARVIDEO;
     }
 

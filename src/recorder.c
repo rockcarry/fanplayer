@@ -13,14 +13,14 @@ typedef struct
 // º¯ÊýÊµÏÖ
 void* recorder_init(char *filename, AVFormatContext *ifc)
 {
-    int    ret;
-    unsigned i;
+    RECORDER *recorder;
+    int       ret, i;
 
     // check params invalid
     if (!filename || !ifc) return NULL;
 
     // allocate context for recorder
-    RECORDER *recorder = (RECORDER*)calloc(1, sizeof(RECORDER));
+    recorder = (RECORDER*)calloc(1, sizeof(RECORDER));
     if (!recorder) {
         return NULL;
     }
@@ -35,7 +35,7 @@ void* recorder_init(char *filename, AVFormatContext *ifc)
         goto failed;
     }
 
-    for (i=0; i<ifc->nb_streams; i++) {
+    for (i=0; i<(int)ifc->nb_streams; i++) {
         AVStream *is = ifc->streams[i];
         AVStream *os = avformat_new_stream(recorder->ofc, is->codec->codec);
         if (!os) {
@@ -84,8 +84,8 @@ failed:
 
 void recorder_free(void *ctxt)
 {
-    if (!ctxt) return;
     RECORDER *recorder = (RECORDER*)ctxt;
+    if (!ctxt) return;
 
     // lock
     pthread_mutex_lock(&recorder->lock);
@@ -115,19 +115,20 @@ void recorder_free(void *ctxt)
 
 int recorder_packet(void *ctxt, AVPacket *pkt)
 {
-    if (!ctxt || !pkt) return -1;
     RECORDER *recorder = (RECORDER*)ctxt;
+    AVPacket  packet   = {0};
+    AVStream *is, *os;
+    if (!ctxt || !pkt) return -1;
 
     // lock
     pthread_mutex_lock(&recorder->lock);
 
-    AVStream *is = recorder->ifc->streams[pkt->stream_index];
-    AVStream *os = recorder->ofc->streams[pkt->stream_index];
-    AVPacket  packet = {};
+    is = recorder->ifc->streams[pkt->stream_index];
+    os = recorder->ofc->streams[pkt->stream_index];
 
     av_packet_ref(&packet, pkt);
-    packet.pts = av_rescale_q_rnd(packet.pts, is->time_base, os->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
-    packet.dts = av_rescale_q_rnd(packet.dts, is->time_base, os->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
+    packet.pts = av_rescale_q_rnd(packet.pts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
+    packet.dts = av_rescale_q_rnd(packet.dts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
     packet.duration = av_rescale_q(packet.duration, is->time_base, os->time_base);
     packet.pos = -1;
     av_interleaved_write_frame(recorder->ofc, &packet);

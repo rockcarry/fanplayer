@@ -97,9 +97,9 @@ void* adev_create(int type, int bufnum, int buflen)
 
 void adev_destroy(void *ctxt)
 {
-    if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    int i;
+    int           i;
+    if (!ctxt) return;
 
     // before close wavout, we need reset it first,
     // otherwise it will cause crash on vs2013
@@ -124,33 +124,35 @@ void adev_destroy(void *ctxt)
 
 void adev_lock(void *ctxt, AUDIOBUF **ppab)
 {
-    if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    if (!ctxt) return;
     WaitForSingleObject(c->bufsem, -1);
     *ppab = (AUDIOBUF*)&c->pWaveHdr[c->tail];
 }
 
 void adev_unlock(void *ctxt, int64_t pts)
 {
-    if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    c->ppts[c->tail] = pts;
+    int           multiplier, n;
+    int16_t      *buf;
+    if (!ctxt) return;
 
     //++ software volume scale
-    int      multiplier = c->vol_scaler[c->vol_curvol];
-    int16_t *buf        = (int16_t*)c->pWaveHdr[c->tail].lpData;
-    int      n          = c->pWaveHdr[c->tail].dwBufferLength / sizeof(int16_t);
+    multiplier = c->vol_scaler[c->vol_curvol];
+    buf        = (int16_t*)c->pWaveHdr[c->tail].lpData;
+    n          = c->pWaveHdr[c->tail].dwBufferLength / sizeof(int16_t);
     swvol_scaler_run(buf, n, multiplier);
     //-- software volume scale
 
+    c->ppts[c->tail] = pts;
     waveOutWrite(c->hWaveOut, &c->pWaveHdr[c->tail], sizeof(WAVEHDR));
     if (++c->tail == c->bufnum) c->tail = 0;
 }
 
 void adev_pause(void *ctxt, int pause)
 {
-    if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    if (!ctxt) return;
     if (pause) {
         waveOutPause(c->hWaveOut);
     } else {
@@ -160,8 +162,8 @@ void adev_pause(void *ctxt, int pause)
 
 void adev_reset(void *ctxt)
 {
-    if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    if (!ctxt) return;
     waveOutReset(c->hWaveOut);
     c->head = c->tail = 0;
     ReleaseSemaphore(c->bufsem, c->bufnum, NULL);

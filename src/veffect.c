@@ -157,18 +157,24 @@ static void resize_veffect_ifneeded(VEFFECT *ve, int w, int h)
 {
     if (!ve->hbmp || ve->w != w || ve->h != h) {
         //++ re-create bitmap for draw buffer
-        BITMAPINFO bmpinfo = {0};
+        BITMAPINFO    bmpinfo = {0};
+        BITMAP        bitmap  = {0};
+        HBITMAP       hbmp;
+        HANDLE        hobj;
+        HDC           hdc ;
+        TRIVERTEX     vert[2];
+        GRADIENT_RECT grect;
+
         bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
         bmpinfo.bmiHeader.biWidth       =  w;
         bmpinfo.bmiHeader.biHeight      = -h;
         bmpinfo.bmiHeader.biPlanes      =  1;
         bmpinfo.bmiHeader.biBitCount    =  32;
         bmpinfo.bmiHeader.biCompression =  BI_RGB;
-        HBITMAP hbmp = CreateDIBSection(ve->hdcsrc, &bmpinfo, DIB_RGB_COLORS, (void**)&ve->pbmp, NULL, 0);
-        HANDLE  hobj = SelectObject(ve->hdcsrc, hbmp);
+        hbmp = CreateDIBSection(ve->hdcsrc, &bmpinfo, DIB_RGB_COLORS, (void**)&ve->pbmp, NULL, 0);
+        hobj = SelectObject(ve->hdcsrc, hbmp);
         if (hobj) DeleteObject(hobj);
 
-        BITMAP bitmap = {0};
         GetObject(hbmp, sizeof(BITMAP), &bitmap);
         ve->hbmp   = hbmp;
         ve->w      = w;
@@ -185,10 +191,8 @@ static void resize_veffect_ifneeded(VEFFECT *ve, int w, int h)
         bmpinfo.bmiHeader.biBitCount    =  32;
         bmpinfo.bmiHeader.biCompression =  BI_RGB;
         ve->hfill = CreateDIBSection(ve->hdcsrc, &bmpinfo, DIB_RGB_COLORS, NULL, NULL, 0);
-        HDC hdc   = CreateCompatibleDC(ve->hdcsrc);
+        hdc       = CreateCompatibleDC(ve->hdcsrc);
         SelectObject(hdc, ve->hfill);
-        TRIVERTEX     vert[2];
-        GRADIENT_RECT grect;
         vert[0].x        = 0;
         vert[0].y        = 0;
         vert[0].Red      = 0xffff;
@@ -211,12 +215,13 @@ static void resize_veffect_ifneeded(VEFFECT *ve, int w, int h)
 
 static void draw_waveform(VEFFECT *ve, int x, int y, int w, int h, float divisor, float *sample, int n)
 {
+    int delta, px, py, i;
+
     // resize veffect if needed
     resize_veffect_ifneeded(ve, w, h);
 
     //++ draw visual effect
-    int delta  = n / w > 1 ? n / w : 1;
-    int px, py, i;
+    delta  = n / w > 1 ? n / w : 1;
 
     // clear bitmap
     memset(ve->pbmp, 0, ve->stride * h);
@@ -305,6 +310,7 @@ static void draw_spectrum(VEFFECT *ve, int x, int y, int w, int h, float *sample
 void* veffect_create(void *surface)
 {
     VEFFECT *ve = (VEFFECT*)calloc(1, sizeof(VEFFECT));
+    int      i;
     if (!ve) return NULL;
 
     ve->hwnd   = (HWND) surface;
@@ -312,7 +318,7 @@ void* veffect_create(void *surface)
     ve->hdcsrc = CreateCompatibleDC(ve->hdcdst);
     ve->hpen0  = CreatePen(PS_SOLID, 1, RGB(0 , 255, 0 ));
     ve->hpen1  = CreatePen(PS_SOLID, 1, RGB(32, 32 , 64));
-    for (int i=0; i<MAX_GRID_COLS; i++) {
+    for (i=0; i<MAX_GRID_COLS; i++) {
         ve->peak_y[i] = 0x7fffffff;
     }
     return ve;
@@ -390,7 +396,7 @@ void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *adev
             fft_execute(ve->fft, ve->data_buf, ve->data_buf);
             fsrc = fdst = (float*)ve->data_buf;
             for (i=0; i<ve->data_len; i++) {
-                *fdst = sqrt(fsrc[0] * fsrc[0] + fsrc[1] * fsrc[1]);
+                *fdst = (float)sqrt(fsrc[0] * fsrc[0] + fsrc[1] * fsrc[1]);
                 fdst += 1;
                 fsrc += 2;
             }

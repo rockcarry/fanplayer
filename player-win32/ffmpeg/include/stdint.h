@@ -150,7 +150,9 @@ typedef unsigned __int64   uintmax_t;
 #define SIG_ATOMIC_MIN INT32_MIN
 #define SIG_ATOMIC_MAX INT32_MAX
 
+#ifndef SIZE_MAX
 #define SIZE_MAX UINT32_MAX
+#endif
 
 #ifndef WCHAR_MIN  /* also in wchar.h */ 
 #define WCHAR_MIN 0

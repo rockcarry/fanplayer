@@ -30,7 +30,10 @@ typedef struct {
 // º¯ÊýÊµÏÖ
 void* pktqueue_create(int size)
 {
-    PKTQUEUE *ppq = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE));
+    PKTQUEUE *ppq;
+    int       i  ;
+
+    ppq = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE));
     if (!ppq) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate pktqueue context !\n");
         exit(0);
@@ -56,7 +59,7 @@ void* pktqueue_create(int size)
     }
 
     // init fpkts
-    for (int i=0; i<ppq->fsize; i++) {
+    for (i=0; i<ppq->fsize; i++) {
         ppq->fpkts[i] = &ppq->bpkts[i];
     }
 

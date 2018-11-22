@@ -5,10 +5,8 @@
 #include <tchar.h>
 #endif
 
-extern "C" {
 #include "libavutil/log.h"
 #include "libavutil/time.h"
-}
 
 // 内部常量定义
 #define COMPLETED_COUNTER  30
@@ -95,8 +93,8 @@ void vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts)
 
 void vdev_setparam(void *ctxt, int id, void *param)
 {
-    if (!ctxt || !param) return;
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    if (!ctxt || !param) return;
 
     switch (id) {
     case PARAM_PLAY_SPEED_VALUE:
@@ -111,8 +109,8 @@ void vdev_setparam(void *ctxt, int id, void *param)
 
 void vdev_getparam(void *ctxt, int id, void *param)
 {
-    if (!ctxt || !param) return;
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    if (!ctxt || !param) return;
 
     switch (id) {
     case PARAM_PLAY_SPEED_VALUE:

@@ -1,10 +1,7 @@
 // 包含头文件
 #include <tchar.h>
 #include "vdev.h"
-
-extern "C" {
 #include "libavformat/avformat.h"
-}
 
 // 内部常量定义
 #define DEF_VDEV_BUF_NUM  3
@@ -24,7 +21,9 @@ typedef struct {
 // 内部函数实现
 static void* video_render_thread_proc(void *param)
 {
-    VDEVGDICTXT *c = (VDEVGDICTXT*)param;
+    VDEVGDICTXT  *c = (VDEVGDICTXT*)param;
+    LOGFONT logfont = {0};
+    HFONT     hfont = NULL;
 
     while (1) {
         sem_wait(&c->semr);
@@ -35,10 +34,9 @@ static void* video_render_thread_proc(void *param)
             if (c->textt) {
                 if (c->status & VDEV_CONFIG_FONT) {
                     c->status &= ~VDEV_CONFIG_FONT;
-                    LOGFONT logfont = {};
                     _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), c->font_name);
                     logfont.lfHeight = c->font_size;
-                    HFONT hfont = CreateFontIndirect(&logfont);
+                    hfont = CreateFontIndirect(&logfont);
                     SelectObject(c->hdcsrc, hfont);
                     if (c->hfont) DeleteObject(c->hfont);
                     c->hfont = hfont;
@@ -63,13 +61,14 @@ static void* video_render_thread_proc(void *param)
 
 static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
 {
-    VDEVGDICTXT *c = (VDEVGDICTXT*)ctxt;
+    VDEVGDICTXT *c       = (VDEVGDICTXT*)ctxt;
+    int          bmpw    =  0;
+    int          bmph    =  0;
+    BITMAPINFO   bmpinfo = {0};
+    BITMAP       bitmap;
 
     sem_wait(&c->semw);
 
-    BITMAP bitmap;
-    int bmpw = 0;
-    int bmph = 0;
     if (c->hbitmaps[c->tail]) {
         GetObject(c->hbitmaps[c->tail], sizeof(BITMAP), &bitmap);
         bmpw = bitmap.bmWidth ;
@@ -81,8 +80,7 @@ static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
         if (c->hbitmaps[c->tail]) {
             DeleteObject(c->hbitmaps[c->tail]);
         }
-
-        BITMAPINFO bmpinfo = {0};
+        
         bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
         bmpinfo.bmiHeader.biWidth       =  c->w;
         bmpinfo.bmiHeader.biHeight      = -c->h;

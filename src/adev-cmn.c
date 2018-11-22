@@ -41,23 +41,23 @@ void swvol_scaler_run(int16_t *buf, int n, int multiplier)
 
 void adev_syncapts(void *ctxt, int64_t *apts)
 {
-    if (!ctxt) return;
     ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
+    if (!ctxt) return;
     c->apts = apts;
 }
 
 void adev_bufcur(void *ctxt, void **buf, int *len)
 {
-    if (!ctxt) return;
     ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
+    if (!ctxt) return;
     if (buf) *buf = c->bufcur;
     if (len) *len = c->buflen;
 }
 
 void adev_setparam(void *ctxt, int id, void *param)
 {
-    if (!ctxt || !param) return;
     ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
+    if (!ctxt || !param) return;
 
     switch (id) {
     case PARAM_AUDIO_VOLUME:
@@ -74,8 +74,8 @@ void adev_setparam(void *ctxt, int id, void *param)
 
 void adev_getparam(void *ctxt, int id, void *param)
 {
-    if (!ctxt || !param) return;
     ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
+    if (!ctxt || !param) return;
 
     switch (id) {
     case PARAM_AUDIO_VOLUME:

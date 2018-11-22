@@ -3,29 +3,27 @@
 #include "stdefine.h"
 #include "snapshot.h"
 
-extern "C" {
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
-}
 
 // º¯ÊýÊµÏÖ
 int take_snapshot(char *file, int w, int h, AVFrame *video)
 {
-    char              *fileext = NULL;
-    enum AVCodecID     codecid = AV_CODEC_ID_NONE;
-    struct SwsContext *sws_ctx = NULL;
-    AVPixelFormat      swsofmt = AV_PIX_FMT_NONE;
-    AVFrame            picture = {};
-    int                ret     = -1;
+    char              *fileext    = NULL;
+    int                codecid    = AV_CODEC_ID_NONE;
+    struct SwsContext *sws_ctx    = NULL;
+    int                swsofmt    = AV_PIX_FMT_NONE;
+    AVFrame            picture    = {0};
+    int                ret        = -1;
 
     AVFormatContext   *fmt_ctxt   = NULL;
     AVOutputFormat    *out_fmt    = NULL;
     AVStream          *stream     = NULL;
     AVCodecContext    *codec_ctxt = NULL;
     AVCodec           *codec      = NULL;
-    AVPacket           packet     = {};
-    int                retry      = 8;
-    int                got        = 0;
+    AVPacket           packet     = {0};
+    int                retry      =  8;
+    int                got        =  0;
 
     // init ffmpeg
     av_register_all();
@@ -49,7 +47,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     }
 
     // scale picture
-    sws_ctx = sws_getContext(video->width, video->height, (AVPixelFormat)video->format,
+    sws_ctx = sws_getContext(video->width, video->height, video->format,
         picture.width, picture.height, swsofmt, SWS_FAST_BILINEAR, NULL, NULL, NULL);
     if (!sws_ctx) {
         av_log(NULL, AV_LOG_ERROR, "could not initialize the conversion context jpg\n");

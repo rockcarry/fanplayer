@@ -6,11 +6,9 @@
 #include "adev.h"
 #include "vdev.h"
 
-extern "C" {
 #include "libavutil/time.h"
 #include "libswresample/swresample.h"
 #include "libswscale/swscale.h"
-}
 
 #if CONFIG_ENABLE_SOUNDTOUCH
 #include <soundtouch.h>
@@ -29,17 +27,17 @@ typedef struct
     void          *vdev;
 
     // swresampler & swscaler
-    SwrContext    *swr_context;
-    SwsContext    *sws_context;
+    struct SwrContext *swr_context;
+    struct SwsContext *sws_context;
 
     int            sample_rate;
-    AVSampleFormat sample_fmt;
+    int            sample_fmt;
     int64_t        chan_layout;
 
     int            video_width;
     int            video_height;
     AVRational     frame_rate;
-    AVPixelFormat  pixel_fmt;
+    int            pixel_fmt;
 
     int            adev_buf_avail;
     uint8_t       *adev_buf_cur;
@@ -103,10 +101,13 @@ static void render_setspeed(RENDER *render, int speed)
 }
 
 // º¯ÊýÊµÏÖ
-void* render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_layout,
-                  int vdevtype, void *surface, AVRational frate, AVPixelFormat pixfmt, int w, int h)
+void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
+                  int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h)
 {
-    RENDER *render = (RENDER*)calloc(1, sizeof(RENDER));
+    RENDER  *render = NULL;
+    int64_t *papts  = NULL;
+
+    render = (RENDER*)calloc(1, sizeof(RENDER));
     if (!render) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate render context !\n");
         exit(0);
@@ -144,14 +145,15 @@ void* render_open(int adevtype, int srate, AVSampleFormat sndfmt, int64_t ch_lay
     render->vdev = vdev_create(vdevtype, surface, 0, w, h, (int)((double)frate.num / frate.den + 0.5));
 
     // make adev & vdev sync together
-    int64_t *papts = NULL;
     vdev_getavpts(render->vdev, &papts, NULL);
     adev_syncapts(render->adev,  papts);
 
 #ifdef WIN32
-    RECT rect; GetClientRect((HWND)surface, &rect);
-    render_setrect(render, 0, rect.left, rect.top, rect.right, rect.bottom);
-    render_setrect(render, 1, rect.left, rect.top, rect.right, rect.bottom);
+    if (1) {
+        RECT rect; GetClientRect((HWND)surface, &rect);
+        render_setrect(render, 0, rect.left, rect.top, rect.right, rect.bottom);
+        render_setrect(render, 1, rect.left, rect.top, rect.right, rect.bottom);
+    }
 #endif
 
     // set default playback speed
@@ -276,18 +278,20 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
 
 void render_audio(void *hrender, AVFrame *audio)
 {
-    if (!hrender) return;
     RENDER *render  = (RENDER*)hrender;
     int     sampnum;
+    if (!hrender) return;
 
     do {
         if (  render->speed_value_cur != render->speed_value_new
            || render->speed_type_cur  != render->speed_type_new ) {
+            int samprate;
+
             render->speed_value_cur = render->speed_value_new;
             render->speed_type_cur  = render->speed_type_new ;
 
             //++ allocate & init swr context
-            int samprate = render->speed_type_cur ? ADEV_SAMPLE_RATE : (int)(ADEV_SAMPLE_RATE * 100.0 / render->speed_value_cur);
+            samprate = render->speed_type_cur ? ADEV_SAMPLE_RATE : (int)(ADEV_SAMPLE_RATE * 100.0 / render->speed_value_cur);
             if (render->swr_context) {
                 swr_free(&render->swr_context);
             }
@@ -316,8 +320,8 @@ void render_audio(void *hrender, AVFrame *audio)
 
 void render_video(void *hrender, AVFrame *video)
 {
-    if (!hrender) return;
     RENDER  *render = (RENDER*)hrender;
+    if (!hrender) return;
 
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
@@ -339,7 +343,7 @@ void render_video(void *hrender, AVFrame *video)
             }
             render->sws_context = sws_getContext(
                 render->video_width, render->video_height, render->pixel_fmt,
-                vdev->sw, vdev->sh, (AVPixelFormat)vdev->pixfmt,
+                vdev->sw, vdev->sh, vdev->pixfmt,
                 SWS_FAST_BILINEAR, 0, 0, 0);
         }
 
@@ -371,8 +375,8 @@ void render_video(void *hrender, AVFrame *video)
 
 void render_setrect(void *hrender, int type, int x, int y, int w, int h)
 {
-    if (!hrender) return;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
     switch (type) {
     case 0:
         render->rect_xnew = x;
@@ -393,8 +397,8 @@ void render_setrect(void *hrender, int type, int x, int y, int w, int h)
 
 void render_start(void *hrender)
 {
-    if (!hrender) return;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
     render->render_status &=~RENDER_PAUSE;
     adev_pause(render->adev, 0);
     vdev_pause(render->vdev, 0);
@@ -402,8 +406,8 @@ void render_start(void *hrender)
 
 void render_pause(void *hrender)
 {
-    if (!hrender) return;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
     render->render_status |= RENDER_PAUSE;
     adev_pause(render->adev, 1);
     vdev_pause(render->vdev, 1);
@@ -411,8 +415,8 @@ void render_pause(void *hrender)
 
 void render_reset(void *hrender)
 {
-    if (!hrender) return;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
     adev_reset(render->adev);
     vdev_reset(render->vdev);
     render->render_status = 0;
@@ -420,15 +424,9 @@ void render_reset(void *hrender)
 
 int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
 {
-    DO_USE_VAR(hrender);
-    DO_USE_VAR(file);
-    DO_USE_VAR(w);
-    DO_USE_VAR(h);
-    DO_USE_VAR(waitt);
-
 #if CONFIG_ENABLE_SNAPSHOT
-    if (!hrender) return -1;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return -1;
 
     // if take snapshot in progress
     if (render->render_status & RENDER_SNAPSHOT) {
@@ -452,13 +450,18 @@ int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
     }
 #endif
 
+    DO_USE_VAR(hrender);
+    DO_USE_VAR(file);
+    DO_USE_VAR(w);
+    DO_USE_VAR(h);
+    DO_USE_VAR(waitt);
     return 0;
 }
 
 void render_setparam(void *hrender, int id, void *param)
 {
-    if (!hrender) return;
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
     switch (id)
     {
     case PARAM_AUDIO_VOLUME:
@@ -494,9 +497,9 @@ void render_setparam(void *hrender, int id, void *param)
 
 void render_getparam(void *hrender, int id, void *param)
 {
+    RENDER           *render = (RENDER*)hrender;
+    VDEV_COMMON_CTXT *vdev   = render ? (VDEV_COMMON_CTXT*)render->vdev : NULL;
     if (!hrender) return;
-    RENDER         *render = (RENDER*)hrender;
-    VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
     switch (id)
     {
     case PARAM_MEDIA_POSITION:
