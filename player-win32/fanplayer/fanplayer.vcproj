@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="d3d9.lib d3dx9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
+				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="..\dx9sdk\lib;..\pthreads\lib;..\ffmpeg\bin;..\soundtouch\bin"
 				ModuleDefinitionFile="fanplayer.def"
@@ -138,7 +138,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="d3d9.lib d3dx9.lib winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
+				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="..\dx9sdk\lib;..\pthreads\lib;..\ffmpeg\bin;..\soundtouch\bin"
 				ModuleDefinitionFile="fanplayer.def"
