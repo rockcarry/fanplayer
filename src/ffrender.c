@@ -355,7 +355,7 @@ void render_video(void *hrender, AVFrame *video)
             picture.linesize[0] = 0;
             vdev_lock(render->vdev, picture.data, picture.linesize);
             if (picture.data[0] && video->pts != -1) {
-                sws_scale(render->sws_context, video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize);
+                sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize);
             }
             vdev_unlock(render->vdev, video->pts);
         }

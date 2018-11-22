@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <jni.h>
 
 #ifndef _included_fanplayer_jni_
@@ -6,5 +7,18 @@
 JNIEXPORT JavaVM* get_jni_jvm(void);
 JNIEXPORT JNIEnv* get_jni_env(void);
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void  JniDetachCurrentThread(void);
+void *JniRequestAppData(void *data);
+void  JniReleaseAppData(void *data);
+void  JniPostMessage(void *extra, int32_t msg, int64_t param);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

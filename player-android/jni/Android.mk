@@ -7,16 +7,16 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libfanplayer_jni
 
 LOCAL_SRC_FILES := \
-    fanplayer_jni.cpp \
-    ../../src/ffplayer.cpp \
-    ../../src/ffrender.cpp \
-    ../../src/pktqueue.cpp \
-    ../../src/snapshot.cpp \
-    ../../src/recorder.cpp \
-    ../../src/adev-cmn.cpp \
+    ../../src/ffplayer.c \
+    ../../src/ffrender.c \
+    ../../src/pktqueue.c \
+    ../../src/snapshot.c \
+    ../../src/recorder.c \
+    ../../src/adev-cmn.c \
+    ../../src/vdev-cmn.c \
     ../../src/adev-android.cpp \
-    ../../src/vdev-cmn.cpp \
-    ../../src/vdev-android.cpp
+    ../../src/vdev-android.cpp \
+    fanplayer_jni.cpp
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/ndk-build-files/include \

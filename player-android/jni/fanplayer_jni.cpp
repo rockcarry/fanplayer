@@ -184,3 +184,13 @@ JNIEXPORT JNIEnv* get_jni_env(void)
 }
 //-- jni register --//
 
+void  JniDetachCurrentThread(void) { g_jvm->DetachCurrentThread(); }
+void *JniRequestAppData(void *data){ return get_jni_env()->NewGlobalRef((jobject)data); }
+void  JniReleaseAppData(void *data){ get_jni_env()->DeleteGlobalRef((jobject)data);     }
+void  JniPostMessage(void *extra, int32_t msg, int64_t param)
+{
+    JNIEnv   *env = get_jni_env();
+    jobject   obj = (jobject)extra;
+    jmethodID mid = env->GetMethodID(env->GetObjectClass(obj), "internalPlayerEventCallback", "(IJ)V");
+    env->CallVoidMethod(obj, mid, msg, param);
+}

@@ -14,9 +14,7 @@
 #include "libavfilter/buffersink.h"
 
 #ifdef ANDROID
-#include <jni.h>
-JNIEXPORT JavaVM* get_jni_jvm(void);
-JNIEXPORT JNIEnv* get_jni_env(void);
+#include "fanplayer_jni.h"
 #endif
 
 // 内部类型定义
@@ -599,8 +597,7 @@ static void* av_demux_thread_proc(void *param)
 
 done:
 #ifdef ANDROID
-    // need detach current thread
-    get_jni_jvm()->DetachCurrentThread();
+    JniDetachCurrentThread();
 #endif
 #ifdef WIN32
     CoUninitialize();
@@ -677,8 +674,7 @@ static void* audio_decode_thread_proc(void *param)
 
     av_frame_unref(&player->aframe);
 #ifdef ANDROID
-    // need detach current thread
-    get_jni_jvm()->DetachCurrentThread();
+    JniDetachCurrentThread();
 #endif
     return NULL;
 }
@@ -749,8 +745,7 @@ static void* video_decode_thread_proc(void *param)
 
     av_frame_unref(&player->vframe);
 #ifdef ANDROID
-    // need detach current thread
-    get_jni_jvm()->DetachCurrentThread();
+    JniDetachCurrentThread();
 #endif
     return NULL;
 }
@@ -792,7 +787,7 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     player->appdata = appdata;
 #endif
 #ifdef ANDROID
-    player->appdata = get_jni_env()->NewGlobalRef((jobject)appdata);
+    player->appdata = JniRequestAppData(appdata);
 #endif
     //-- for player_prepare
 
@@ -855,7 +850,7 @@ void player_close(void *hplayer)
     if (player->recorder        ) recorder_free(player->recorder);
 
 #ifdef ANDROID
-    get_jni_env()->DeleteGlobalRef((jobject)player->appdata);
+    JniReleaseAppData(player->appdata);
 #endif
 
     free(player);
@@ -1074,10 +1069,7 @@ void player_send_message(void *extra, int32_t msg, int64_t param) {
     PostMessage((HWND)extra, MSG_FANPLAYER, msg, (LPARAM)param);
 #endif
 #ifdef ANDROID
-    JNIEnv   *env = get_jni_env();
-    jobject   obj = (jobject)extra;
-    jmethodID mid = env->GetMethodID(env->GetObjectClass(obj), "internalPlayerEventCallback", "(IJ)V");
-    env->CallVoidMethod(obj, mid, msg, param);
+    JniPostMessage(extra, msg, param);
 #endif
 }
 

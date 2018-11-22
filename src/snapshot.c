@@ -53,7 +53,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
         av_log(NULL, AV_LOG_ERROR, "could not initialize the conversion context jpg\n");
         goto done;
     }
-    sws_scale(sws_ctx, video->data, video->linesize, 0, video->height, picture.data, picture.linesize);
+    sws_scale(sws_ctx, (const uint8_t**)video->data, video->linesize, 0, video->height, picture.data, picture.linesize);
 
     // do encoding
     fmt_ctxt = avformat_alloc_context();
