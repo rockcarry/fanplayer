@@ -371,9 +371,10 @@ static int player_prepare(PLAYER *player)
     // open input file
     if (  strstr(player->url, "rtsp") == player->url
        || strstr(player->url, "rtmp") == player->url) {
-        av_dict_set(&opts, "rtsp_transport", "udp", 0);
-        av_dict_set(&opts, "buffer_size", "1048576", 0);
-        av_dict_set(&opts, "fpsprobesize", "2", 0);
+        av_dict_set(&opts, "rtsp_transport" , "tcp"    , 0);
+        av_dict_set(&opts, "buffer_size"    , "1048576", 0);
+        av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
+        av_dict_set(&opts, "analyzeduration", "100000" , 0);
     }
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];
