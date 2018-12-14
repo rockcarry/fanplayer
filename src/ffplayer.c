@@ -371,7 +371,9 @@ static int player_prepare(PLAYER *player)
     // open input file
     if (  strstr(player->url, "rtsp") == player->url
        || strstr(player->url, "rtmp") == player->url) {
-        av_dict_set(&opts, "rtsp_transport" , "tcp"    , 0);
+        if (player->init_params.rtsp_transport) {
+            av_dict_set(&opts, "rtsp_transport", player->init_params.rtsp_transport == 1 ? "udp" : "tcp", 0);
+        }
         av_dict_set(&opts, "buffer_size"    , "1048576", 0);
         av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
         av_dict_set(&opts, "analyzeduration", "100000" , 0);
@@ -1117,6 +1119,7 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->init_timeout        = atoi(parse_params(str, "init_timeout"       , value, sizeof(value)) ? value : "0");
     params->open_syncmode       = atoi(parse_params(str, "open_syncmode"      , value, sizeof(value)) ? value : "0");
     params->auto_reconnect      = atoi(parse_params(str, "auto_reconnect"     , value, sizeof(value)) ? value : "0");
+    params->rtsp_transport      = atoi(parse_params(str, "rtsp_transport"     , value, sizeof(value)) ? value : "0");
     parse_params(str, "filter_string", params->filter_string, sizeof(params->filter_string));
 }
 //-- load player init params from string
