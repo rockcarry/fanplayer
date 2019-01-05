@@ -656,9 +656,11 @@ static void* audio_decode_thread_proc(void *param)
                 //++ for seek operation
                 if (player->player_status & PS_A_SEEK) {
                     if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
-                        player->player_status &= ~PS_A_SEEK;
                         player->timeinfos.start_tick = av_gettime_relative() / 1000;
                         player->timeinfos.start_pts  = player->aframe.pts;
+                        player->timeinfos.apts       = player->aframe.pts;
+                        player->timeinfos.vpts       = player->seek_dest ;
+                        player->player_status &= ~PS_A_SEEK;
                     }
                     if (player->player_status & PS_R_PAUSE) {
                         render_pause(player->render);
@@ -728,9 +730,11 @@ static void* video_decode_thread_proc(void *param)
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
                         if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
-                            player->player_status &= ~PS_V_SEEK;
                             player->timeinfos.start_tick = av_gettime_relative() / 1000;
                             player->timeinfos.start_pts  = player->vframe.pts;
+                            player->timeinfos.vpts       = player->vframe.pts;
+                            player->timeinfos.apts       = player->seek_dest ;
+                            player->player_status &= ~PS_V_SEEK;
                             if (player->player_status & PS_R_PAUSE) {
                                 render_pause(player->render);
                             }
@@ -1022,15 +1026,11 @@ void player_getparam(void *hplayer, int id, void *param)
         if (*(int64_t*)param <= 0) *(int64_t*)param = 1;
         break;
     case PARAM_MEDIA_POSITION:
-        if ((player->player_status & PS_F_SEEK) || (player->player_status & player->seek_req) == player->seek_req) {
+        if ((player->player_status & PS_F_SEEK) || (player->player_status & player->seek_req)) {
             *(int64_t*)param = player->seek_dest - player->timeinfos.start_time;
         } else {
             int64_t pos = 0; render_getparam(player->render, id, &pos);
-            switch (pos) {
-            case -1:             *(int64_t*)param = -1; break;
-            case AV_NOPTS_VALUE: *(int64_t*)param = player->seek_dest - player->timeinfos.start_time; break;
-            default:             *(int64_t*)param = pos - player->timeinfos.start_time; break;
-            }
+            *(int64_t*)param = pos == -1 ? -1 : pos - player->timeinfos.start_time;
         }
         break;
     case PARAM_VIDEO_WIDTH:

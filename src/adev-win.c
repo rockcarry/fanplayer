@@ -5,7 +5,7 @@
 #pragma warning(disable:4312)
 
 // 内部常量定义
-#define DEF_ADEV_BUF_NUM  5
+#define DEF_ADEV_BUF_NUM  3
 #define DEF_ADEV_BUF_LEN  2048
 
 // 内部类型定义
