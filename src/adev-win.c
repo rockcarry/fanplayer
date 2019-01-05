@@ -26,8 +26,8 @@ static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, 
     {
     case WOM_DONE:
         c->bufcur = (int16_t*)c->pWaveHdr[c->head].lpData;
-        if (c->apts) *c->apts = c->ppts[c->head];
-        av_log(NULL, AV_LOG_DEBUG, "apts: %lld\n", *c->apts);
+        c->timeinfos->apts = c->ppts[c->head];
+        av_log(NULL, AV_LOG_DEBUG, "apts: %lld\n", c->timeinfos->apts);
         if (++c->head == c->bufnum) c->head = 0;
         ReleaseSemaphore(c->bufsem, 1, NULL);
         break;
@@ -35,7 +35,7 @@ static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, 
 }
 
 // 接口函数实现
-void* adev_create(int type, int bufnum, int buflen)
+void* adev_create(int type, int bufnum, int buflen, TIMEINFOS *timeinfos)
 {
     ADEV_CONTEXT *ctxt = NULL;
     WAVEFORMATEX  wfx  = {0};
@@ -54,11 +54,10 @@ void* adev_create(int type, int bufnum, int buflen)
     buflen         = buflen ? buflen : DEF_ADEV_BUF_LEN;
     ctxt->bufnum   = bufnum;
     ctxt->buflen   = buflen;
-    ctxt->head     = 0;
-    ctxt->tail     = 0;
     ctxt->ppts     = (int64_t*)calloc(bufnum, sizeof(int64_t));
     ctxt->pWaveHdr = (WAVEHDR*)calloc(bufnum, (sizeof(WAVEHDR) + buflen));
     ctxt->bufsem   = CreateSemaphore(NULL, bufnum, bufnum, NULL);
+    ctxt->timeinfos= timeinfos;
     if (!ctxt->ppts || !ctxt->pWaveHdr || !ctxt->bufsem) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate waveout buffer and waveout semaphore !\n");
         exit(0);

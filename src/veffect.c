@@ -2,6 +2,7 @@
 #include <math.h>
 #include "adev.h"
 #include "veffect.h"
+#include "ffplayer.h"
 
 //++ fft ++//
 // 内部常量定义

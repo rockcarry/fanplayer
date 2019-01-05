@@ -1,9 +1,6 @@
 #ifndef __FANPLAYER_RECORDER_H__
 #define __FANPLAYER_RECORDER_H__
 
-// 包含头文件
-#include "stdefine.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

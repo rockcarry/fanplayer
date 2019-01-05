@@ -45,10 +45,10 @@ static void* video_render_thread_proc(void *param)
                 TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
-            c->vpts = c->ppts[c->head];
+            c->timeinfos->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->timeinfos->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
@@ -164,8 +164,6 @@ void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->sh        = h;
     ctxt->tickframe = 1000 / frate;
     ctxt->ticksleep = ctxt->tickframe;
-    ctxt->apts      = -1;
-    ctxt->vpts      = -1;
     ctxt->lock      = vdev_gdi_lock;
     ctxt->unlock    = vdev_gdi_unlock;
     ctxt->setrect   = vdev_gdi_setrect;

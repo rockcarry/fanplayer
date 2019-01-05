@@ -1,5 +1,6 @@
 // 包含头文件
 #include <pthread.h>
+#include "ffplayer.h"
 #include "ffrender.h"
 #include "snapshot.h"
 #include "veffect.h"
@@ -58,6 +59,7 @@ typedef struct
     int            speed_value_new;
     int            speed_type_cur;
     int            speed_type_new;
+    TIMEINFOS     *timeinfos;
 
 #if CONFIG_ENABLE_VEFFECT
     // visual effect
@@ -102,7 +104,8 @@ static void render_setspeed(RENDER *render, int speed)
 
 // 函数实现
 void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
-                  int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h)
+                  int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h,
+                  TIMEINFOS *timeinfos)
 {
     RENDER  *render = NULL;
     int64_t *papts  = NULL;
@@ -141,12 +144,9 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
 #endif
 
     // create adev & vdev
-    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4);
-    render->vdev = vdev_create(vdevtype, surface, 0, w, h, (int)((double)frate.num / frate.den + 0.5));
-
-    // make adev & vdev sync together
-    vdev_getavpts(render->vdev, &papts, NULL);
-    adev_syncapts(render->adev,  papts);
+    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, timeinfos);
+    render->vdev = vdev_create(vdevtype, surface, 0, w, h, (int)((double)frate.num / frate.den + 0.5), timeinfos);
+    render->timeinfos = timeinfos;
 
 #ifdef WIN32
     if (1) {
@@ -381,15 +381,15 @@ void render_setrect(void *hrender, int type, int x, int y, int w, int h)
     case 0:
         render->rect_xnew = x;
         render->rect_ynew = y;
-        render->rect_wnew = w > 1 ? w : 1;
-        render->rect_hnew = h > 1 ? h : 1;
+        render->rect_wnew = MAX(w, 1);
+        render->rect_hnew = MAX(h, 1);
         break;
 #if CONFIG_ENABLE_VEFFECT
     case 1:
         render->veffect_x = x;
         render->veffect_y = y;
-        render->veffect_w = w > 1 ? w : 1;
-        render->veffect_h = h > 1 ? h : 1;
+        render->veffect_w = MAX(w, 1);
+        render->veffect_h = MAX(h, 1);
         break;
 #endif
     }
@@ -402,6 +402,8 @@ void render_start(void *hrender)
     render->render_status &=~RENDER_PAUSE;
     adev_pause(render->adev, 0);
     vdev_pause(render->vdev, 0);
+    render->timeinfos->start_tick= av_gettime_relative() / 1000;
+    render->timeinfos->start_pts = MAX(render->timeinfos->apts, render->timeinfos->vpts);
 }
 
 void render_pause(void *hrender)
@@ -506,11 +508,7 @@ void render_getparam(void *hrender, int id, void *param)
         if (vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param  = -1; // means completed
         } else {
-            if (vdev->apts >= 0 || vdev->vpts >= 0) {
-                *(int64_t*)param = vdev->apts > vdev->vpts ? vdev->apts : vdev->vpts;
-            } else {
-                *(int64_t*)param = AV_NOPTS_VALUE;
-            }
+            *(int64_t*)param = MAX(render->timeinfos->apts, render->timeinfos->vpts);
         }
         break;
     case PARAM_AUDIO_VOLUME:

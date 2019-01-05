@@ -42,7 +42,8 @@ typedef struct {
 #define TCHAR  char
 #endif
 
-
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define DO_USE_VAR(a) do { a = a; } while (0)
 
 

@@ -2,6 +2,7 @@
 #include <tchar.h>
 #include <d3d9.h>
 #include "vdev.h"
+#include "ffplayer.h"
 #include "libavformat/avformat.h"
 
 // Ô¤±àÒë¿ª¹Ø
@@ -180,10 +181,10 @@ static void* video_render_thread_proc(void *param)
 
         if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
             d3d_draw_surf(c, c->surfs[c->head]);
-            c->vpts = c->ppts[c->head];
+            c->timeinfos->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->timeinfos->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
@@ -243,7 +244,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-        c->vpts = ((AVFrame*)param)->pts;
+        c->timeinfos->vpts = ((AVFrame*)param)->pts;
         vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:
@@ -321,14 +322,12 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     bufnum          = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
     ctxt->surface   = surface;
     ctxt->bufnum    = bufnum;
-    ctxt->w         = w > 1 ? w : 1;
-    ctxt->h         = h > 1 ? h : 1;
-    ctxt->sw        = w > 1 ? w : 1;
-    ctxt->sh        = h > 1 ? h : 1;
+    ctxt->w         = MAX(w, 1);
+    ctxt->h         = MAX(h, 1);
+    ctxt->sw        = MAX(w, 1);
+    ctxt->sh        = MAX(h, 1);
     ctxt->tickframe = 1000 / frate;
     ctxt->ticksleep = ctxt->tickframe;
-    ctxt->apts      = -1;
-    ctxt->vpts      = -1;
     ctxt->lock      = vdev_d3d_lock;
     ctxt->unlock    = vdev_d3d_unlock;
     ctxt->setrect   = vdev_d3d_setrect;

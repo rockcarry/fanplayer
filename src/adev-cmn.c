@@ -1,4 +1,5 @@
 // 包含头文件
+#include "ffplayer.h"
 #include "adev.h"
 
 // 函数实现
@@ -15,8 +16,8 @@ int swvol_scaler_init(int *scaler, int mindb, int maxdb)
     }
 
     z = -mindb * 256 / (maxdb - mindb);
-    z = z > 0   ? z : 0  ;
-    z = z < 255 ? z : 255;
+    z = MAX(z, 0  );
+    z = MIN(z, 255);
     scaler[0] = 0;        // mute
     scaler[z] = (1 << 14);// 0db
     return z;
@@ -28,8 +29,8 @@ void swvol_scaler_run(int16_t *buf, int n, int multiplier)
         int64_t v;
         while (n--) {
             v = ((int32_t)*buf * multiplier) >> 14;
-            v = v < 0x7fff ? v : 0x7fff;
-            v = v >-0x7fff ? v :-0x7fff;
+            v = MAX(v,-0x7fff);
+            v = MIN(v, 0x7fff);
             *buf++ = (int16_t)v;
         }
     } else if (multiplier < (1 << 14)) {
@@ -37,13 +38,6 @@ void swvol_scaler_run(int16_t *buf, int n, int multiplier)
             *buf = ((int32_t)*buf * multiplier) >> 14; buf++;
         }
     }
-}
-
-void adev_syncapts(void *ctxt, int64_t *apts)
-{
-    ADEV_COMMON_CTXT *c = (ADEV_COMMON_CTXT*)ctxt;
-    if (!ctxt) return;
-    c->apts = apts;
 }
 
 void adev_bufcur(void *ctxt, void **buf, int *len)
@@ -64,8 +58,8 @@ void adev_setparam(void *ctxt, int id, void *param)
         {
             int vol = *(int*)param;
             vol += c->vol_zerodb;
-            vol  = vol > 0   ? vol : 0  ;
-            vol  = vol < 255 ? vol : 255;
+            vol  = MAX(vol, 0  );
+            vol  = MIN(vol, 255);;
             c->vol_curvol = vol;
         }
         break;

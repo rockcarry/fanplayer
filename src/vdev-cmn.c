@@ -1,5 +1,6 @@
 // 包含头文件
 #include "vdev.h"
+#include "ffplayer.h"
 
 #ifdef WIN32
 #include <tchar.h>
@@ -12,7 +13,7 @@
 #define COMPLETED_COUNTER  30
 
 // 函数实现
-void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
+void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate, TIMEINFOS *timeinfos)
 {
     VDEV_COMMON_CTXT *c = NULL;
 #ifdef WIN32
@@ -21,6 +22,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate)
     case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h, frate); break;
     }
     _tcscpy(c->font_name, DEF_FONT_NAME);
+    c->timeinfos = timeinfos;
     c->font_size = DEF_FONT_SIZE;
     c->status   |= VDEV_CONFIG_FONT;
 #endif
@@ -65,10 +67,6 @@ void vdev_pause(void *ctxt, int pause)
     } else {
         c->status &= ~VDEV_PAUSE;
     }
-
-    // set AV_NOPTS_VALUE to triger re-calculating of
-    // start_pts & start_tick in video rendering thread
-    c->start_pts = AV_NOPTS_VALUE;
 }
 
 void vdev_reset(void *ctxt)
@@ -80,15 +78,7 @@ void vdev_reset(void *ctxt)
     }
     c->head   = c->tail =  0;
 #endif//-- no need to reset vdev buffer queue
-    c->apts   = c->vpts = AV_NOPTS_VALUE;
     c->status&= VDEV_CONFIG_FONT;
-}
-
-void vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (ppapts) *ppapts = &c->apts;
-    if (ppvpts) *ppvpts = &c->vpts;
 }
 
 void vdev_setparam(void *ctxt, int id, void *param)
@@ -179,9 +169,9 @@ void vdev_avsync_and_complete(void *ctxt)
 
     if (!(c->status & VDEV_PAUSE)) {
         //++ play completed ++//
-        if (c->completed_apts != c->apts || c->completed_vpts != c->vpts) {
-            c->completed_apts = c->apts;
-            c->completed_vpts = c->vpts;
+        if (c->completed_apts != c->timeinfos->apts || c->completed_vpts != c->timeinfos->vpts) {
+            c->completed_apts = c->timeinfos->apts;
+            c->completed_vpts = c->timeinfos->vpts;
             c->completed_counter = 0;
             c->status &=~VDEV_COMPLETED;
         } else if (++c->completed_counter == COMPLETED_COUNTER) {
@@ -196,20 +186,14 @@ void vdev_avsync_and_complete(void *ctxt)
         tickdiff    = (int)(tickcur - c->ticklast);
         c->ticklast = tickcur;
 
-        // re-calculate start_pts & start_tick if needed
-        if (c->start_pts < 0) {
-            c->start_pts = c->vpts;
-            c->start_tick= tickcur;
-        }
-
-        sysclock= c->start_pts + (tickcur - c->start_tick) * c->speed / 100;
-        scdiff  = (int)(sysclock - c->vpts - c->tickavdiff); // diff between system clock and video pts
-        avdiff  = (int)(c->apts  - c->vpts - c->tickavdiff); // diff between audio and video pts
-        avdiff  = c->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
+        sysclock= c->timeinfos->start_pts + (tickcur - c->timeinfos->start_tick) * c->speed / 100;
+        scdiff  = (int)(sysclock - c->timeinfos->vpts - c->tickavdiff); // diff between system clock and video pts
+        avdiff  = (int)(c->timeinfos->apts  - c->timeinfos->vpts - c->tickavdiff); // diff between audio and video pts
+        avdiff  = c->timeinfos->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
 
         if (tickdiff - tickframe >  5) c->ticksleep--;
         if (tickdiff - tickframe < -5) c->ticksleep++;
-        if (c->vpts >= 0) {
+        if (c->timeinfos->vpts >= 0) {
             if      (avdiff >  500) c->ticksleep -= 3;
             else if (avdiff >  50 ) c->ticksleep -= 2;
             else if (avdiff >  30 ) c->ticksleep -= 1;

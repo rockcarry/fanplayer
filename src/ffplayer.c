@@ -57,7 +57,9 @@ typedef struct {
     int64_t          seek_vpts;
     int              seek_diff;
     int              seek_sidx;
-    int64_t          starttime;
+
+    // player time infos
+    TIMEINFOS        timeinfos;
 
     pthread_t        avdemux_thread;
     pthread_t        adecode_thread;
@@ -71,7 +73,7 @@ typedef struct {
     int64_t            init_timetick;
     int64_t            init_timeout;
     PLAYER_INIT_PARAMS init_params;
-    int64_t            tick_demux;
+    int64_t            tick_demux; // used for reconnect
 
     // save url and appdata
     char             url[PATH_MAX];
@@ -417,11 +419,6 @@ static int player_prepare(PLAYER *player)
         goto done;
     }
 
-    // get starttime
-    if (player->avformat_context->start_time > 0) {
-        player->starttime = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
-    }
-
     // set current audio & video stream
     player->astream_index = -1; init_stream(player, AVMEDIA_TYPE_AUDIO, player->init_params.audio_stream_cur);
     player->vstream_index = -1; init_stream(player, AVMEDIA_TYPE_VIDEO, player->init_params.video_stream_cur);
@@ -443,13 +440,17 @@ static int player_prepare(PLAYER *player)
     // for video
     if (player->vstream_index != -1) {
         vrate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
-        if (vrate.num / vrate.den > 100) {
-            vrate.num = 20;
-            vrate.den = 1;
-        }
+        if (vrate.num / vrate.den > 100) { vrate.num = 20; vrate.den = 1; }
         vformat = player->vcodec_context->pix_fmt;
         player->init_params.video_vwidth = player->init_params.video_owidth  = player->vcodec_context->width;
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
+    }
+
+    // get starttime
+    if (player->avformat_context->start_time > 0) {
+        player->timeinfos.start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
+        player->timeinfos.apts       = player->astream_index != -1 ? player->timeinfos.start_time : -1;
+        player->timeinfos.vpts       = player->vstream_index != -1 ? player->timeinfos.start_time : -1;
     }
 
     // init avfilter graph
@@ -459,7 +460,7 @@ static int player_prepare(PLAYER *player)
     player->render = render_open(
         player->init_params.adev_render_type, arate, aformat, alayout,
         player->init_params.vdev_render_type, player->appdata, vrate, vformat,
-        player->init_params.video_owidth, player->init_params.video_oheight);
+        player->init_params.video_owidth, player->init_params.video_oheight, &player->timeinfos);
 
     if (player->vstream_index == -1) {
         int effect = VISUAL_EFFECT_WAVEFORM;
@@ -656,8 +657,10 @@ static void* audio_decode_thread_proc(void *param)
                 if (player->player_status & PS_A_SEEK) {
                     if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
                         player->player_status &= ~PS_A_SEEK;
+                        player->timeinfos.start_tick = av_gettime_relative() / 1000;
+                        player->timeinfos.start_pts  = player->aframe.pts;
                     }
-                    if ((player->player_status & PS_R_PAUSE) && player->vstream_index == -1) {
+                    if (player->player_status & PS_R_PAUSE) {
                         render_pause(player->render);
                     }
                 }
@@ -726,6 +729,8 @@ static void* video_decode_thread_proc(void *param)
                     if (player->player_status & PS_V_SEEK) {
                         if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
                             player->player_status &= ~PS_V_SEEK;
+                            player->timeinfos.start_tick = av_gettime_relative() / 1000;
+                            player->timeinfos.start_pts  = player->vframe.pts;
                             if (player->player_status & PS_R_PAUSE) {
                                 render_pause(player->render);
                             }
@@ -941,8 +946,8 @@ void player_seek(void *hplayer, int64_t ms, int type)
         player->player_status |= PS_R_PAUSE;
         break;
     default:
-        player->seek_dest =  player->starttime + ms;
-        player->seek_pos  = (player->starttime + ms) * AV_TIME_BASE / 1000;
+        player->seek_dest =  player->timeinfos.start_time + ms;
+        player->seek_pos  = (player->timeinfos.start_time + ms) * AV_TIME_BASE / 1000;
         player->seek_diff = 100;
         player->seek_sidx = -1;
         break;
@@ -950,7 +955,6 @@ void player_seek(void *hplayer, int64_t ms, int type)
 
     // set PS_F_SEEK flag
     player->player_status |= PS_F_SEEK;
-
 }
 
 int player_snapshot(void *hplayer, char *file, int w, int h, int waitt)
@@ -1019,13 +1023,13 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     case PARAM_MEDIA_POSITION:
         if ((player->player_status & PS_F_SEEK) || (player->player_status & player->seek_req) == player->seek_req) {
-            *(int64_t*)param = player->seek_dest - player->starttime;
+            *(int64_t*)param = player->seek_dest - player->timeinfos.start_time;
         } else {
             int64_t pos = 0; render_getparam(player->render, id, &pos);
             switch (pos) {
             case -1:             *(int64_t*)param = -1; break;
-            case AV_NOPTS_VALUE: *(int64_t*)param = player->seek_dest - player->starttime; break;
-            default:             *(int64_t*)param = pos - player->starttime; break;
+            case AV_NOPTS_VALUE: *(int64_t*)param = player->seek_dest - player->timeinfos.start_time; break;
+            default:             *(int64_t*)param = pos - player->timeinfos.start_time; break;
             }
         }
         break;

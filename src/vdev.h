@@ -4,7 +4,7 @@
 // 包含头文件
 #include <pthread.h>
 #include <semaphore.h>
-#include "ffplayer.h"
+#include "ffrender.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,48 +20,43 @@ extern "C" {
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS \
-    int       bufnum; \
-    int       pixfmt; \
-    int       x;   /* video display rect x */ \
-    int       y;   /* video display rect y */ \
-    int       w;   /* video display rect w */ \
-    int       h;   /* video display rect h */ \
-    int       sw;  /* surface width        */ \
-    int       sh;  /* surface height       */ \
-                                              \
-    void     *surface;                        \
-    int64_t  *ppts;                           \
-    int64_t   apts;                           \
-    int64_t   vpts;                           \
-                                              \
-    int       head;                           \
-    int       tail;                           \
-    sem_t     semr;                           \
-    sem_t     semw;                           \
-                                              \
-    int       tickavdiff;                     \
-    int       tickframe;                      \
-    int       ticksleep;                      \
-    int64_t   ticklast;                       \
-                                              \
-    int       speed;                          \
-    int       status;                         \
-    pthread_t thread;                         \
-                                              \
-    int       completed_counter;              \
-    int64_t   completed_apts;                 \
-    int64_t   completed_vpts;                 \
-                                              \
-    /* used to sync video to system clock */  \
-    int64_t   start_pts;                      \
-    int64_t   start_tick;                     \
-                                              \
-    int       textx;                          \
-    int       texty;                          \
-    int       textc;                          \
-    TCHAR    *textt;                          \
-    TCHAR     font_name[32];                  \
-    int       font_size;                      \
+    int         bufnum; \
+    int         pixfmt; \
+    int         x;   /* video display rect x */ \
+    int         y;   /* video display rect y */ \
+    int         w;   /* video display rect w */ \
+    int         h;   /* video display rect h */ \
+    int         sw;  /* surface width        */ \
+    int         sh;  /* surface height       */ \
+                                                \
+    void       *surface;                        \
+    int64_t    *ppts;                           \
+                                                \
+    int         head;                           \
+    int         tail;                           \
+    sem_t       semr;                           \
+    sem_t       semw;                           \
+                                                \
+    TIMEINFOS  *timeinfos;                      \
+    int         tickavdiff;                     \
+    int         tickframe;                      \
+    int         ticksleep;                      \
+    int64_t     ticklast;                       \
+                                                \
+    int         speed;                          \
+    int         status;                         \
+    pthread_t   thread;                         \
+                                                \
+    int         completed_counter;              \
+    int64_t     completed_apts;                 \
+    int64_t     completed_vpts;                 \
+                                                \
+    int         textx;                          \
+    int         texty;                          \
+    int         textc;                          \
+    TCHAR      *textt;                          \
+    TCHAR       font_name[32];                  \
+    int         font_size;                      \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8]); \
     void (*unlock  )(void *ctxt, int64_t pts);                         \
     void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
@@ -87,14 +82,13 @@ void  DEF_PLAYER_CALLBACK_ANDROID(void *vdev, int32_t msg, int64_t param);
 #endif
 
 // 函数声明
-void* vdev_create  (int type, void *app, int bufnum, int w, int h, int frate);
+void* vdev_create  (int type, void *app, int bufnum, int w, int h, int frate, TIMEINFOS *timeinfos);
 void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
 void  vdev_pause   (void *ctxt, int pause);
 void  vdev_reset   (void *ctxt);
-void  vdev_getavpts(void *ctxt, int64_t **ppapts, int64_t **ppvpts);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
 
