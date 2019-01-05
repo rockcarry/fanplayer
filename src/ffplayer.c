@@ -57,7 +57,7 @@ typedef struct {
     int64_t          seek_vpts;
     int              seek_diff;
     int              seek_sidx;
-    int64_t          start_pts;
+    int64_t          starttime;
 
     pthread_t        avdemux_thread;
     pthread_t        adecode_thread;
@@ -417,9 +417,9 @@ static int player_prepare(PLAYER *player)
         goto done;
     }
 
-    // get start_pts
+    // get starttime
     if (player->avformat_context->start_time > 0) {
-        player->start_pts = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
+        player->starttime = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
     }
 
     // set current audio & video stream
@@ -941,8 +941,8 @@ void player_seek(void *hplayer, int64_t ms, int type)
         player->player_status |= PS_R_PAUSE;
         break;
     default:
-        player->seek_dest =  player->start_pts + ms;
-        player->seek_pos  = (player->start_pts + ms) * AV_TIME_BASE / 1000;
+        player->seek_dest =  player->starttime + ms;
+        player->seek_pos  = (player->starttime + ms) * AV_TIME_BASE / 1000;
         player->seek_diff = 100;
         player->seek_sidx = -1;
         break;
@@ -1019,13 +1019,13 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     case PARAM_MEDIA_POSITION:
         if ((player->player_status & PS_F_SEEK) || (player->player_status & player->seek_req) == player->seek_req) {
-            *(int64_t*)param = player->seek_dest - player->start_pts;
+            *(int64_t*)param = player->seek_dest - player->starttime;
         } else {
             int64_t pos = 0; render_getparam(player->render, id, &pos);
             switch (pos) {
             case -1:             *(int64_t*)param = -1; break;
-            case AV_NOPTS_VALUE: *(int64_t*)param = player->seek_dest - player->start_pts; break;
-            default:             *(int64_t*)param = pos - player->start_pts; break;
+            case AV_NOPTS_VALUE: *(int64_t*)param = player->seek_dest - player->starttime; break;
+            default:             *(int64_t*)param = pos - player->starttime; break;
             }
         }
         break;
