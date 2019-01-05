@@ -13,15 +13,17 @@
 #define COMPLETED_COUNTER  30
 
 // º¯ÊýÊµÏÖ
-void* vdev_create(int type, void *surface, int bufnum, int w, int h, int frate, TIMEINFOS *timeinfos)
+void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, TIMEINFOS *timeinfos)
 {
     VDEV_COMMON_CTXT *c = NULL;
 #ifdef WIN32
     switch (type) {
-    case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum, w, h, frate); break;
-    case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h, frate); break;
+    case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum, w, h); break;
+    case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h); break;
     }
     _tcscpy(c->font_name, DEF_FONT_NAME);
+    c->tickframe = ftime;
+    c->ticksleep = ftime;
     c->timeinfos = timeinfos;
     c->font_size = DEF_FONT_SIZE;
     c->status   |= VDEV_CONFIG_FONT;

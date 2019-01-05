@@ -71,8 +71,8 @@ typedef struct {
 } VDEV_COMMON_CTXT;
 
 #ifdef WIN32
-void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate);
-void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate);
+void* vdev_gdi_create(void *surface, int bufnum, int w, int h);
+void* vdev_d3d_create(void *surface, int bufnum, int w, int h);
 void  DEF_PLAYER_CALLBACK_WINDOWS(void *vdev, int32_t msg, int64_t param);
 #endif
 
@@ -82,7 +82,7 @@ void  DEF_PLAYER_CALLBACK_ANDROID(void *vdev, int32_t msg, int64_t param);
 #endif
 
 // º¯ÊýÉùÃ÷
-void* vdev_create  (int type, void *app, int bufnum, int w, int h, int frate, TIMEINFOS *timeinfos);
+void* vdev_create  (int type, void *app, int bufnum, int w, int h, int ftime, TIMEINFOS *timeinfos);
 void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);

@@ -145,7 +145,7 @@ static void vdev_gdi_destroy(void *ctxt)
 }
 
 // 接口函数实现
-void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate)
+void* vdev_gdi_create(void *surface, int bufnum, int w, int h)
 {
     VDEVGDICTXT *ctxt = (VDEVGDICTXT*)calloc(1, sizeof(VDEVGDICTXT));
     if (!ctxt) {
@@ -162,8 +162,6 @@ void* vdev_gdi_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->h         = h;
     ctxt->sw        = w;
     ctxt->sh        = h;
-    ctxt->tickframe = 1000 / frate;
-    ctxt->ticksleep = ctxt->tickframe;
     ctxt->lock      = vdev_gdi_lock;
     ctxt->unlock    = vdev_gdi_unlock;
     ctxt->setrect   = vdev_gdi_setrect;

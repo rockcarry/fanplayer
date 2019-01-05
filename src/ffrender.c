@@ -145,7 +145,7 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
 
     // create adev & vdev
     render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, timeinfos);
-    render->vdev = vdev_create(vdevtype, surface, 0, w, h, (int)((double)frate.num / frate.den + 0.5), timeinfos);
+    render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, timeinfos);
     render->timeinfos = timeinfos;
 
 #ifdef WIN32

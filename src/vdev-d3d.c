@@ -306,7 +306,7 @@ static void vdev_d3d_destroy(void *ctxt)
 }
 
 // 接口函数实现
-void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
+void* vdev_d3d_create(void *surface, int bufnum, int w, int h)
 {
     VDEVD3DCTXT       *ctxt    = NULL;
     PFNDirect3DCreate9 create  = NULL;
@@ -326,8 +326,6 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->h         = MAX(h, 1);
     ctxt->sw        = MAX(w, 1);
     ctxt->sh        = MAX(h, 1);
-    ctxt->tickframe = 1000 / frate;
-    ctxt->ticksleep = ctxt->tickframe;
     ctxt->lock      = vdev_d3d_lock;
     ctxt->unlock    = vdev_d3d_unlock;
     ctxt->setrect   = vdev_d3d_setrect;
