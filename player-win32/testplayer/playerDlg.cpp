@@ -131,6 +131,10 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
        || strnicmp(m_strUrl, "gdigrab://", 10) == 0
        || strnicmp(m_strUrl, "dshow://", 8) == 0
        || strnicmp(m_strUrl, "vfwcap", 6) == 0
+       || stricmp(ext, ".264" ) == 0
+       || stricmp(ext, ".265" ) == 0
+       || stricmp(ext, ".h264") == 0
+       || stricmp(ext, ".h265") == 0
        || stricmp(ext, ".bmp" ) == 0
        || stricmp(ext, ".jpg" ) == 0
        || stricmp(ext, ".jpeg") == 0
