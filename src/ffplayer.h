@@ -136,12 +136,25 @@ typedef struct {
     int  open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
+    int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 同步音频到视频，2 - 直播模式，3 - 同步音视频到外部时钟
     char filter_string[256];       // w  自定义的 video filter string
 } PLAYER_INIT_PARAMS;
 // video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
 // 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1
 //           这样播放器将只解码音频而不解码视频，可减少 cpu 的使用率
 
+//++ player common infos
+typedef struct { // for internal use only
+    PLAYER_INIT_PARAMS *init_params;
+    int64_t start_time;
+    int64_t start_tick;
+    int64_t start_pts ;
+    int64_t apts;  // current apts
+    int64_t vpts;  // current vpts
+    int     asemv; // available audio packet number in pktqueue
+    int     vsemv; // available video packet number in pktqueue
+} CMNINFOS;
+//-- player common infos
 
 // 函数声明
 void* player_open    (char *file, void *appdata, PLAYER_INIT_PARAMS *params);

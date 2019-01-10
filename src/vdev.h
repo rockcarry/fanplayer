@@ -4,6 +4,7 @@
 // 包含头文件
 #include <pthread.h>
 #include <semaphore.h>
+#include "ffplayer.h"
 #include "ffrender.h"
 
 #ifdef __cplusplus
@@ -37,7 +38,7 @@ extern "C" {
     sem_t       semr;                           \
     sem_t       semw;                           \
                                                 \
-    TIMEINFOS  *timeinfos;                      \
+    CMNINFOS   *cmninfos;                       \
     int         tickavdiff;                     \
     int         tickframe;                      \
     int         ticksleep;                      \
@@ -82,7 +83,7 @@ void  DEF_PLAYER_CALLBACK_ANDROID(void *vdev, int32_t msg, int64_t param);
 #endif
 
 // 函数声明
-void* vdev_create  (int type, void *app, int bufnum, int w, int h, int ftime, TIMEINFOS *timeinfos);
+void* vdev_create  (int type, void *app, int bufnum, int w, int h, int ftime, CMNINFOS *cmninfos);
 void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);

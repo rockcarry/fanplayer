@@ -45,10 +45,10 @@ static void* video_render_thread_proc(void *param)
                 TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
-            c->timeinfos->vpts = c->ppts[c->head];
+            c->cmninfos->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->timeinfos->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmninfos->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 

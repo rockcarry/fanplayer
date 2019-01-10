@@ -2,6 +2,7 @@
 #define __FANPLAYER_ADEV_H__
 
 // 包含头文件
+#include "ffplayer.h"
 #include "ffrender.h"
 
 #ifdef __cplusplus
@@ -26,7 +27,7 @@ typedef struct {
     int         tail;               \
                                     \
     /* time infos */                \
-    TIMEINFOS  *timeinfos;          \
+    CMNINFOS   *cmninfos;           \
                                     \
     /* software volume */           \
     int         vol_scaler[256];    \
@@ -40,7 +41,7 @@ typedef struct {
 } ADEV_COMMON_CTXT;
 
 // 函数声明
-void* adev_create  (int type, int bufnum, int buflen, TIMEINFOS *timeinfos);
+void* adev_create  (int type, int bufnum, int buflen, CMNINFOS *cmninfos);
 void  adev_destroy (void *ctxt);
 void  adev_lock    (void *ctxt, AUDIOBUF **ppab);
 void  adev_unlock  (void *ctxt, int64_t pts);

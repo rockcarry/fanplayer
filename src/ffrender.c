@@ -59,7 +59,7 @@ typedef struct
     int            speed_value_new;
     int            speed_type_cur;
     int            speed_type_new;
-    TIMEINFOS     *timeinfos;
+    CMNINFOS      *cmninfos;
 
 #if CONFIG_ENABLE_VEFFECT
     // visual effect
@@ -105,7 +105,7 @@ static void render_setspeed(RENDER *render, int speed)
 // º¯ÊýÊµÏÖ
 void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
                   int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h,
-                  TIMEINFOS *timeinfos)
+                  CMNINFOS *cmninfos)
 {
     RENDER  *render = NULL;
     int64_t *papts  = NULL;
@@ -144,9 +144,9 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
 #endif
 
     // create adev & vdev
-    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, timeinfos);
-    render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, timeinfos);
-    render->timeinfos = timeinfos;
+    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, cmninfos);
+    render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, cmninfos);
+    render->cmninfos = cmninfos;
 
 #ifdef WIN32
     if (1) {
@@ -282,6 +282,10 @@ void render_audio(void *hrender, AVFrame *audio)
     int     sampnum;
     if (!hrender) return;
 
+    if (render->cmninfos->init_params->avts_syncmode == 1 && render->cmninfos->asemv > 0) {
+        return;
+    }
+
     do {
         if (  render->speed_value_cur != render->speed_value_new
            || render->speed_type_cur  != render->speed_type_new ) {
@@ -322,6 +326,10 @@ void render_video(void *hrender, AVFrame *video)
 {
     RENDER  *render = (RENDER*)hrender;
     if (!hrender) return;
+
+    if (render->cmninfos->init_params->avts_syncmode == 1 && render->cmninfos->vsemv > 0) {
+        return;
+    }
 
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
@@ -402,8 +410,8 @@ void render_start(void *hrender)
     render->render_status &=~RENDER_PAUSE;
     adev_pause(render->adev, 0);
     vdev_pause(render->vdev, 0);
-    render->timeinfos->start_tick= av_gettime_relative() / 1000;
-    render->timeinfos->start_pts = MAX(render->timeinfos->apts, render->timeinfos->vpts);
+    render->cmninfos->start_tick= av_gettime_relative() / 1000;
+    render->cmninfos->start_pts = MAX(render->cmninfos->apts, render->cmninfos->vpts);
 }
 
 void render_pause(void *hrender)
@@ -508,7 +516,7 @@ void render_getparam(void *hrender, int id, void *param)
         if (vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param  = -1; // means completed
         } else {
-            *(int64_t*)param = MAX(render->timeinfos->apts, render->timeinfos->vpts);
+            *(int64_t*)param = MAX(render->cmninfos->apts, render->cmninfos->vpts);
         }
         break;
     case PARAM_AUDIO_VOLUME:

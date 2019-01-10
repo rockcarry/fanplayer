@@ -11,18 +11,10 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
 
-typedef struct {
-    int64_t start_time;
-    int64_t start_tick;
-    int64_t start_pts ;
-    int64_t apts; // current apts
-    int64_t vpts; // current vpts
-} TIMEINFOS;
-
 // 函数声明
 void*render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
                  int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h,
-                 TIMEINFOS *timeinfos);
+                 CMNINFOS *cmninfos);
 void render_close   (void *hrender);
 void render_audio   (void *hrender, struct AVFrame *audio);
 void render_video   (void *hrender, struct AVFrame *video);

@@ -24,11 +24,12 @@ typedef struct {
     AVPacket **fpkts; // free packets
     AVPacket **apkts; // audio packets
     AVPacket **vpkts; // video packets
+    CMNINFOS  *cmninfos;
     pthread_mutex_t lock;
 } PKTQUEUE;
 
 // º¯ÊýÊµÏÖ
-void* pktqueue_create(int size)
+void* pktqueue_create(int size, CMNINFOS *cmninfos)
 {
     PKTQUEUE *ppq;
     int       i  ;
@@ -47,6 +48,7 @@ void* pktqueue_create(int size)
     ppq->fpkts = (AVPacket**)calloc(ppq->fsize, sizeof(AVPacket*));
     ppq->apkts = (AVPacket**)calloc(ppq->asize, sizeof(AVPacket*));
     ppq->vpkts = (AVPacket**)calloc(ppq->vsize, sizeof(AVPacket*));
+    ppq->cmninfos = cmninfos;
     sem_init(&ppq->fsem, 0, ppq->fsize );
     sem_init(&ppq->asem, 0, 0          );
     sem_init(&ppq->vsem, 0, 0          );
@@ -142,7 +144,12 @@ void pktqueue_audio_enqueue(void *ctxt, AVPacket *pkt)
 AVPacket* pktqueue_audio_dequeue(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
-    if (0 != sem_trywait(&ppq->asem)) return NULL;
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1;
+    if (0 != sem_timedwait(&ppq->asem, &ts)) return NULL;
+    sem_getvalue(&ppq->asem, &ppq->cmninfos->asemv);
+    av_log(NULL, AV_LOG_INFO, "asemv: %d\n", ppq->cmninfos->asemv);
     return ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
 }
 
@@ -156,7 +163,12 @@ void pktqueue_video_enqueue(void *ctxt, AVPacket *pkt)
 AVPacket* pktqueue_video_dequeue(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
-    if (0 != sem_trywait(&ppq->vsem)) return NULL;
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1;
+    if (0 != sem_timedwait(&ppq->vsem, &ts)) return NULL;
+    sem_getvalue(&ppq->vsem, &ppq->cmninfos->vsemv);
+    av_log(NULL, AV_LOG_INFO, "vsemv: %d\n", ppq->cmninfos->vsemv);
     return ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
 }
 

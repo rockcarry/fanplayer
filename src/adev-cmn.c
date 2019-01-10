@@ -1,5 +1,4 @@
 // 包含头文件
-#include "ffplayer.h"
 #include "adev.h"
 
 // 函数实现

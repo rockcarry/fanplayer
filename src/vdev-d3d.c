@@ -2,7 +2,6 @@
 #include <tchar.h>
 #include <d3d9.h>
 #include "vdev.h"
-#include "ffplayer.h"
 #include "libavformat/avformat.h"
 
 // Ô¤±àÒë¿ª¹Ø
@@ -181,10 +180,10 @@ static void* video_render_thread_proc(void *param)
 
         if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
             d3d_draw_surf(c, c->surfs[c->head]);
-            c->timeinfos->vpts = c->ppts[c->head];
+            c->cmninfos->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->timeinfos->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmninfos->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
@@ -244,7 +243,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-        c->timeinfos->vpts = ((AVFrame*)param)->pts;
+        c->cmninfos->vpts = ((AVFrame*)param)->pts;
         vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:

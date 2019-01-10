@@ -2,7 +2,7 @@
 #define __FANPLAYER_PKTQUEUE_H__
 
 // 包含头文件
-#include "stdefine.h"
+#include "ffplayer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +12,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 
 // 函数声明
-void* pktqueue_create (int   size); // important!! size must be power of 2
+void* pktqueue_create (int size, CMNINFOS *cmninfos); // important!! size must be power of 2
 void  pktqueue_destroy(void *ctxt);
 void  pktqueue_reset  (void *ctxt);
 
