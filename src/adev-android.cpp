@@ -10,7 +10,7 @@ JNIEXPORT JavaVM* get_jni_jvm(void);
 JNIEXPORT JNIEnv* get_jni_env(void);
 
 // 内部常量定义
-#define DEF_ADEV_BUF_NUM  5
+#define DEF_ADEV_BUF_NUM  3
 #define DEF_ADEV_BUF_LEN  2048
 
 // 内部类型定义
@@ -57,7 +57,7 @@ static void* audio_render_thread_proc(void *param)
             env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
         }
         c->bufcur = c->pWaveHdr[c->head].data;
-        if (c->apts) *c->apts = c->ppts[c->head];
+        c->cmninfos->apts = c->ppts[c->head];
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
     }
@@ -71,7 +71,7 @@ static void* audio_render_thread_proc(void *param)
 }
 
 // 接口函数实现
-void* adev_create(int type, int bufnum, int buflen)
+void* adev_create(int type, int bufnum, int buflen, CMNINFOS *cmninfos)
 {
     JNIEnv       *env  = get_jni_env();
     ADEV_CONTEXT *ctxt = NULL;
@@ -94,6 +94,7 @@ void* adev_create(int type, int bufnum, int buflen)
     ctxt->tail     = 0;
     ctxt->ppts     = (int64_t *)calloc(bufnum, sizeof(int64_t));
     ctxt->pWaveHdr = (AUDIOBUF*)calloc(bufnum, sizeof(AUDIOBUF));
+    ctxt->cmninfos = cmninfos;
 
     // new buffer
     jbyteArray local_audio_buffer = env->NewByteArray(bufnum * buflen);

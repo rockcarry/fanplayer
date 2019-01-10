@@ -57,7 +57,7 @@ static void vdev_android_unlock(void *ctxt, int64_t pts)
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
     if (c->wincur) ANativeWindow_unlockAndPost(c->wincur);
-    c->vpts = pts;
+    c->cmninfos->vpts = pts;
     vdev_avsync_and_complete(c);
 }
 
@@ -69,7 +69,7 @@ static void vdev_android_destroy(void *ctxt)
 }
 
 // 接口函数实现
-void* vdev_android_create(void *surface, int bufnum, int w, int h, int frate)
+void* vdev_android_create(void *surface, int bufnum, int w, int h)
 {
     int ret, i;
     VDEVCTXT *ctxt = (VDEVCTXT*)calloc(1, sizeof(VDEVCTXT));
@@ -85,11 +85,7 @@ void* vdev_android_create(void *surface, int bufnum, int w, int h, int frate)
     ctxt->h         = h > 1 ? h : 1;
     ctxt->sw        = w > 1 ? w : 1;
     ctxt->sh        = h > 1 ? h : 1;
-    ctxt->tickframe = 1000 / frate;
-    ctxt->ticksleep = ctxt->tickframe;
-    ctxt->apts      = -1;
-    ctxt->vpts      = -1;
-    ctxt->tickavdiff= -ctxt->tickframe * 4; // 4 should equals to (DEF_ADEV_BUF_NUM - 1)
+    ctxt->tickavdiff=-ctxt->tickframe * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
     ctxt->lock      = vdev_android_lock;
     ctxt->unlock    = vdev_android_unlock;
     ctxt->destroy   = vdev_android_destroy;

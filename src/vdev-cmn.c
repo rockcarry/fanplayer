@@ -28,7 +28,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->status   |= VDEV_CONFIG_FONT;
 #endif
 #ifdef ANDROID
-    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h, frate);
+    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h);
 #endif
     return c;
 }

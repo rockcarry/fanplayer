@@ -78,7 +78,7 @@ void  DEF_PLAYER_CALLBACK_WINDOWS(void *vdev, int32_t msg, int64_t param);
 #endif
 
 #ifdef ANDROID
-void* vdev_android_create(void *surface, int bufnum, int w, int h, int frate);
+void* vdev_android_create(void *surface, int bufnum, int w, int h);
 void  DEF_PLAYER_CALLBACK_ANDROID(void *vdev, int32_t msg, int64_t param);
 #endif
 
