@@ -21,15 +21,15 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h); break;
     }
     _tcscpy(c->font_name, DEF_FONT_NAME);
-    c->tickframe = ftime;
-    c->ticksleep = ftime;
-    c->cmninfos  = cmninfos;
     c->font_size = DEF_FONT_SIZE;
     c->status   |= VDEV_CONFIG_FONT;
 #endif
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h);
 #endif
+    c->tickframe = ftime;
+    c->ticksleep = ftime;
+    c->cmninfos  = cmninfos;
     return c;
 }
 
