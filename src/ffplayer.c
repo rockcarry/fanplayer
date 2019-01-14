@@ -362,14 +362,6 @@ static int player_prepare(PLAYER *player)
     }
     //-- for avdevice
 
-    // allocate avformat_context
-    player->avformat_context = avformat_alloc_context();
-    if (!player->avformat_context) goto done;
-
-    // setup interrupt_callback
-    player->avformat_context->interrupt_callback.callback = interrupt_callback;
-    player->avformat_context->interrupt_callback.opaque   = player;
-
     // open input file
     if (  strstr(player->url, "rtsp") == player->url
        || strstr(player->url, "rtmp") == player->url) {
@@ -392,11 +384,19 @@ static int player_prepare(PLAYER *player)
         av_dict_set(&opts, "framerate" , frate, 0);
     }
 
-    // set init_timetick & init_timeout
-    player->init_timetick = av_gettime_relative();
-    player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
-
     while (1) {
+        // allocate avformat_context
+        player->avformat_context = avformat_alloc_context();
+        if (!player->avformat_context) goto done;
+
+        // setup interrupt_callback
+        player->avformat_context->interrupt_callback.callback = interrupt_callback;
+        player->avformat_context->interrupt_callback.opaque   = player;
+
+        // set init_timetick & init_timeout
+        player->init_timetick = av_gettime_relative();
+        player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
+
         if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
             if (player->init_params.auto_reconnect > 0 && !(player->player_status & PS_CLOSE)) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", url);
