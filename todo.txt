@@ -1,2 +1,2 @@
 1. subtitle/lrc
-2. sync apts/vpts to system clock
+2. sync apts/vpts to external clock
