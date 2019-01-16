@@ -146,7 +146,9 @@ AVPacket* pktqueue_audio_dequeue(void *ctxt)
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1;
+    ts.tv_nsec += 100*1000*1000;
+    ts.tv_sec  += ts.tv_nsec / 1000000000;
+    ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->asem, &ts)) return NULL;
     sem_getvalue(&ppq->asem, &ppq->cmninfos->asemv);
     av_log(NULL, AV_LOG_INFO, "asemv: %d\n", ppq->cmninfos->asemv);
@@ -165,7 +167,9 @@ AVPacket* pktqueue_video_dequeue(void *ctxt)
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 1;
+    ts.tv_nsec += 100*1000*1000;
+    ts.tv_sec  += ts.tv_nsec / 1000000000;
+    ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->vsem, &ts)) return NULL;
     sem_getvalue(&ppq->vsem, &ppq->cmninfos->vsemv);
     av_log(NULL, AV_LOG_INFO, "vsemv: %d\n", ppq->cmninfos->vsemv);

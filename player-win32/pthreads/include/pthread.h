@@ -218,7 +218,11 @@ struct _pthread_cleanup
 #ifndef _TIMESPEC_DEFINED
 #define _TIMESPEC_DEFINED
 struct timespec {
+#if 0
   time_t  tv_sec;   /* Seconds */
+#else
+  long    tv_sec;
+#endif
   long    tv_nsec;  /* Nanoseconds */
 };
 
