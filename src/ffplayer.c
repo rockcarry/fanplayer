@@ -372,6 +372,9 @@ static int player_prepare(PLAYER *player)
         av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
         av_dict_set(&opts, "analyzeduration", "1000000", 0);
         if (player->init_params.avts_syncmode == 0) player->init_params.avts_syncmode = 1;
+    } else {
+        player->init_params.init_timeout   = 0;
+        player->init_params.auto_reconnect = 0;
     }
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];
