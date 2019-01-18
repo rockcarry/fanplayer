@@ -282,7 +282,7 @@ void render_audio(void *hrender, AVFrame *audio)
     int     sampnum;
     if (!hrender) return;
 
-    if (render->cmninfos->init_params->avts_syncmode == 1 && render->cmninfos->asemv > 0) {
+    if (render->cmninfos->init_params->avts_syncmode == AVSYNC_MODE_LOWLATENCY && render->cmninfos->asemv > 0) {
         return;
     }
 
@@ -327,7 +327,7 @@ void render_video(void *hrender, AVFrame *video)
     RENDER  *render = (RENDER*)hrender;
     if (!hrender) return;
 
-    if (render->cmninfos->init_params->avts_syncmode == 1 && render->cmninfos->vsemv > 0) {
+    if (render->cmninfos->init_params->avts_syncmode == AVSYNC_MODE_LOWLATENCY && render->cmninfos->vsemv > 0) {
         return;
     }
 

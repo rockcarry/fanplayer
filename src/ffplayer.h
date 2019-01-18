@@ -100,6 +100,12 @@ enum {
     //-- for render
 };
 
+enum {
+    AVSYNC_MODE_AUTO,
+    AVSYNC_MODE_NORMAL,
+    AVSYNC_MODE_LOWLATENCY,
+};
+
 // 初始化参数说明
 // PLAYER_INIT_PARAMS 为播放器初始化参数，在 player_open 时传入，并可获得视频文件打开后的一些参数信息
 // player_open 函数只会读取传入的初始化参数的内容，而不会改变其内容。想要获取视频文件打开后的新参数值

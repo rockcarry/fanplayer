@@ -85,7 +85,6 @@ void* vdev_android_create(void *surface, int bufnum, int w, int h)
     ctxt->h         = h > 1 ? h : 1;
     ctxt->sw        = w > 1 ? w : 1;
     ctxt->sh        = h > 1 ? h : 1;
-    ctxt->tickavdiff=-ctxt->tickframe * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
     ctxt->lock      = vdev_android_lock;
     ctxt->unlock    = vdev_android_unlock;
     ctxt->destroy   = vdev_android_destroy;

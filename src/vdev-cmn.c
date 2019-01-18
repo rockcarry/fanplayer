@@ -26,6 +26,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
 #endif
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h);
+    c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
     c->tickframe = ftime;
     c->ticksleep = ftime;
@@ -208,6 +209,6 @@ void vdev_avsync_and_complete(void *ctxt)
         c->ticksleep = c->tickframe;
     }
 
-    if (c->ticksleep > 0 && c->cmninfos->init_params->avts_syncmode != 1) av_usleep(c->ticksleep * 1000);
+    if (c->ticksleep > 0 && c->cmninfos->init_params->avts_syncmode != AVSYNC_MODE_LOWLATENCY) av_usleep(c->ticksleep * 1000);
     av_log(NULL, AV_LOG_INFO, "d: %3d, s: %3d\n", avdiff, c->ticksleep);
 }
