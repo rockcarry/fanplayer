@@ -1,6 +1,8 @@
 package com.rockcarry.fanplayer;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -15,6 +17,7 @@ import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
@@ -31,7 +34,7 @@ public class MainActivity extends Activity {
     private ImageView    mPause     = null;
     private boolean      mIsPlaying = false;
     private boolean      mIsLive    = false;
-    private String       mURL       = "rtmp://live.hkstv.hk.lxdns.com/live/hks";
+    private String       mURL       = "rtsp://192.168.0.88/video0";
     private Surface      mVideoSurface;
     private int          mVideoViewW;
     private int          mVideoViewH;
@@ -61,10 +64,35 @@ public class MainActivity extends Activity {
                 cursor.moveToFirst();
                 mURL = cursor.getString(colidx);
             }
+            mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
+            mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;video_rotate=0");
+        } else {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("open url:");
+            final EditText edt = new EditText(this);
+            edt.setHint("url:");
+            edt.setSingleLine(true);
+            edt.setText(mURL);
+            builder.setView(edt);
+            builder.setNegativeButton("cancel" , new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    MainActivity.this.finish();
+                }
+            });
+            builder.setPositiveButton("confirm", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    mURL = edt.getText().toString();
+                    mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
+                    mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;init_timeout=500;auto_reconnect=500");
+                    mPlayer.setDisplaySurface(mVideoSurface);
+                    testPlayerPlay(true);
+                }
+            });
+            AlertDialog dlg = builder.create();
+            dlg.show();
         }
-
-        mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
-        mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;video_rotate=0");
 
         mRoot = (playerView)findViewById(R.id.player_root);
         mRoot.setOnSizeChangedListener(new playerView.OnSizeChangedListener() {
@@ -82,19 +110,19 @@ public class MainActivity extends Activity {
             new Callback() {
                 @Override
                 public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-//                  mPlayer.setDisplaySurface(holder.getSurface());
+//                  if (mPlayer != null) mPlayer.setDisplaySurface(holder.getSurface());
                 }
 
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mVideoSurface = holder.getSurface();
-                    mPlayer.setDisplaySurface(mVideoSurface);
+                    if (mPlayer != null) mPlayer.setDisplaySurface(mVideoSurface);
                 }
 
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
                     mVideoSurface = null;
-                    mPlayer.setDisplaySurface(mVideoSurface);
+                    if (mPlayer != null) mPlayer.setDisplaySurface(mVideoSurface);
                 }
             }
         );
@@ -104,7 +132,7 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    mPlayer.seek(progress);
+                    if (mPlayer != null) mPlayer.seek(progress);
                 }
             }
             @Override
@@ -134,7 +162,7 @@ public class MainActivity extends Activity {
     public void onDestroy() {
         super.onDestroy();
         mHandler.removeMessages(MSG_UPDATE_PROGRESS);
-        mPlayer.close();
+        if (mPlayer != null) mPlayer.close();
     }
 
     @Override
@@ -158,6 +186,7 @@ public class MainActivity extends Activity {
     }
 
     private void testPlayerPlay(boolean play) {
+        if (mPlayer == null) return;
         if (play) {
             mPlayer.play();
             mIsPlaying = true;
@@ -196,7 +225,7 @@ public class MainActivity extends Activity {
             switch (msg.what) {
             case MSG_UPDATE_PROGRESS: {
                     mHandler.sendEmptyMessageDelayed(MSG_UPDATE_PROGRESS, 200);
-                    int progress = (int)mPlayer.getParam(MediaPlayer.PARAM_MEDIA_POSITION);
+                    int progress = mPlayer != null ? (int)mPlayer.getParam(MediaPlayer.PARAM_MEDIA_POSITION) : 0;
                     if (!mIsLive) {
                         if (progress >= 0) mSeek.setProgress(progress);
                     } else {
@@ -210,17 +239,19 @@ public class MainActivity extends Activity {
                 }
                 break;
             case MSG_UDPATE_VIEW_SIZE: {
-                    if (mPlayer.initVideoSize(mVideoViewW, mVideoViewH, mVideo)) {
+                    if (mPlayer != null && mPlayer.initVideoSize(mVideoViewW, mVideoViewH, mVideo)) {
                         mVideo.setVisibility(View.VISIBLE);
                     }
                 }
                 break;
             case MediaPlayer.MSG_OPEN_DONE: {
-                    mPlayer .setDisplaySurface(mVideoSurface);
-                    mVideo  .setVisibility(View.INVISIBLE);
-                    mHandler.sendEmptyMessage(MSG_UDPATE_VIEW_SIZE);
-                    mSeek.setMax((int)mPlayer.getParam(MediaPlayer.PARAM_MEDIA_DURATION));
-                    testPlayerPlay(true);
+                    if (mPlayer != null) {
+                        mPlayer .setDisplaySurface(mVideoSurface);
+                        mVideo  .setVisibility(View.INVISIBLE);
+                        mHandler.sendEmptyMessage(MSG_UDPATE_VIEW_SIZE);
+                        mSeek.setMax((int)mPlayer.getParam(MediaPlayer.PARAM_MEDIA_DURATION));
+                        testPlayerPlay(true);
+                    }
                 }
                 break;
             case MediaPlayer.MSG_OPEN_FAILED: {
