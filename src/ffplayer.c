@@ -728,8 +728,8 @@ static void* video_decode_thread_proc(void *param)
                 vfilter_graph_input(player, &player->vframe);
                 do {
                     if (vfilter_graph_output(player, &player->vframe) < 0) break;
-//                  player->seek_vpts = av_frame_get_best_effort_timestamp(&player->vframe);
-                    player->seek_vpts = player->vframe.pkt_dts; // if rtmp has problem, try to use this code
+                    player->seek_vpts = av_frame_get_best_effort_timestamp(&player->vframe);
+//                  player->seek_vpts = player->vframe.pkt_dts; // if rtmp has problem, try to use this code
                     player->vframe.pts= av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
