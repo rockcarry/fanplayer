@@ -31,14 +31,17 @@ typedef struct
     struct SwrContext *swr_context;
     struct SwsContext *sws_context;
 
+    int            adev_type;
     int            sample_rate;
     int            sample_fmt;
     int64_t        chan_layout;
 
+    int            vdev_type;
     int            video_width;
     int            video_height;
     AVRational     frame_rate;
     int            pixel_fmt;
+    void          *surface;
 
     int            adev_buf_avail;
     uint8_t       *adev_buf_cur;
@@ -76,6 +79,7 @@ typedef struct
     #define RENDER_PAUSE       (1 << 1)
     #define RENDER_SNAPSHOT    (1 << 2)  // take snapshot
     #define RENDER_STEPFORWARD (1 << 3)  // step forward
+    #define RENDER_UDPATE_RECT (1 << 4)  // update rect
     int            render_status;
 
 #if CONFIG_ENABLE_SNAPSHOT
@@ -116,21 +120,27 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
         exit(0);
     }
 
+    // init for audio
+    render->adev_type    = adevtype;
+    render->sample_rate  = srate;
+    render->sample_fmt   = sndfmt;
+    render->chan_layout  = ch_layout;
+
     // init for video
+    render->vdev_type    = vdevtype;
     render->video_width  = w;
     render->video_height = h;
     render->rect_wnew    = w;
     render->rect_hnew    = h;
     render->frame_rate   = frate;
     render->pixel_fmt    = pixfmt;
+    render->surface      = surface;
     if (render->pixel_fmt == AV_PIX_FMT_NONE) {
         render->pixel_fmt = AV_PIX_FMT_YUV420P;
     }
 
-    // init for audio
-    render->sample_rate  = srate;
-    render->sample_fmt   = sndfmt;
-    render->chan_layout  = ch_layout;
+    // init for cmninfos
+    render->cmninfos = cmninfos;
 
     // init for visual effect
 #if CONFIG_ENABLE_VEFFECT
@@ -142,11 +152,6 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
     soundtouch_setSampleRate(render->stcontext, ADEV_SAMPLE_RATE);
     soundtouch_setChannels  (render->stcontext, 2);
 #endif
-
-    // create adev & vdev
-    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, cmninfos);
-    render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, cmninfos);
-    render->cmninfos = cmninfos;
 
 #ifdef WIN32
     if (1) {
@@ -285,7 +290,9 @@ void render_audio(void *hrender, AVFrame *audio)
     if (render->cmninfos->init_params->avts_syncmode == AVSYNC_MODE_LOWLATENCY && render->cmninfos->asemv > 0) {
         return;
     }
-
+    if (render->adev == NULL) {
+        render->adev = adev_create(render->adev_type, 0, (int)((double)ADEV_SAMPLE_RATE * render->frame_rate.den / render->frame_rate.num + 0.5) * 4, render->cmninfos);
+    }
     do {
         if (  render->speed_value_cur != render->speed_value_new
            || render->speed_type_cur  != render->speed_type_new ) {
@@ -330,13 +337,15 @@ void render_video(void *hrender, AVFrame *video)
     if (render->cmninfos->init_params->avts_syncmode == AVSYNC_MODE_LOWLATENCY && render->cmninfos->vsemv > 0) {
         return;
     }
-
+    if (render->vdev == NULL) {
+        render->vdev = vdev_create(render->vdev_type, render->surface, 0, render->video_width, render->video_width, 1000 * render->frame_rate.den / render->frame_rate.num, render->cmninfos);
+        render->render_status |= RENDER_UDPATE_RECT;
+        vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &render->speed_value_new);
+    }
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
-        if (  render->rect_xcur != render->rect_xnew
-           || render->rect_ycur != render->rect_ynew
-           || render->rect_wcur != render->rect_wnew
-           || render->rect_hcur != render->rect_hnew ) {
+        if (render->render_status & RENDER_UDPATE_RECT) {
+            render->render_status &= ~RENDER_UDPATE_RECT;
             render->rect_xcur = render->rect_xnew;
             render->rect_ycur = render->rect_ynew;
             render->rect_wcur = render->rect_wnew;
@@ -391,6 +400,7 @@ void render_setrect(void *hrender, int type, int x, int y, int w, int h)
         render->rect_ynew = y;
         render->rect_wnew = MAX(w, 1);
         render->rect_hnew = MAX(h, 1);
+        render->render_status |= RENDER_UDPATE_RECT;
         break;
 #if CONFIG_ENABLE_VEFFECT
     case 1:
@@ -408,8 +418,8 @@ void render_start(void *hrender)
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
     render->render_status &=~RENDER_PAUSE;
-    adev_pause(render->adev, 0);
-    vdev_pause(render->vdev, 0);
+    if (render->adev) adev_pause(render->adev, 0);
+    if (render->vdev) vdev_pause(render->vdev, 0);
     render->cmninfos->start_tick= av_gettime_relative() / 1000;
     render->cmninfos->start_pts = MAX(render->cmninfos->apts, render->cmninfos->vpts);
 }
@@ -419,8 +429,8 @@ void render_pause(void *hrender)
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
     render->render_status |= RENDER_PAUSE;
-    adev_pause(render->adev, 1);
-    vdev_pause(render->vdev, 1);
+    if (render->adev) adev_pause(render->adev, 1);
+    if (render->vdev) vdev_pause(render->vdev, 1);
 }
 
 void render_reset(void *hrender)
@@ -501,6 +511,10 @@ void render_setparam(void *hrender, int id, void *param)
         break;
     case PARAM_RENDER_STEPFORWARD:
         render->render_status |= RENDER_STEPFORWARD;
+    case PARAM_RENDER_REINIT_VDEV:
+        vdev_destroy(render->vdev); render->vdev = NULL;
+        render->video_width  = ((int*)param)[0];
+        render->video_height = ((int*)param)[1];
         break;
     }
 }
@@ -513,7 +527,7 @@ void render_getparam(void *hrender, int id, void *param)
     switch (id)
     {
     case PARAM_MEDIA_POSITION:
-        if (vdev->status & VDEV_COMPLETED) {
+        if (vdev && vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param  = -1; // means completed
         } else {
             *(int64_t*)param = MAX(render->cmninfos->apts, render->cmninfos->vpts);
@@ -536,7 +550,7 @@ void render_getparam(void *hrender, int id, void *param)
     case PARAM_AVSYNC_TIME_DIFF:
     case PARAM_VDEV_GET_D3DDEV:
     case PARAM_VDEV_D3D_ROTATE:
-        vdev_getparam(render->vdev, id, param);
+        vdev_getparam(vdev, id, param);
         break;
     case PARAM_ADEV_GET_CONTEXT:
         *(void**)param = render->adev;

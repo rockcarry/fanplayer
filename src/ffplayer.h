@@ -97,6 +97,7 @@ enum {
     //++ for render
     PARAM_RENDER_GET_CONTEXT = 0x4000,
     PARAM_RENDER_STEPFORWARD,
+    PARAM_RENDER_REINIT_VDEV,
     //-- for render
 };
 

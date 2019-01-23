@@ -50,6 +50,7 @@ typedef struct {
     #define PS_A_SEEK     (1 << 4)  // seek audio
     #define PS_V_SEEK     (1 << 5)  // seek video
     #define PS_CLOSE      (1 << 6)  // close player
+    #define PS_RECONNECT  (1 << 7)  // reconnect
     int              player_status;
     int              seek_req ;
     int64_t          seek_pos ;
@@ -561,9 +562,9 @@ static void* av_demux_thread_proc(void *param)
 
     while (!(player->player_status & PS_CLOSE)) {
         //++ when player seek ++//
-        if (player->player_status & PS_F_SEEK) {
-            player->player_status &= ~PS_F_SEEK;
-            handle_fseek_or_reconnect(player, 0);
+        if (player->player_status & (PS_F_SEEK|PS_RECONNECT)) {
+            handle_fseek_or_reconnect(player, (player->player_status & PS_RECONNECT) ? 1 : 0);
+            player->player_status &= ~(PS_F_SEEK|PS_RECONNECT);
         }
         //-- when player seek --//
 
@@ -575,7 +576,7 @@ static void* av_demux_thread_proc(void *param)
             av_packet_unref(packet); // free packet
             if (  player->init_params.auto_reconnect > 0
                && av_gettime_relative() - player->tick_demux > player->init_params.auto_reconnect * 1000) {
-                handle_fseek_or_reconnect(player, 1);
+                player->player_status |= PS_RECONNECT;
             } else {
                 pktqueue_free_cancel(player->pktqueue, packet);
                 av_usleep(20*1000);
@@ -722,6 +723,15 @@ static void* video_decode_thread_proc(void *param)
             if (consumed < 0) {
                 av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n");
                 break;
+            }
+            if (player->vcodec_context->width != player->init_params.video_vwidth || player->vcodec_context->height != player->init_params.video_vheight) {
+                player->init_params.video_vwidth  = player->init_params.video_owidth  = player->vcodec_context->width;
+                player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
+                vfilter_graph_free(player);
+                vfilter_graph_init(player);
+                render_setparam(player->render, PARAM_RENDER_REINIT_VDEV, &player->init_params.video_owidth);
+                player_setparam(player, PARAM_VIDEO_MODE, &player->vdmode);
+                gotvideo = 0;
             }
 
             if (gotvideo) {
