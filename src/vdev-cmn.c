@@ -37,7 +37,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
 void vdev_destroy(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (c->destroy) c->destroy(c);
+    if (c && c->destroy) c->destroy(c);
 }
 
 void vdev_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
