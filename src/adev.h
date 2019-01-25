@@ -26,8 +26,8 @@ typedef struct {
     int         head;               \
     int         tail;               \
                                     \
-    /* time infos */                \
-    CMNINFOS   *cmninfos;           \
+    /* common vars */               \
+    CMNVARS    *cmnvars;            \
                                     \
     /* software volume */           \
     int         vol_scaler[256];    \
@@ -41,7 +41,7 @@ typedef struct {
 } ADEV_COMMON_CTXT;
 
 // º¯ÊýÉùÃ÷
-void* adev_create  (int type, int bufnum, int buflen, CMNINFOS *cmninfos);
+void* adev_create  (int type, int bufnum, int buflen, CMNVARS *cmnvars);
 void  adev_destroy (void *ctxt);
 void  adev_lock    (void *ctxt, AUDIOBUF **ppab);
 void  adev_unlock  (void *ctxt, int64_t pts);

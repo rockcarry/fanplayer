@@ -12,7 +12,7 @@
 #define COMPLETED_COUNTER  30
 
 // º¯ÊýÊµÏÖ
-void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, CMNINFOS *cmninfos)
+void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars)
 {
     VDEV_COMMON_CTXT *c = NULL;
 #ifdef WIN32
@@ -20,24 +20,31 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum, w, h); break;
     case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h); break;
     }
+    if (!c) return NULL;
     _tcscpy(c->font_name, DEF_FONT_NAME);
     c->font_size = DEF_FONT_SIZE;
     c->status   |= VDEV_CONFIG_FONT;
 #endif
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h);
+    if (!c) return NULL;
     c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
+    c->surface   = surface;
+    c->w         = MAX(w, 1);
+    c->h         = MAX(h, 1);
+    c->sw        = MAX(w, 1);
+    c->sh        = MAX(h, 1);
     c->tickframe = ftime;
     c->ticksleep = ftime;
-    c->cmninfos  = cmninfos;
+    c->cmnvars   = cmnvars;
     return c;
 }
 
 void vdev_destroy(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (c && c->destroy) c->destroy(c);
+    if (c->destroy) c->destroy(c);
 }
 
 void vdev_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
@@ -64,6 +71,7 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
 void vdev_pause(void *ctxt, int pause)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    if (!ctxt) return;
     if (pause) {
         c->status |=  VDEV_PAUSE;
     } else {
@@ -74,26 +82,26 @@ void vdev_pause(void *ctxt, int pause)
 void vdev_reset(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    if (!ctxt) return;
 #if 0 //++ no need to reset vdev buffer queue
     while (0 == sem_trywait(&c->semr)) {
         sem_post(&c->semw);
     }
-    c->head   = c->tail =  0;
+    c->head = c->tail = 0;
 #endif//-- no need to reset vdev buffer queue
-    c->status&= VDEV_CONFIG_FONT;
+    c->status &= VDEV_CONFIG_FONT;
 }
 
 void vdev_setparam(void *ctxt, int id, void *param)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (!ctxt || !param) return;
-
+    if (!ctxt) return;
     switch (id) {
     case PARAM_PLAY_SPEED_VALUE:
-        c->speed = *(int*)param;
+        if (param) c->speed = *(int*)param;
         break;
     case PARAM_AVSYNC_TIME_DIFF:
-        c->tickavdiff = *(int*)param;
+        if (param) c->tickavdiff = *(int*)param;
         break;
     }
     if (c->setparam) c->setparam(c, id, param);
@@ -171,14 +179,14 @@ void vdev_avsync_and_complete(void *ctxt)
 
     if (!(c->status & VDEV_PAUSE)) {
         //++ play completed ++//
-        if (c->completed_apts != c->cmninfos->apts || c->completed_vpts != c->cmninfos->vpts) {
-            c->completed_apts = c->cmninfos->apts;
-            c->completed_vpts = c->cmninfos->vpts;
+        if (c->completed_apts != c->cmnvars->apts || c->completed_vpts != c->cmnvars->vpts) {
+            c->completed_apts = c->cmnvars->apts;
+            c->completed_vpts = c->cmnvars->vpts;
             c->completed_counter = 0;
             c->status &=~VDEV_COMPLETED;
         } else if (++c->completed_counter == COMPLETED_COUNTER) {
             c->status |= VDEV_COMPLETED;
-            player_send_message(c->surface, MSG_PLAY_COMPLETED, 0);
+            player_send_message(c->cmnvars->winmsg, MSG_PLAY_COMPLETED, 0);
         }
         //-- play completed --//
 
@@ -188,14 +196,14 @@ void vdev_avsync_and_complete(void *ctxt)
         tickdiff    = (int)(tickcur - c->ticklast);
         c->ticklast = tickcur;
 
-        sysclock= c->cmninfos->start_pts + (tickcur - c->cmninfos->start_tick) * c->speed / 100;
-        scdiff  = (int)(sysclock - c->cmninfos->vpts - c->tickavdiff); // diff between system clock and video pts
-        avdiff  = (int)(c->cmninfos->apts  - c->cmninfos->vpts - c->tickavdiff); // diff between audio and video pts
-        avdiff  = c->cmninfos->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
+        sysclock= c->cmnvars->start_pts + (tickcur - c->cmnvars->start_tick) * c->speed / 100;
+        scdiff  = (int)(sysclock - c->cmnvars->vpts - c->tickavdiff); // diff between system clock and video pts
+        avdiff  = (int)(c->cmnvars->apts  - c->cmnvars->vpts - c->tickavdiff); // diff between audio and video pts
+        avdiff  = c->cmnvars->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
 
         if (tickdiff - tickframe >  5) c->ticksleep--;
         if (tickdiff - tickframe < -5) c->ticksleep++;
-        if (c->cmninfos->vpts >= 0) {
+        if (c->cmnvars->vpts >= 0) {
             if      (avdiff >  500) c->ticksleep -= 3;
             else if (avdiff >  50 ) c->ticksleep -= 2;
             else if (avdiff >  30 ) c->ticksleep -= 1;
@@ -209,6 +217,6 @@ void vdev_avsync_and_complete(void *ctxt)
         c->ticksleep = c->tickframe;
     }
 
-    if (c->ticksleep > 0 && c->cmninfos->init_params->avts_syncmode != AVSYNC_MODE_LOWLATENCY) av_usleep(c->ticksleep * 1000);
+    if (c->ticksleep > 0 && c->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_LIVE) av_usleep(c->ticksleep * 1000);
     av_log(NULL, AV_LOG_INFO, "d: %3d, s: %3d\n", avdiff, c->ticksleep);
 }

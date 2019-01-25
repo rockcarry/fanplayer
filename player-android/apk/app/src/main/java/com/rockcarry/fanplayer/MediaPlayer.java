@@ -13,6 +13,10 @@ public final class MediaPlayer
     public static final int MSG_OPEN_FAILED         = (('F' << 24) | ('A' << 16) | ('I' << 8) | ('L' << 0));
     public static final int MSG_PLAY_PROGRESS       = (('R' << 24) | ('U' << 16) | ('N' << 8) | (' ' << 0));
     public static final int MSG_PLAY_COMPLETED      = (('E' << 24) | ('N' << 16) | ('D' << 8) | (' ' << 0));
+    public static final int MSG_TAKE_SNAPSHOT       = (('S' << 24) | ('N' << 16) | ('A' << 8) | ('P' << 0));
+    public static final int MSG_STREAM_CONNECTED    = (('C' << 24) | ('N' << 16) | ('C' << 8) | ('T' << 0));
+    public static final int MSG_STREAM_DISCONNECT   = (('D' << 24) | ('I' << 16) | ('S' << 8) | ('C' << 0));
+    public static final int MSG_VIDEO_RESIZED       = (('S' << 24) | ('I' << 16) | ('Z' << 8) | ('E' << 0));
 
     public static final int PARAM_MEDIA_DURATION    = 0x1000 + 0;
     public static final int PARAM_MEDIA_POSITION    = 0x1000 + 1;

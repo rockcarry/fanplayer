@@ -263,6 +263,11 @@ public class MainActivity extends Activity {
                     if (!mIsLive) finish();
                 }
                 break;
+            case MediaPlayer.MSG_VIDEO_RESIZED: {
+                    mVideo.setVisibility(View.INVISIBLE);
+                    mHandler.sendEmptyMessage(MSG_UDPATE_VIEW_SIZE);
+                }
+                break;
             }
         }
     };

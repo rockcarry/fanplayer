@@ -45,10 +45,10 @@ static void* video_render_thread_proc(void *param)
                 TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
             }
             BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
-            c->cmninfos->vpts = c->ppts[c->head];
+            c->cmnvars->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmninfos->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmnvars->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
@@ -148,24 +148,16 @@ static void vdev_gdi_destroy(void *ctxt)
 void* vdev_gdi_create(void *surface, int bufnum, int w, int h)
 {
     VDEVGDICTXT *ctxt = (VDEVGDICTXT*)calloc(1, sizeof(VDEVGDICTXT));
-    if (!ctxt) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate gdi vdev context !\n");
-        exit(0);
-    }
+    if (!ctxt) return NULL;
 
     // init vdev context
-    bufnum          = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
-    ctxt->surface   = surface;
-    ctxt->bufnum    = bufnum;
-    ctxt->pixfmt    = AV_PIX_FMT_RGB32;
-    ctxt->w         = w;
-    ctxt->h         = h;
-    ctxt->sw        = w;
-    ctxt->sh        = h;
-    ctxt->lock      = vdev_gdi_lock;
-    ctxt->unlock    = vdev_gdi_unlock;
-    ctxt->setrect   = vdev_gdi_setrect;
-    ctxt->destroy   = vdev_gdi_destroy;
+    bufnum         = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
+    ctxt->bufnum   = bufnum;
+    ctxt->pixfmt   = AV_PIX_FMT_RGB32;
+    ctxt->lock     = vdev_gdi_lock;
+    ctxt->unlock   = vdev_gdi_unlock;
+    ctxt->setrect  = vdev_gdi_setrect;
+    ctxt->destroy  = vdev_gdi_destroy;
 
     // alloc buffer & semaphore
     ctxt->ppts     = (int64_t*)calloc(bufnum, sizeof(int64_t));
@@ -176,7 +168,7 @@ void* vdev_gdi_create(void *surface, int bufnum, int w, int h)
     sem_init(&ctxt->semr, 0, 0     );
     sem_init(&ctxt->semw, 0, bufnum);
 
-    ctxt->hdcdst = GetDC((HWND)ctxt->surface);
+    ctxt->hdcdst = GetDC((HWND)surface);
     ctxt->hdcsrc = CreateCompatibleDC(ctxt->hdcdst);
     if (!ctxt->ppts || !ctxt->hbitmaps || !ctxt->pbmpbufs || !ctxt->semr || !ctxt->semw || !ctxt->hdcdst || !ctxt->hdcsrc) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate resources for vdev-gdi !\n");

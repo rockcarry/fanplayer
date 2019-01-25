@@ -38,7 +38,7 @@ extern "C" {
     sem_t       semr;                           \
     sem_t       semw;                           \
                                                 \
-    CMNINFOS   *cmninfos;                       \
+    CMNVARS    *cmnvars;                        \
     int         tickavdiff;                     \
     int         tickframe;                      \
     int         ticksleep;                      \
@@ -74,16 +74,14 @@ typedef struct {
 #ifdef WIN32
 void* vdev_gdi_create(void *surface, int bufnum, int w, int h);
 void* vdev_d3d_create(void *surface, int bufnum, int w, int h);
-void  DEF_PLAYER_CALLBACK_WINDOWS(void *vdev, int32_t msg, int64_t param);
 #endif
 
 #ifdef ANDROID
 void* vdev_android_create(void *surface, int bufnum, int w, int h);
-void  DEF_PLAYER_CALLBACK_ANDROID(void *vdev, int32_t msg, int64_t param);
 #endif
 
 // º¯ÊýÉùÃ÷
-void* vdev_create  (int type, void *app, int bufnum, int w, int h, int ftime, CMNINFOS *cmninfos);
+void* vdev_create  (int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars);
 void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
 void  vdev_unlock  (void *ctxt, int64_t pts);
@@ -106,11 +104,6 @@ void  vdev_avsync_and_complete(void *ctxt);
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef ANDROID
-#include <jni.h>
-void vdev_android_setwindow(void *ctxt, jobject surface);
 #endif
 
 #endif

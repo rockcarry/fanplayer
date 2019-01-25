@@ -180,10 +180,10 @@ static void* video_render_thread_proc(void *param)
 
         if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
             d3d_draw_surf(c, c->surfs[c->head]);
-            c->cmninfos->vpts = c->ppts[c->head];
+            c->cmnvars->vpts = c->ppts[c->head];
         }
 
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmninfos->vpts);
+        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmnvars->vpts);
         if (++c->head == c->bufnum) c->head = 0;
         sem_post(&c->semw);
 
@@ -243,7 +243,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-        c->cmninfos->vpts = ((AVFrame*)param)->pts;
+        c->cmnvars->vpts = ((AVFrame*)param)->pts;
         vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:
@@ -312,26 +312,18 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h)
     D3DDISPLAYMODE     d3dmode = {0};
 
     ctxt = (VDEVD3DCTXT*)calloc(1, sizeof(VDEVD3DCTXT));
-    if (!ctxt) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate d3d vdev context !\n");
-        exit(0);
-    }
+    if (!ctxt) return NULL;
 
     // init vdev context
-    bufnum          = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
-    ctxt->surface   = surface;
-    ctxt->bufnum    = bufnum;
-    ctxt->w         = MAX(w, 1);
-    ctxt->h         = MAX(h, 1);
-    ctxt->sw        = MAX(w, 1);
-    ctxt->sh        = MAX(h, 1);
-    ctxt->lock      = vdev_d3d_lock;
-    ctxt->unlock    = vdev_d3d_unlock;
-    ctxt->setrect   = vdev_d3d_setrect;
-    ctxt->setparam  = vdev_d3d_setparam;
-    ctxt->getparam  = vdev_d3d_getparam;
-    ctxt->destroy   = vdev_d3d_destroy;
-    ctxt->status    = VDEV_D3D_SET_RECT;
+    bufnum         = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
+    ctxt->bufnum   = bufnum;
+    ctxt->lock     = vdev_d3d_lock;
+    ctxt->unlock   = vdev_d3d_unlock;
+    ctxt->setrect  = vdev_d3d_setrect;
+    ctxt->setparam = vdev_d3d_setparam;
+    ctxt->getparam = vdev_d3d_getparam;
+    ctxt->destroy  = vdev_d3d_destroy;
+    ctxt->status   = VDEV_D3D_SET_RECT;
 
     // alloc buffer & semaphore
     ctxt->ppts  = (int64_t*)calloc(bufnum, sizeof(int64_t));
@@ -359,7 +351,7 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h)
     ctxt->d3dpp.MultiSampleType       = D3DMULTISAMPLE_NONE;
     ctxt->d3dpp.MultiSampleQuality    = 0;
     ctxt->d3dpp.SwapEffect            = D3DSWAPEFFECT_DISCARD;
-    ctxt->d3dpp.hDeviceWindow         = (HWND)ctxt->surface;
+    ctxt->d3dpp.hDeviceWindow         = (HWND)surface;
     ctxt->d3dpp.Windowed              = TRUE;
     ctxt->d3dpp.EnableAutoDepthStencil= FALSE;
 #if ENABLE_WAIT_D3D_VSYNC
@@ -374,7 +366,7 @@ void* vdev_d3d_create(void *surface, int bufnum, int w, int h)
     }
 #endif
 
-    if (FAILED(IDirect3D9_CreateDevice(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)ctxt->surface,
+    if (FAILED(IDirect3D9_CreateDevice(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)surface,
                D3DCREATE_SOFTWARE_VERTEXPROCESSING, &ctxt->d3dpp, &ctxt->pD3DDev)) ) {
         av_log(NULL, AV_LOG_ERROR, "failed to create d3d device !\n");
         exit(0);

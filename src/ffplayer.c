@@ -59,8 +59,8 @@ typedef struct {
     int              seek_diff;
     int              seek_sidx;
 
-    // player common infos
-    CMNINFOS         cmninfos;
+    // player common vars
+    CMNVARS          cmnvars;
 
     pthread_t        avdemux_thread;
     pthread_t        adecode_thread;
@@ -76,12 +76,11 @@ typedef struct {
     PLAYER_INIT_PARAMS init_params;
     int64_t            tick_demux; // used for reconnect
 
-    // save url and appdata
-    char             url[PATH_MAX];
-    void            *appdata;
+    // save url
+    char  url[PATH_MAX];
 
     // recorder used for recording
-    void            *recorder;
+    void  *recorder;
 } PLAYER;
 
 // 内部常量定义
@@ -372,7 +371,7 @@ static int player_prepare(PLAYER *player)
         av_dict_set(&opts, "buffer_size"    , "1048576", 0);
         av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
         av_dict_set(&opts, "analyzeduration", "1000000", 0);
-        if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) player->init_params.avts_syncmode = AVSYNC_MODE_LOWLATENCY;
+        if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) player->init_params.avts_syncmode = AVSYNC_MODE_LIVE;
     } else {
         player->init_params.init_timeout   = 0;
         player->init_params.auto_reconnect = 0;
@@ -453,9 +452,9 @@ static int player_prepare(PLAYER *player)
 
     // get starttime
     if (player->avformat_context->start_time > 0) {
-        player->cmninfos.start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
-        player->cmninfos.apts       = player->astream_index != -1 ? player->cmninfos.start_time : -1;
-        player->cmninfos.vpts       = player->vstream_index != -1 ? player->cmninfos.start_time : -1;
+        player->cmnvars.start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
+        player->cmnvars.apts       = player->astream_index != -1 ? player->cmnvars.start_time : -1;
+        player->cmnvars.vpts       = player->vstream_index != -1 ? player->cmnvars.start_time : -1;
     }
 
     // init avfilter graph
@@ -464,8 +463,8 @@ static int player_prepare(PLAYER *player)
     // open render
     player->render = render_open(
         player->init_params.adev_render_type, arate, aformat, alayout,
-        player->init_params.vdev_render_type, player->appdata, vrate, vformat,
-        player->init_params.video_owidth, player->init_params.video_oheight, &player->cmninfos);
+        player->init_params.vdev_render_type, player->cmnvars.winmsg, vrate, vformat,
+        player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
 
     if (player->vstream_index == -1) {
         int effect = VISUAL_EFFECT_WAVEFORM;
@@ -491,7 +490,7 @@ static int player_prepare(PLAYER *player)
 
 done:
     // send player init message
-    player_send_message(player->appdata, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, (int64_t)player);
+    player_send_message(player->cmnvars.winmsg, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, (int64_t)player);
     return ret;
 }
 
@@ -527,9 +526,9 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
 
         player_getparam(player, PARAM_VDEV_GET_CONTEXT, &vdev);
         if (vdev) vdev->status |= VDEV_ERASE_BG1;
-        player_send_message(player->appdata, MSG_STREAM_DISCONNECT, (int64_t)player);
+        player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, (int64_t)player);
         player_prepare(player);
-        player_send_message(player->appdata, MSG_STREAM_CONNECTED , (int64_t)player);
+        player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , (int64_t)player);
         if (vdev) vdev->status &=~VDEV_ERASE_BG1;
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
@@ -661,10 +660,10 @@ static void* audio_decode_thread_proc(void *param)
                 //++ for seek operation
                 if (player->player_status & PS_A_SEEK) {
                     if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
-                        player->cmninfos.start_tick = av_gettime_relative() / 1000;
-                        player->cmninfos.start_pts  = player->aframe.pts;
-                        player->cmninfos.apts       = player->aframe.pts;
-                        player->cmninfos.vpts       = player->seek_dest ;
+                        player->cmnvars.start_tick = av_gettime_relative() / 1000;
+                        player->cmnvars.start_pts  = player->aframe.pts;
+                        player->cmnvars.apts       = player->aframe.pts;
+                        player->cmnvars.vpts       = player->seek_dest ;
                         player->player_status &= ~PS_A_SEEK;
                     }
                     if (player->player_status & PS_R_PAUSE) {
@@ -729,9 +728,9 @@ static void* video_decode_thread_proc(void *param)
                 player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
                 vfilter_graph_free(player);
                 vfilter_graph_init(player);
-                render_setparam(player->render, PARAM_RENDER_REINIT_VDEV, &player->init_params.video_owidth);
+                player_setparam(player, PARAM_RENDER_REINIT_V, &player->init_params.video_owidth);
                 player_setparam(player, PARAM_VIDEO_MODE, &player->vdmode);
-                gotvideo = 0;
+                player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
             }
 
             if (gotvideo) {
@@ -744,10 +743,10 @@ static void* video_decode_thread_proc(void *param)
                     //++ for seek operation
                     if (player->player_status & PS_V_SEEK) {
                         if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
-                            player->cmninfos.start_tick = av_gettime_relative() / 1000;
-                            player->cmninfos.start_pts  = player->vframe.pts;
-                            player->cmninfos.vpts       = player->vframe.pts;
-                            player->cmninfos.apts       = player->seek_dest ;
+                            player->cmnvars.start_tick = av_gettime_relative() / 1000;
+                            player->cmnvars.start_pts  = player->vframe.pts;
+                            player->cmnvars.vpts       = player->vframe.pts;
+                            player->cmnvars.apts       = player->seek_dest ;
                             player->player_status &= ~PS_V_SEEK;
                             if (player->player_status & PS_R_PAUSE) {
                                 render_pause(player->render);
@@ -778,7 +777,7 @@ static void* video_decode_thread_proc(void *param)
 }
 
 // 函数实现
-void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
+void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 {
     PLAYER *player = NULL;
 
@@ -797,7 +796,7 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
     if (!player) return NULL;
 
     // create packet queue
-    player->pktqueue = pktqueue_create(0, &player->cmninfos);
+    player->pktqueue = pktqueue_create(0, &player->cmnvars);
     if (!player->pktqueue) {
         av_log(NULL, AV_LOG_ERROR, "failed to create packet queue !\n");
         goto error_handler;
@@ -805,15 +804,15 @@ void* player_open(char *file, void *appdata, PLAYER_INIT_PARAMS *params)
 
     // for player init params
     if (params) memcpy(&player->init_params, params, sizeof(PLAYER_INIT_PARAMS));
-    player->cmninfos.init_params = &player->init_params;
+    player->cmnvars.init_params = &player->init_params;
 
     //++ for player_prepare
     strcpy(player->url, file);
 #ifdef WIN32
-    player->appdata = appdata;
+    player->cmnvars.winmsg = win;
 #endif
 #ifdef ANDROID
-    player->appdata = JniRequestAppData(appdata);
+    player->cmnvars.winmsg = JniRequestWinObj(win);
 #endif
     //-- for player_prepare
 
@@ -876,7 +875,7 @@ void player_close(void *hplayer)
     if (player->recorder        ) recorder_free(player->recorder);
 
 #ifdef ANDROID
-    JniReleaseAppData(player->appdata);
+    JniReleaseWinObj(player->cmnvars.winmsg);
 #endif
 
     free(player);
@@ -963,8 +962,8 @@ void player_seek(void *hplayer, int64_t ms, int type)
         player->player_status |= PS_R_PAUSE;
         break;
     default:
-        player->seek_dest =  player->cmninfos.start_time + ms;
-        player->seek_pos  = (player->cmninfos.start_time + ms) * AV_TIME_BASE / 1000;
+        player->seek_dest =  player->cmnvars.start_time + ms;
+        player->seek_pos  = (player->cmnvars.start_time + ms) * AV_TIME_BASE / 1000;
         player->seek_diff = 100;
         player->seek_sidx = -1;
         break;
@@ -1040,10 +1039,10 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     case PARAM_MEDIA_POSITION:
         if ((player->player_status & PS_F_SEEK) || (player->player_status & player->seek_req)) {
-            *(int64_t*)param = player->seek_dest - player->cmninfos.start_time;
+            *(int64_t*)param = player->seek_dest - player->cmnvars.start_time;
         } else {
             int64_t pos = 0; render_getparam(player->render, id, &pos);
-            *(int64_t*)param = pos == -1 ? -1 : pos - player->cmninfos.start_time;
+            *(int64_t*)param = pos == -1 ? -1 : pos - player->cmnvars.start_time;
         }
         break;
     case PARAM_VIDEO_WIDTH:

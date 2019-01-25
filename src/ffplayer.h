@@ -17,6 +17,7 @@ extern "C" {
 #define MSG_TAKE_SNAPSHOT     (('S' << 24) | ('N' << 16) | ('A' << 8) | ('P' << 0))
 #define MSG_STREAM_CONNECTED  (('C' << 24) | ('N' << 16) | ('C' << 8) | ('T' << 0))
 #define MSG_STREAM_DISCONNECT (('D' << 24) | ('I' << 16) | ('S' << 8) | ('C' << 0))
+#define MSG_VIDEO_RESIZED     (('S' << 24) | ('I' << 16) | ('Z' << 8) | ('E' << 0))
 
 // adev render type
 enum {
@@ -97,14 +98,16 @@ enum {
     //++ for render
     PARAM_RENDER_GET_CONTEXT = 0x4000,
     PARAM_RENDER_STEPFORWARD,
-    PARAM_RENDER_REINIT_VDEV,
+    PARAM_RENDER_REINIT_A,
+    PARAM_RENDER_REINIT_V,
+    PARAM_RENDER_VDEV_WIN,
     //-- for render
 };
 
 enum {
     AVSYNC_MODE_AUTO,
     AVSYNC_MODE_NORMAL,
-    AVSYNC_MODE_LOWLATENCY,
+    AVSYNC_MODE_LIVE,
 };
 
 // 初始化参数说明
@@ -150,7 +153,7 @@ typedef struct {
 // 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1
 //           这样播放器将只解码音频而不解码视频，可减少 cpu 的使用率
 
-//++ player common infos
+//++ player common variables
 typedef struct { // for internal use only
     PLAYER_INIT_PARAMS *init_params;
     int64_t start_time;
@@ -160,8 +163,9 @@ typedef struct { // for internal use only
     int64_t vpts;  // current vpts
     int     asemv; // available audio packet number in pktqueue
     int     vsemv; // available video packet number in pktqueue
-} CMNINFOS;
-//-- player common infos
+    void   *winmsg;
+} CMNVARS;
+//-- player common variables
 
 // 函数声明
 void* player_open    (char *file, void *appdata, PLAYER_INIT_PARAMS *params);

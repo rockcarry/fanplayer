@@ -13,9 +13,9 @@ extern "C" {
 #endif
 
 void  JniDetachCurrentThread(void);
-void *JniRequestAppData(void *data);
-void  JniReleaseAppData(void *data);
-void  JniPostMessage(void *extra, int32_t msg, int64_t param);
+void *JniRequestWinObj(void *data);
+void  JniReleaseWinObj(void *data);
+void  JniPostMessage  (void *extra, int32_t msg, int64_t param);
 
 #ifdef __cplusplus
 }

@@ -24,12 +24,12 @@ typedef struct {
     AVPacket **fpkts; // free packets
     AVPacket **apkts; // audio packets
     AVPacket **vpkts; // video packets
-    CMNINFOS  *cmninfos;
+    CMNVARS   *cmnvars;
     pthread_mutex_t lock;
 } PKTQUEUE;
 
 // º¯ÊýÊµÏÖ
-void* pktqueue_create(int size, CMNINFOS *cmninfos)
+void* pktqueue_create(int size, CMNVARS *cmnvars)
 {
     PKTQUEUE *ppq;
     int       i  ;
@@ -44,11 +44,11 @@ void* pktqueue_create(int size, CMNINFOS *cmninfos)
     ppq->asize = ppq->vsize = ppq->fsize;
 
     // alloc buffer & semaphore
-    ppq->bpkts = (AVPacket* )calloc(ppq->fsize, sizeof(AVPacket ));
-    ppq->fpkts = (AVPacket**)calloc(ppq->fsize, sizeof(AVPacket*));
-    ppq->apkts = (AVPacket**)calloc(ppq->asize, sizeof(AVPacket*));
-    ppq->vpkts = (AVPacket**)calloc(ppq->vsize, sizeof(AVPacket*));
-    ppq->cmninfos = cmninfos;
+    ppq->bpkts  = (AVPacket* )calloc(ppq->fsize, sizeof(AVPacket ));
+    ppq->fpkts  = (AVPacket**)calloc(ppq->fsize, sizeof(AVPacket*));
+    ppq->apkts  = (AVPacket**)calloc(ppq->asize, sizeof(AVPacket*));
+    ppq->vpkts  = (AVPacket**)calloc(ppq->vsize, sizeof(AVPacket*));
+    ppq->cmnvars= cmnvars;
     sem_init(&ppq->fsem, 0, ppq->fsize );
     sem_init(&ppq->asem, 0, 0          );
     sem_init(&ppq->vsem, 0, 0          );
@@ -150,8 +150,8 @@ AVPacket* pktqueue_audio_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->asem, &ts)) return NULL;
-    sem_getvalue(&ppq->asem, &ppq->cmninfos->asemv);
-    av_log(NULL, AV_LOG_INFO, "asemv: %d\n", ppq->cmninfos->asemv);
+    sem_getvalue(&ppq->asem, &ppq->cmnvars->asemv);
+    av_log(NULL, AV_LOG_INFO, "asemv: %d\n", ppq->cmnvars->asemv);
     return ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
 }
 
@@ -171,8 +171,8 @@ AVPacket* pktqueue_video_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->vsem, &ts)) return NULL;
-    sem_getvalue(&ppq->vsem, &ppq->cmninfos->vsemv);
-    av_log(NULL, AV_LOG_INFO, "vsemv: %d\n", ppq->cmninfos->vsemv);
+    sem_getvalue(&ppq->vsem, &ppq->cmnvars->vsemv);
+    av_log(NULL, AV_LOG_INFO, "vsemv: %d\n", ppq->cmnvars->vsemv);
     return ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
 }
 

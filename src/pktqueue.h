@@ -12,7 +12,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 
 // º¯ÊýÉùÃ÷
-void* pktqueue_create (int size, CMNINFOS *cmninfos); // important!! size must be power of 2
+void* pktqueue_create (int size, CMNVARS *cmnvars); // important!! size must be power of 2
 void  pktqueue_destroy(void *ctxt);
 void  pktqueue_reset  (void *ctxt);
 
