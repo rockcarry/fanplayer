@@ -563,6 +563,7 @@ static void* av_demux_thread_proc(void *param)
         //++ when player seek ++//
         if (player->player_status & (PS_F_SEEK|PS_RECONNECT)) {
             handle_fseek_or_reconnect(player, (player->player_status & PS_RECONNECT) ? 1 : 0);
+            if (!player->avformat_context) { av_usleep(20*1000); continue; }
             player->player_status &= ~(PS_F_SEEK|PS_RECONNECT);
         }
         //-- when player seek --//
