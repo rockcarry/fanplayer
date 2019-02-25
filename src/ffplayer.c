@@ -71,10 +71,9 @@ typedef struct {
     AVFilterContext *vfilter_sink_ctx;
 
     // player init timeout, and init params
-    int64_t            init_timetick;
-    int64_t            init_timeout;
+    int64_t            read_timelast;
+    int64_t            read_timeout;
     PLAYER_INIT_PARAMS init_params;
-    int64_t            tick_demux; // used for reconnect
 
     // save url
     char  url[PATH_MAX];
@@ -104,8 +103,8 @@ static void avlog_callback(void* ptr, int level, const char *fmt, va_list vl) {
 static int interrupt_callback(void *param)
 {
     PLAYER *player = (PLAYER*)param;
-    if (player->init_timeout == -1) return 0;
-    return av_gettime_relative() - player->init_timetick > player->init_timeout ? AVERROR_EOF : 0;
+    if (player->read_timeout == -1) return 0;
+    return av_gettime_relative() - player->read_timelast > player->read_timeout ? AVERROR_EOF : 0;
 }
 
 //++ for filter graph
@@ -397,8 +396,8 @@ static int player_prepare(PLAYER *player)
         player->avformat_context->interrupt_callback.opaque   = player;
 
         // set init_timetick & init_timeout
-        player->init_timetick = av_gettime_relative();
-        player->init_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
+        player->read_timelast = av_gettime_relative();
+        player->read_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
 
         if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
             if (player->init_params.auto_reconnect > 0 && !(player->player_status & PS_CLOSE)) {
@@ -413,9 +412,6 @@ static int player_prepare(PLAYER *player)
             break;
         }
     }
-
-    // set init_timeout to -1
-    player->init_timeout = -1;
 
     // find stream info
     if (avformat_find_stream_info(player->avformat_context, NULL) < 0) {
@@ -575,7 +571,7 @@ static void* av_demux_thread_proc(void *param)
         if (retv < 0) {
             av_packet_unref(packet); // free packet
             if (  player->init_params.auto_reconnect > 0
-               && av_gettime_relative() - player->tick_demux > player->init_params.auto_reconnect * 1000) {
+               && av_gettime_relative() - player->read_timelast > player->init_params.auto_reconnect * 1000) {
                 player->player_status |= PS_RECONNECT;
             } else {
                 pktqueue_free_cancel(player->pktqueue, packet);
@@ -583,7 +579,7 @@ static void* av_demux_thread_proc(void *param)
             }
             continue;
         } else {
-            player->tick_demux = av_gettime_relative();
+            player->read_timelast = av_gettime_relative();
         }
 
         // audio
@@ -844,8 +840,8 @@ void player_close(void *hplayer)
     player_setparam(player, PARAM_AUDIO_VOLUME, &vol);
     //-- fix noise sound issue when player_close on android platform
 
-    // set init_timeout to 0
-    player->init_timeout = 0;
+    // set read_timeout to 0
+    player->read_timeout = 0;
 
     // set close flag
     player->player_status |= PS_CLOSE;
