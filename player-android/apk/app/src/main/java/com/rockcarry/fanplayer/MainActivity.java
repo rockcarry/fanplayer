@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
                 public void onClick(DialogInterface dialog, int which) {
                     mURL = edt.getText().toString();
                     mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
-                    mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;init_timeout=500;auto_reconnect=500");
+                    mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;init_timeout=1000;auto_reconnect=1000;rtsp_transport=2");
                     mPlayer.setDisplaySurface(mVideoSurface);
                     testPlayerPlay(true);
                 }

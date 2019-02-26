@@ -357,7 +357,16 @@ void render_video(void *hrender, AVFrame *video)
             picture.linesize[0] = 0;
             vdev_lock(render->vdev, picture.data, picture.linesize);
             if (picture.data[0] && video->pts != -1) {
-                sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize);
+                if (0 == sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize)) {
+                    //++ on some android device, output of h264 mediacodec decoder is NV12
+                    if (   render->pixel_fmt == AV_PIX_FMT_YUV420P
+                        && video->data[0] && video->data[1] && !video->data[2]
+                        && video->linesize[0] == video->linesize[1] && video->linesize[2] == 0) {
+                        render->pixel_fmt = AV_PIX_FMT_NV12;
+                        render->render_status |= RENDER_UDPATE_RECT;
+                    }
+                    //-- on some android device, output of h264 mediacodec decoder is NV12
+                }
             }
             vdev_unlock(render->vdev, video->pts);
         }
