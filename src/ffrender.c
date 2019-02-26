@@ -357,7 +357,7 @@ void render_video(void *hrender, AVFrame *video)
             picture.linesize[0] = 0;
             vdev_lock(render->vdev, picture.data, picture.linesize);
             if (picture.data[0] && video->pts != -1) {
-                if (0 == sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize)) {
+                if (render->sws_context && 0 == sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->video_height, picture.data, picture.linesize)) {
                     //++ on some android device, output of h264 mediacodec decoder is NV12
                     if (   render->pixel_fmt == AV_PIX_FMT_YUV420P
                         && video->data[0] && video->data[1] && !video->data[2]
