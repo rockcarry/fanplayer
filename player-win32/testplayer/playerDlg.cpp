@@ -10,9 +10,10 @@
 #define new DEBUG_NEW
 #endif
 
-#define TIMER_ID_FIRST_DIALOG  1
-#define TIMER_ID_PROGRESS      2
-#define TIMER_ID_HIDE_TEXT     3
+#define TIMER_ID_FIRST_DIALOG       1
+#define TIMER_ID_PROGRESS           2
+#define TIMER_ID_HIDE_TEXT          3
+#define TIMER_ID_DISP_DEFINITIONVAL 4
 
 static void get_app_dir(char *path, int size)
 {
@@ -86,6 +87,7 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_bLiveStream = FALSE;
     m_bResetPlayer= FALSE;
     m_bIsRecording= FALSE;
+    m_DefinitionEvalEnable = FALSE;
 }
 
 void CplayerDlg::DoDataExchange(CDataExchange* pDX)
@@ -164,20 +166,21 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
-    ON_COMMAND(ID_OPEN_FILE      , &CplayerDlg::OnOpenFile     )
-    ON_COMMAND(ID_VIDEO_MODE     , &CplayerDlg::OnVideoMode    )
-    ON_COMMAND(ID_EFFECT_MODE    , &CplayerDlg::OnEffectMode   )
-    ON_COMMAND(ID_VRENDER_TYPE   , &CplayerDlg::OnVRenderType  )
-    ON_COMMAND(ID_AUDIO_STREAM   , &CplayerDlg::OnAudioStream  )
-    ON_COMMAND(ID_VIDEO_STREAM   , &CplayerDlg::OnVideoStream  )
-    ON_COMMAND(ID_TAKE_SNAPSHOT  , &CplayerDlg::OnTakeSnapshot )
-    ON_COMMAND(ID_STEP_FORWARD   , &CplayerDlg::OnStepForward  )
-    ON_COMMAND(ID_STEP_BACKWARD  , &CplayerDlg::OnStepBackward )
-    ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec )
-    ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc )
-    ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType)
-    ON_COMMAND(ID_VDEVD3D_ROTATE , &CplayerDlg::OnVdevD3dRotate)
-    ON_COMMAND(ID_RECORD_VIDEO   , &CplayerDlg::OnRecordVideo  )
+    ON_COMMAND(ID_OPEN_FILE      , &CplayerDlg::OnOpenFile      )
+    ON_COMMAND(ID_VIDEO_MODE     , &CplayerDlg::OnVideoMode     )
+    ON_COMMAND(ID_EFFECT_MODE    , &CplayerDlg::OnEffectMode    )
+    ON_COMMAND(ID_VRENDER_TYPE   , &CplayerDlg::OnVRenderType   )
+    ON_COMMAND(ID_AUDIO_STREAM   , &CplayerDlg::OnAudioStream   )
+    ON_COMMAND(ID_VIDEO_STREAM   , &CplayerDlg::OnVideoStream   )
+    ON_COMMAND(ID_TAKE_SNAPSHOT  , &CplayerDlg::OnTakeSnapshot  )
+    ON_COMMAND(ID_STEP_FORWARD   , &CplayerDlg::OnStepForward   )
+    ON_COMMAND(ID_STEP_BACKWARD  , &CplayerDlg::OnStepBackward  )
+    ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec  )
+    ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc  )
+    ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType )
+    ON_COMMAND(ID_VDEVD3D_ROTATE , &CplayerDlg::OnVdevD3dRotate )
+    ON_COMMAND(ID_RECORD_VIDEO   , &CplayerDlg::OnRecordVideo   )
+    ON_COMMAND(ID_DEFINITION_EVAL, &CplayerDlg::OnDefinitionEval)
 END_MESSAGE_MAP()
 
 
@@ -308,6 +311,14 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
         KillTimer(TIMER_ID_HIDE_TEXT);
         player_textout(m_ffPlayer, 0, 0, 0, NULL);
         m_strTxt[0] = '\0';
+        break;
+
+    case TIMER_ID_DISP_DEFINITIONVAL: {
+            float val;
+            player_getparam(m_ffPlayer, PARAM_DEFINITION_VALUE, &val);
+            _stprintf(m_strTxt, TEXT("ÇåÎú¶È %.1f"), val);
+            player_textout(m_ffPlayer, 20, 20, RGB(0, 255, 0), m_strTxt);
+        }
         break;
 
     default:
@@ -536,3 +547,13 @@ void CplayerDlg::OnRecordVideo()
     PlayerShowText(2000);
 }
 
+void CplayerDlg::OnDefinitionEval()
+{
+    m_DefinitionEvalEnable = !m_DefinitionEvalEnable;
+    if (m_DefinitionEvalEnable) {
+        SetTimer(TIMER_ID_DISP_DEFINITIONVAL, 200, NULL);
+    } else {
+        KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
+        player_textout(m_ffPlayer, 0, 0, 0, NULL);
+    }
+}

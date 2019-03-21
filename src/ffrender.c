@@ -63,14 +63,16 @@ typedef struct
     struct SwsContext *sws_context;
 
     // render status
-    #define RENDER_CLOSE       (1 << 0)
-    #define RENDER_PAUSE       (1 << 1)
-    #define RENDER_SNAPSHOT    (1 << 2)  // take snapshot
-    #define RENDER_STEPFORWARD (1 << 3)  // step forward
-    #define RENDER_UDPATE_RECT (1 << 4)  // update rect
-    #define RENDER_AINITED     (1 << 5)
-    #define RENDER_VINITED     (1 << 6)
+    #define RENDER_CLOSE            (1 << 0)
+    #define RENDER_PAUSE            (1 << 1)
+    #define RENDER_SNAPSHOT         (1 << 2)  // take snapshot
+    #define RENDER_STEPFORWARD      (1 << 3)  // step forward
+    #define RENDER_UDPATE_RECT      (1 << 4)  // update rect
+    #define RENDER_AINITED          (1 << 5)
+    #define RENDER_VINITED          (1 << 6)
+    #define RENDER_DEFINITION_EVAL  (1 << 7)
     int                render_status;
+    float              definitionval;
 
 #if CONFIG_ENABLE_SOUNDTOUCH
     void              *stcontext;
@@ -325,10 +327,41 @@ void render_audio(void *hrender, AVFrame *audio)
     } while (sampnum > 0);
 }
 
+static float definition_evaluation(uint8_t *img, int w, int h, int stride)
+{
+    uint8_t *cur, *pre, *nxt;
+    int     i, j, l;
+    int64_t s = 0;
+
+    if (!img || !w || !h || !stride) return 0;
+    pre = img + 1;
+    cur = img + 1 + stride * 1;
+    nxt = img + 1 + stride * 2;
+
+    for (i=1; i<h-1; i++) {
+        for (j=1; j<w-1; j++) {
+            l  = 1 * pre[-1] +  4 * pre[0] + 1 * pre[1];
+            l += 4 * cur[-1] - 20 * cur[0] + 4 * cur[1];
+            l += 1 * nxt[-1] +  4 * nxt[0] + 1 * nxt[1];
+            s += abs(l);
+            pre++; cur++; nxt++;
+        }
+        pre += stride - (w - 2);
+        cur += stride - (w - 2);
+        nxt += stride - (w - 2);
+    }
+    return (float)s / ((w - 2) * (h - 2));
+}
+
 void render_video(void *hrender, AVFrame *video)
 {
     RENDER  *render = (RENDER*)hrender;
     if (!hrender) return;
+
+    if (render->render_status & RENDER_DEFINITION_EVAL) {
+        render->definitionval  =  definition_evaluation(video->data[0], video->width, video->height, video->linesize[0]);
+        render->render_status &= ~RENDER_DEFINITION_EVAL;
+    }
 
     if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->vsemv > 0) return;
     if (!(render->render_status & RENDER_VINITED)) {
@@ -525,7 +558,6 @@ void render_setparam(void *hrender, int id, void *param)
         render->surface = JniRequestWinObj(param);
         vdev_setparam(render->vdev, id, render->surface);
 #endif
-        break;
     }
 }
 
@@ -567,6 +599,10 @@ void render_getparam(void *hrender, int id, void *param)
         break;
     case PARAM_VDEV_GET_CONTEXT:
         *(void**)param = render->vdev;
+        break;
+    case PARAM_DEFINITION_VALUE:
+        *(float*)param = render->definitionval;
+        render->render_status |= RENDER_DEFINITION_EVAL;
         break;
     }
 }

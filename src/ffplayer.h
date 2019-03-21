@@ -82,6 +82,9 @@ enum {
 
     // get player init params
     PARAM_PLAYER_INIT_PARAMS,
+
+    // definition evaluation
+    PARAM_DEFINITION_VALUE,
     //-- public
 
     //++ for adev

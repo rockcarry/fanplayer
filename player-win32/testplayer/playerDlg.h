@@ -39,6 +39,7 @@ private:
     BOOL     m_bResetPlayer;
     BOOL     m_bLiveStream;
     BOOL     m_bIsRecording;
+    BOOL     m_DefinitionEvalEnable;
     void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
     void PlayerShowText(int time);
@@ -68,4 +69,5 @@ public:
     afx_msg void   OnPlaySpeedType();
     afx_msg void   OnVdevD3dRotate();
     afx_msg void   OnRecordVideo();
+    afx_msg void   OnDefinitionEval();
 };

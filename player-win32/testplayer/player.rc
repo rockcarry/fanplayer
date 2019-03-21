@@ -151,13 +151,14 @@ BEGIN
     VK_UP,          ID_PLAY_SPEED_INC,      VIRTKEY, CONTROL, NOINVERT
     "T",            ID_PLAY_SPEED_TYPE,     VIRTKEY, CONTROL, NOINVERT
     "C",            ID_RECORD_VIDEO,        VIRTKEY, CONTROL, NOINVERT
-    "F",            ID_STEP_FORWARD,        VIRTKEY, CONTROL, NOINVERT
     "B",            ID_STEP_BACKWARD,       VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_STEP_FORWARD,        VIRTKEY, CONTROL, NOINVERT
     "S",            ID_TAKE_SNAPSHOT,       VIRTKEY, CONTROL, NOINVERT
     "X",            ID_VDEVD3D_ROTATE,      VIRTKEY, CONTROL, NOINVERT
     "M",            ID_VIDEO_MODE,          VIRTKEY, CONTROL, NOINVERT
     "V",            ID_VIDEO_STREAM,        VIRTKEY, CONTROL, NOINVERT
     "R",            ID_VRENDER_TYPE,        VIRTKEY, CONTROL, NOINVERT
+    "D",            ID_DEFINITION_EVAL,     VIRTKEY, CONTROL, NOINVERT
 END
 
 #endif    // Chinese (P.R.C.) resources
