@@ -71,7 +71,7 @@ typedef struct
     #define RENDER_AINITED          (1 << 5)
     #define RENDER_VINITED          (1 << 6)
     #define RENDER_DEFINITION_EVAL  (1 << 7)
-    int                render_status;
+    int                status;
     float              definitionval;
 
 #if CONFIG_ENABLE_SOUNDTOUCH
@@ -104,8 +104,8 @@ static void render_setspeed(RENDER *render, int speed)
         vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &speed);
 
         // set speed_value_new to triger swr_context re-create
-        render->speed_value    = speed;
-        render->render_status &= ~RENDER_AINITED;
+        render->speed_value = speed;
+        render->status     &= ~RENDER_AINITED;
     }
 }
 
@@ -176,7 +176,7 @@ void render_close(void *hrender)
     RENDER *render = (RENDER*)hrender;
 
     // wait visual effect thread exit
-    render->render_status = RENDER_CLOSE;
+    render->status = RENDER_CLOSE;
 
 #if CONFIG_ENABLE_VEFFECT
     veffect_destroy(render->veffect_context);
@@ -299,7 +299,7 @@ void render_audio(void *hrender, AVFrame *audio)
     if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->asemv > 0) return;
     if (render->adev == NULL) render->adev = adev_create(render->adev_type, 0, (int)((double)ADEV_SAMPLE_RATE * render->frame_rate.den / render->frame_rate.num + 0.5) * 4, render->cmnvars);
     do {
-        if (!(render->render_status & RENDER_AINITED)) {
+        if (!(render->status & RENDER_AINITED)) {
             //++ allocate & init swr context
             int samprate = render->speed_type ? ADEV_SAMPLE_RATE : (int)(ADEV_SAMPLE_RATE * 100.0 / render->speed_value);
             if (render->swr_context) swr_free(&render->swr_context);
@@ -313,7 +313,7 @@ void render_audio(void *hrender, AVFrame *audio)
                 soundtouch_setTempo(render->stcontext, (float)render->speed_value / 100);
             }
 #endif
-            render->render_status |= RENDER_AINITED;
+            render->status |= RENDER_AINITED;
         }
 
 #if CONFIG_ENABLE_SOUNDTOUCH
@@ -358,22 +358,22 @@ void render_video(void *hrender, AVFrame *video)
     RENDER  *render = (RENDER*)hrender;
     if (!hrender) return;
 
-    if (render->render_status & RENDER_DEFINITION_EVAL) {
-        render->definitionval  =  definition_evaluation(video->data[0], video->width, video->height, video->linesize[0]);
-        render->render_status &= ~RENDER_DEFINITION_EVAL;
+    if (render->status & RENDER_DEFINITION_EVAL) {
+        render->definitionval =  definition_evaluation(video->data[0], video->width, video->height, video->linesize[0]);
+        render->status       &= ~RENDER_DEFINITION_EVAL;
     }
 
     if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->vsemv > 0) return;
-    if (!(render->render_status & RENDER_VINITED)) {
+    if (!(render->status & RENDER_VINITED)) {
         if (render->vdev) vdev_destroy(render->vdev);
         render->vdev = vdev_create(render->vdev_type, render->surface, 0, render->video_width, render->video_height, 1000 * render->frame_rate.den / render->frame_rate.num, render->cmnvars);
         vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &render->speed_value);
-        render->render_status |= render->vdev ? (RENDER_UDPATE_RECT|RENDER_VINITED) : 0;
+        render->status |= render->vdev ? (RENDER_UDPATE_RECT|RENDER_VINITED) : 0;
     }
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
-        if (render->render_status & RENDER_UDPATE_RECT) {
-            render->render_status &= ~RENDER_UDPATE_RECT;
+        if (render->status & RENDER_UDPATE_RECT) {
+            render->status &= ~RENDER_UDPATE_RECT;
             // vdev set rect
             vdev_setrect(render->vdev, render->rect_x, render->rect_y, render->rect_w, render->rect_h);
             // we need recreate sws
@@ -396,7 +396,7 @@ void render_video(void *hrender, AVFrame *video)
                         && video->data[0] && video->data[1] && !video->data[2]
                         && video->linesize[0] == video->linesize[1] && video->linesize[2] == 0) {
                         render->pixel_fmt = AV_PIX_FMT_NV12;
-                        render->render_status |= RENDER_UDPATE_RECT;
+                        render->status |= RENDER_UDPATE_RECT;
                     }
                     //-- on some android device, output of h264 mediacodec decoder is NV12
                 }
@@ -405,16 +405,16 @@ void render_video(void *hrender, AVFrame *video)
         }
 
 #if CONFIG_ENABLE_SNAPSHOT
-        if (render->render_status & RENDER_SNAPSHOT) {
+        if (render->status & RENDER_SNAPSHOT) {
             int ret = take_snapshot(render->snapfile, render->snapwidth, render->snapheight, video);
             player_send_message(render->cmnvars->winmsg, MSG_TAKE_SNAPSHOT, 0);
-            render->render_status &= ~RENDER_SNAPSHOT;
+            render->status &= ~RENDER_SNAPSHOT;
         }
 #endif
-    } while ((render->render_status & RENDER_PAUSE) && !(render->render_status & RENDER_STEPFORWARD));
+    } while ((render->status & RENDER_PAUSE) && !(render->status & RENDER_STEPFORWARD));
 
     // clear step forward flag
-    render->render_status &= ~RENDER_STEPFORWARD;
+    render->status &= ~RENDER_STEPFORWARD;
 }
 
 void render_setrect(void *hrender, int type, int x, int y, int w, int h)
@@ -427,7 +427,7 @@ void render_setrect(void *hrender, int type, int x, int y, int w, int h)
         render->rect_y = y;
         render->rect_w = MAX(w, 1);
         render->rect_h = MAX(h, 1);
-        render->render_status |= RENDER_UDPATE_RECT;
+        render->status|= RENDER_UDPATE_RECT;
         break;
 #if CONFIG_ENABLE_VEFFECT
     case 1:
@@ -440,24 +440,16 @@ void render_setrect(void *hrender, int type, int x, int y, int w, int h)
     }
 }
 
-void render_start(void *hrender)
+void render_pause(void *hrender, int pause)
 {
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
-    render->render_status &=~RENDER_PAUSE;
-    adev_pause(render->adev, 0);
-    vdev_pause(render->vdev, 0);
+    if (pause) render->status |= RENDER_PAUSE;
+    else       render->status &=~RENDER_PAUSE;
+    adev_pause(render->adev, pause);
+    vdev_pause(render->vdev, pause);
     render->cmnvars->start_tick= av_gettime_relative() / 1000;
     render->cmnvars->start_pts = MAX(render->cmnvars->apts, render->cmnvars->vpts);
-}
-
-void render_pause(void *hrender)
-{
-    RENDER *render = (RENDER*)hrender;
-    if (!hrender) return;
-    render->render_status |= RENDER_PAUSE;
-    adev_pause(render->adev, 1);
-    vdev_pause(render->vdev, 1);
 }
 
 void render_reset(void *hrender)
@@ -466,7 +458,7 @@ void render_reset(void *hrender)
     if (!hrender) return;
     adev_reset(render->adev);
     vdev_reset(render->vdev);
-    render->render_status = 0;
+    render->status = 0;
 }
 
 int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
@@ -476,7 +468,7 @@ int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
     if (!hrender) return -1;
 
     // if take snapshot in progress
-    if (render->render_status & RENDER_SNAPSHOT) {
+    if (render->status & RENDER_SNAPSHOT) {
         return -1;
     }
 
@@ -486,12 +478,12 @@ int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
     render->snapheight = h;
 
     // setup render flags to request snapshot
-    render->render_status |= RENDER_SNAPSHOT;
+    render->status |= RENDER_SNAPSHOT;
 
     // wait take snapshot done
     if (waitt > 0) {
         int retry = waitt / 10;
-        while ((render->render_status & RENDER_SNAPSHOT) && retry--) {
+        while ((render->status & RENDER_SNAPSHOT) && retry--) {
             av_usleep(10 * 1000);
         }
     }
@@ -518,8 +510,8 @@ void render_setparam(void *hrender, int id, void *param)
         render_setspeed(render, *(int*)param);
         break;
     case PARAM_PLAY_SPEED_TYPE:
-        render->speed_type     = *(int*)param;
-        render->render_status &= ~RENDER_AINITED;
+        render->speed_type = *(int*)param;
+        render->status    &= ~RENDER_AINITED;
         break;
 #if CONFIG_ENABLE_VEFFECT
     case PARAM_VISUAL_EFFECT:
@@ -538,16 +530,16 @@ void render_setparam(void *hrender, int id, void *param)
         vdev_setparam(render->vdev, id, param);
         break;
     case PARAM_RENDER_STEPFORWARD:
-        render->render_status |= RENDER_STEPFORWARD;
+        render->status |= RENDER_STEPFORWARD;
         break;
     case PARAM_RENDER_REINIT_A:
         // todo...
-        render->render_status &= ~RENDER_AINITED;
+        render->status &= ~RENDER_AINITED;
         break;
     case PARAM_RENDER_REINIT_V:
         render->video_width  = ((int*)param)[0];
         render->video_height = ((int*)param)[1];
-        render->render_status &= ~RENDER_VINITED;
+        render->status      &= ~RENDER_VINITED;
         break;
     case PARAM_RENDER_VDEV_WIN:
 #ifdef WIN32
@@ -601,8 +593,8 @@ void render_getparam(void *hrender, int id, void *param)
         *(void**)param = render->vdev;
         break;
     case PARAM_DEFINITION_VALUE:
-        *(float*)param = render->definitionval;
-        render->render_status |= RENDER_DEFINITION_EVAL;
+        *(float*)param  = render->definitionval;
+        render->status |= RENDER_DEFINITION_EVAL;
         break;
     }
 }

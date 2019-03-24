@@ -16,15 +16,14 @@ void* pktqueue_create (int size, CMNVARS *cmnvars); // important!! size must be 
 void  pktqueue_destroy(void *ctxt);
 void  pktqueue_reset  (void *ctxt);
 
-void      pktqueue_free_enqueue(void *ctxt, AVPacket *pkt); // enqueue a packet to free-queue
-AVPacket* pktqueue_free_dequeue(void *ctxt); // dequeue a packet from free-queue
-void      pktqueue_free_cancel (void *ctxt, AVPacket *pkt); // cancel packet dequeuing from free-queue
+AVPacket* pktqueue_request_packet(void *ctxt); // request a packet
+void      pktqueue_release_packet(void *ctxt, AVPacket *pkt); // release a packet
 
-void      pktqueue_audio_enqueue(void *ctxt, AVPacket *pkt); // enqueue a packet from audio-queue
-AVPacket* pktqueue_audio_dequeue(void *ctxt); // dequeue a audio packet to audio-queue
+void      pktqueue_audio_enqueue(void *ctxt, AVPacket *pkt); // enqueue a packet to audio-queue
+AVPacket* pktqueue_audio_dequeue(void *ctxt); // dequeue a audio packet from audio-queue
 
-void      pktqueue_video_enqueue(void *ctxt, AVPacket *pkt);  // enqueue a packet from video-queue
-AVPacket* pktqueue_video_dequeue(void *ctxt); // dequeue a audio packet to video-queue
+void      pktqueue_video_enqueue(void *ctxt, AVPacket *pkt);  // enqueue a packet to video-queue
+AVPacket* pktqueue_video_dequeue(void *ctxt); // dequeue a audio packet from video-queue
 
 #ifdef __cplusplus
 }

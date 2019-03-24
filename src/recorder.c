@@ -135,6 +135,6 @@ int recorder_packet(void *ctxt, AVPacket *pkt)
     av_packet_unref(&packet);
 
     // unlock
-    pthread_mutex_unlock (&recorder->lock);
+    pthread_mutex_unlock(&recorder->lock);
     return 0;
 }

@@ -220,7 +220,7 @@ static void vdev_d3d_unlock(void *ctxt, int64_t pts)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
     if (c->surfs[c->tail]) IDirect3DSurface9_UnlockRect(c->surfs[c->tail]);
-    c->ppts [c->tail] = pts;
+    c->ppts[c->tail] = pts;
     if (++c->tail == c->bufnum) c->tail = 0;
     sem_post(&c->semr);
 }
