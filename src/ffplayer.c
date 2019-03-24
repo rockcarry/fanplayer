@@ -446,12 +446,10 @@ static int player_prepare(PLAYER *player)
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
     }
 
-    // get starttime
-    if (player->avformat_context->start_time > 0) {
-        player->cmnvars.start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
-        player->cmnvars.apts       = player->astream_index != -1 ? player->cmnvars.start_time : -1;
-        player->cmnvars.vpts       = player->vstream_index != -1 ? player->cmnvars.start_time : -1;
-    }
+    // calculate start_time, apts & vpts
+    player->cmnvars.start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
+    player->cmnvars.apts       = player->astream_index != -1 ? player->cmnvars.start_time : -1;
+    player->cmnvars.vpts       = player->vstream_index != -1 ? player->cmnvars.start_time : -1;
 
     // init avfilter graph
     vfilter_graph_init(player);
@@ -1020,9 +1018,7 @@ void player_getparam(void *hplayer, int id, void *param)
     switch (id)
     {
     case PARAM_MEDIA_DURATION:
-        if (!player->avformat_context) *(int64_t*)param = 1;
-        else *(int64_t*)param = (player->avformat_context->duration * 1000 / AV_TIME_BASE);
-        if (*(int64_t*)param <= 0) *(int64_t*)param = 1;
+        *(int64_t*)param = player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1;
         break;
     case PARAM_MEDIA_POSITION:
         if ((player->status & PS_F_SEEK) || (player->status & player->seek_req)) {

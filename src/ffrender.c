@@ -296,7 +296,7 @@ void render_audio(void *hrender, AVFrame *audio)
     int     sampnum;
     if (!hrender) return;
 
-    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->asemv > 0) return;
+    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->apktn > 0) return;
     if (render->adev == NULL) render->adev = adev_create(render->adev_type, 0, (int)((double)ADEV_SAMPLE_RATE * render->frame_rate.den / render->frame_rate.num + 0.5) * 4, render->cmnvars);
     do {
         if (!(render->status & RENDER_AINITED)) {
@@ -363,7 +363,7 @@ void render_video(void *hrender, AVFrame *video)
         render->status       &= ~RENDER_DEFINITION_EVAL;
     }
 
-    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->vsemv > 0) return;
+    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->vpktn > 0) return;
     if (!(render->status & RENDER_VINITED)) {
         if (render->vdev) vdev_destroy(render->vdev);
         render->vdev = vdev_create(render->vdev_type, render->surface, 0, render->video_width, render->video_height, 1000 * render->frame_rate.den / render->frame_rate.num, render->cmnvars);

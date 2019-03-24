@@ -9,7 +9,7 @@
 #include "libavutil/time.h"
 
 // 内部常量定义
-#define COMPLETED_COUNTER  30
+#define COMPLETED_COUNTER  10
 
 // 函数实现
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars)
@@ -178,7 +178,7 @@ void vdev_avsync_and_complete(void *ctxt)
             c->completed_vpts = c->cmnvars->vpts;
             c->completed_counter = 0;
             c->status &=~VDEV_COMPLETED;
-        } else if (++c->completed_counter == COMPLETED_COUNTER) {
+        } else if (!c->cmnvars->apktn && !c->cmnvars->apktn && ++c->completed_counter == COMPLETED_COUNTER) {
             c->status |= VDEV_COMPLETED;
             player_send_message(c->cmnvars->winmsg, MSG_PLAY_COMPLETED, 0);
         }

@@ -140,8 +140,8 @@ AVPacket* pktqueue_audio_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->asem, &ts)) return NULL;
-    sem_getvalue(&ppq->asem, &ppq->cmnvars->asemv);
-    av_log(NULL, AV_LOG_INFO, "asemv: %d\n", ppq->cmnvars->asemv);
+    sem_getvalue(&ppq->asem, &ppq->cmnvars->apktn);
+    av_log(NULL, AV_LOG_INFO, "apktn: %d\n", ppq->cmnvars->apktn);
     return ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
 }
 
@@ -161,8 +161,8 @@ AVPacket* pktqueue_video_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     if (0 != sem_timedwait(&ppq->vsem, &ts)) return NULL;
-    sem_getvalue(&ppq->vsem, &ppq->cmnvars->vsemv);
-    av_log(NULL, AV_LOG_INFO, "vsemv: %d\n", ppq->cmnvars->vsemv);
+    sem_getvalue(&ppq->vsem, &ppq->cmnvars->vpktn);
+    av_log(NULL, AV_LOG_INFO, "vpktn: %d\n", ppq->cmnvars->vpktn);
     return ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
 }
 

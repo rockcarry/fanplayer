@@ -164,8 +164,8 @@ typedef struct { // for internal use only
     int64_t start_pts ;
     int64_t apts;  // current apts
     int64_t vpts;  // current vpts
-    int     asemv; // available audio packet number in pktqueue
-    int     vsemv; // available video packet number in pktqueue
+    int     apktn; // available audio packet number in pktqueue
+    int     vpktn; // available video packet number in pktqueue
     void   *winmsg;
 } CMNVARS;
 //-- player common variables
