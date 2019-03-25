@@ -652,7 +652,7 @@ static void* audio_decode_thread_proc(void *param)
                         player->cmnvars.start_tick = av_gettime_relative() / 1000;
                         player->cmnvars.start_pts  = player->aframe.pts;
                         player->cmnvars.apts       = player->aframe.pts;
-                        player->cmnvars.vpts       = player->seek_dest ;
+                        player->cmnvars.vpts       = player->vstream_index == -1 ? -1 : player->seek_dest;
                         player->status &= ~PS_A_SEEK;
                         if (player->status & PS_R_PAUSE) {
                             render_pause(player->render, 1);
@@ -733,7 +733,7 @@ static void* video_decode_thread_proc(void *param)
                             player->cmnvars.start_tick = av_gettime_relative() / 1000;
                             player->cmnvars.start_pts  = player->vframe.pts;
                             player->cmnvars.vpts       = player->vframe.pts;
-                            player->cmnvars.apts       = player->seek_dest ;
+                            player->cmnvars.apts       = player->astream_index == -1 ? -1 : player->seek_dest;
                             player->status &= ~PS_V_SEEK;
                             if (player->status & PS_R_PAUSE) {
                                 render_pause(player->render, 1);
