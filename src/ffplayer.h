@@ -133,6 +133,7 @@ typedef struct {
     int  video_hwaccel;            // wr 视频硬解码使能
     int  video_deinterlace;        // wr 视频反交错使能
     int  video_rotate;             // wr 视频旋转角度
+    int  video_codecid;            // wr 视频解码器的 codecid
 
     int  audio_channels;           // r  音频通道数
     int  audio_sample_rate;        // r  音频采样率

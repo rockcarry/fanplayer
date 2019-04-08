@@ -394,6 +394,7 @@ static int player_prepare(PLAYER *player)
         // setup interrupt_callback
         player->avformat_context->interrupt_callback.callback = interrupt_callback;
         player->avformat_context->interrupt_callback.opaque   = player;
+        player->avformat_context->video_codec_id              = player->init_params.video_codecid;
 
         // set init_timetick & init_timeout
         player->read_timelast = av_gettime_relative();
@@ -480,6 +481,7 @@ static int player_prepare(PLAYER *player)
     player->init_params.audio_sample_rate    = arate;
     player->init_params.audio_stream_total   = get_stream_total(player, AVMEDIA_TYPE_AUDIO);
     player->init_params.subtitle_stream_total= get_stream_total(player, AVMEDIA_TYPE_SUBTITLE);
+    player->init_params.video_codecid        = player->avformat_context->video_codec_id;
     ret = 0; // prepare ok
 
 done:
