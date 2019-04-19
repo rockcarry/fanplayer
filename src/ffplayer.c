@@ -362,8 +362,9 @@ static int player_prepare(PLAYER *player)
     //-- for avdevice
 
     // open input file
-    if (  strstr(player->url, "rtsp") == player->url
-       || strstr(player->url, "rtmp") == player->url) {
+    if (  strstr(player->url, "rtsp://" ) == player->url
+       || strstr(player->url, "rtmp://" ) == player->url
+       || strstr(player->url, "dshow://") == player->url) {
         if (player->init_params.rtsp_transport) {
             av_dict_set(&opts, "rtsp_transport", player->init_params.rtsp_transport == 1 ? "udp" : "tcp", 0);
         }
