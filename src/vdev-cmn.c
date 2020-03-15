@@ -17,8 +17,8 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     VDEV_COMMON_CTXT *c = NULL;
 #ifdef WIN32
     switch (type) {
-    case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum, w, h); break;
-    case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum, w, h); break;
+    case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum); break;
+    case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum); break;
     }
     if (!c) return NULL;
     _tcscpy(c->font_name, DEF_FONT_NAME);
@@ -62,8 +62,8 @@ void vdev_unlock(void *ctxt, int64_t pts)
 void vdev_setrect(void *ctxt, int x, int y, int w, int h)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->x  = x; c->y  = y;
-    c->w  = w; c->h  = h;
+    c->x = x; c->y = y;
+    c->w = w; c->h = h;
     c->status |= VDEV_ERASE_BG0;
     if (c->setrect) c->setrect(c, x, y, w, h);
 }

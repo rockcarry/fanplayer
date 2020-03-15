@@ -145,7 +145,7 @@ static void vdev_gdi_destroy(void *ctxt)
 }
 
 // 接口函数实现
-void* vdev_gdi_create(void *surface, int bufnum, int w, int h)
+void* vdev_gdi_create(void *surface, int bufnum)
 {
     VDEVGDICTXT *ctxt = (VDEVGDICTXT*)calloc(1, sizeof(VDEVGDICTXT));
     if (!ctxt) return NULL;

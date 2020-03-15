@@ -72,12 +72,12 @@ typedef struct {
 } VDEV_COMMON_CTXT;
 
 #ifdef WIN32
-void* vdev_gdi_create(void *surface, int bufnum, int w, int h);
-void* vdev_d3d_create(void *surface, int bufnum, int w, int h);
+void* vdev_gdi_create(void *surface, int bufnum);
+void* vdev_d3d_create(void *surface, int bufnum);
 #endif
 
 #ifdef ANDROID
-void* vdev_android_create(void *surface, int bufnum, int w, int h);
+void* vdev_android_create(void *surface, int bufnum);
 #endif
 
 // º¯ÊıÉùÃ÷

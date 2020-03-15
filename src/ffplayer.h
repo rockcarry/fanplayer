@@ -134,11 +134,12 @@ typedef struct {
     int  video_deinterlace;        // wr 视频反交错使能
     int  video_rotate;             // wr 视频旋转角度
     int  video_codecid;            // wr 视频解码器的 codecid
-
+    int  video_bufpktn;            // wr 视频 pkt 缓冲数
     int  audio_channels;           // r  音频通道数
     int  audio_sample_rate;        // r  音频采样率
     int  audio_stream_total;       // r  音频流总数
     int  audio_stream_cur;         // wr 当前音频流
+    int  audio_bufpktn;            // wr 音频 pkt 缓冲数
 
     int  subtitle_stream_total;    // r  字幕流总数
     int  subtitle_stream_cur;      // wr 当前字幕流
