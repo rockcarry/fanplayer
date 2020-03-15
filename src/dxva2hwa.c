@@ -386,6 +386,7 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev)
     ret = dxva2_create_decoder(s);
     if (ret < 0) {
         av_log(NULL, AV_LOG_INFO, "Error creating the DXVA2 decoder\n");
+        dxva2hwa_free(s);
         return ret;
     }
 
