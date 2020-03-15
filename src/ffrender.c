@@ -27,7 +27,6 @@
 // 内部类型定义
 typedef struct
 {
-    int                adev_type;
     int                sample_rate;
     int                sample_fmt;
     int64_t            chan_layout;
@@ -36,7 +35,6 @@ typedef struct
     uint8_t           *adev_buf_cur;
     AUDIOBUF          *adev_hdr_cur;
 
-    int                vdev_type;
     int                video_width;
     int                video_height;
     AVRational         frame_rate;
@@ -123,13 +121,11 @@ void* render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
     }
 
     // init for audio
-    render->adev_type    = adevtype;
     render->sample_rate  = srate;
     render->sample_fmt   = sndfmt;
     render->chan_layout  = ch_layout;
 
     // init for video
-    render->vdev_type    = vdevtype;
     render->video_width  = w;
     render->video_height = h;
     render->rect_w       = w;
@@ -452,7 +448,7 @@ void render_reset(void *hrender)
     if (!hrender) return;
     adev_reset(render->adev);
     vdev_reset(render->vdev);
-    render->status = 0;
+    render->status &= RENDER_UPDATE_ADEV|RENDER_UPDATE_VDEV;
 }
 
 int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
@@ -533,7 +529,7 @@ void render_setparam(void *hrender, int id, void *param)
         render->video_width  = ((int*)param)[0];
         render->video_height = ((int*)param)[1];
         vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &render->speed_value);
-        render->status      |= RENDER_UPDATE_VDEV;
+        render->status |= RENDER_UPDATE_VDEV;
         break;
     case PARAM_RENDER_VDEV_WIN:
 #ifdef WIN32
