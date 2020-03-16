@@ -853,12 +853,12 @@ void player_close(void *hplayer)
     // destroy packet queue
     pktqueue_destroy(player->pktqueue);
 
-    if (player->render          ) render_close (player->render);
-    if (player->acodec_context  ) avcodec_close(player->acodec_context);
-    if (player->vcodec_context  ) avcodec_close(player->vcodec_context);
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
 #endif
+    if (player->render          ) render_close (player->render);
+    if (player->acodec_context  ) avcodec_close(player->acodec_context);
+    if (player->vcodec_context  ) avcodec_close(player->vcodec_context);
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
     if (player->recorder        ) recorder_free(player->recorder);
 
