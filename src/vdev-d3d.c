@@ -247,8 +247,10 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     if (!ctxt || !param) return;
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
-        d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-        c->cmnvars->vpts = ((AVFrame*)param)->pts;
+        if (vdev_refresh_background(c) && ((AVFrame*)param)->pts != -1) {
+            d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
+            c->cmnvars->vpts = ((AVFrame*)param)->pts;
+        }
         vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:
