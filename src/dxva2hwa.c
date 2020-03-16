@@ -217,7 +217,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
         goto fail;
     }
 
-    for (i=0; !IsEqualGUID(&dxva2_modes[i].guid, &GUID_NULL); i++) {
+    for (i=0; !IsEqualGUID(dxva2_modes[i].guid, &GUID_NULL); i++) {
         D3DFORMAT *target_list = NULL;
         unsigned  target_count = 0;
         const dxva2_mode *mode = &dxva2_modes[i];
@@ -226,7 +226,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
         }
 
         for (j=0; j<guid_count; j++) {
-            if (IsEqualGUID(&mode->guid, &guid_list[j]))
+            if (IsEqualGUID(mode->guid, &guid_list[j]))
                 break;
         }
         if (j == guid_count) {
