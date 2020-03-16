@@ -5,8 +5,8 @@
 #include "libavformat/avformat.h"
 
 // 预编译开关
-#define ENABLE_WAIT_D3D_VSYNC    FALSE
-#define ENABLE_D3DMULTISAMPLE_X4 FALSE
+#define ENABLE_WAIT_D3D_VSYNC    TRUE
+#define ENABLE_D3DMULTISAMPLE_X2 TRUE
 
 // 内部常量定义
 #define DEF_VDEV_BUF_NUM       3
@@ -66,7 +66,7 @@ static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle, int *
 
     if (c->surfr) IDirect3DSurface9_Release(c->surfr);
     IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
-        (int)fow, (int)foh, c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType,
+        (int)fow, (int)foh, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
         c->d3dpp.MultiSampleQuality, FALSE, &c->surfr, NULL);
 
     if (!c->texture) {
@@ -126,7 +126,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     if (c->textt && (c->status & VDEV_D3D_SET_RECT)) {
         if (c->surfw) IDirect3DSurface9_Release(c->surfw);
         IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
-            c->w, c->h, c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType,
+            c->w, c->h, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
             c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
         if (c->surfw) c->status &= ~VDEV_D3D_SET_RECT;
     }
@@ -360,9 +360,9 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->d3dpp.PresentationInterval  = D3DPRESENT_INTERVAL_IMMEDIATE;
 #endif
 
-#if ENABLE_D3DMULTISAMPLE_X4
-    if (SUCCEEDED(IDirect3D9_CheckDeviceMultiSampleType(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, TRUE, D3DMULTISAMPLE_4_SAMPLES, NULL))) {
-        ctxt->d3dpp.MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
+#if ENABLE_D3DMULTISAMPLE_X2
+    if (SUCCEEDED(IDirect3D9_CheckDeviceMultiSampleType(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, TRUE, D3DMULTISAMPLE_2_SAMPLES, NULL))) {
+        ctxt->d3dpp.MultiSampleType = D3DMULTISAMPLE_2_SAMPLES;
     }
 #endif
 
