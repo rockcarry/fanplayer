@@ -856,10 +856,10 @@ void player_close(void *hplayer)
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
 #endif
-    if (player->render          ) render_close (player->render);
     if (player->acodec_context  ) avcodec_close(player->acodec_context);
     if (player->vcodec_context  ) avcodec_close(player->vcodec_context);
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
+    if (player->render          ) render_close (player->render);
     if (player->recorder        ) recorder_free(player->recorder);
 
 #ifdef ANDROID
