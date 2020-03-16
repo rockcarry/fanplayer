@@ -53,7 +53,7 @@ static const dxva2_mode dxva2_modes[] = {
     /* VP8/9 */
     { &DXVA2_ModeVP9_VLD_Profile0, AV_CODEC_ID_VP9  },
 
-    { NULL }
+    { &GUID_NULL }
 };
 
 typedef struct DXVA2Context {
