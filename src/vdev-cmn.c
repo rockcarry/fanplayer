@@ -26,7 +26,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->status   |= VDEV_CONFIG_FONT;
 #endif
 #ifdef ANDROID
-    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum, w, h);
+    c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum);
     if (!c) return NULL;
     c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
