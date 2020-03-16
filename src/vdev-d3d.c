@@ -54,19 +54,24 @@ static void rotate_point(float w, float h, float xi, float yi, float cx, float c
     *yo =-(xi - cx) * (float)sin(radian) + (yi - cy) * (float)cos(radian) + cy;
 }
 
-static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle, int *ow, int *oh)
+static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle)
 {
     float         radian= (float)(-angle * M_PI / 180);
-    float         fow   = (float)(fabs(w * cos(radian)) + fabs(h * sin(radian)));
-    float         foh   = (float)(fabs(w * sin(radian)) + fabs(h * cos(radian)));
+    float         frw   = (float)(fabs(w * cos(radian)) + fabs(h * sin(radian)));
+    float         frh   = (float)(fabs(w * sin(radian)) + fabs(h * cos(radian)));
     CUSTOMVERTEX *pv    = NULL;
 
-    if (ow) *ow = (int)fow;
-    if (oh) *oh = (int)foh;
+    float bw, bh, rw, rh;
+    bw = (float)c->d3dpp.BackBufferWidth;
+    bh = (float)c->d3dpp.BackBufferHeight;
+    if (bw * frh < bh * frw) { rw = bw; rh = rw * frh / frw; }
+    else { rh = bh; rw = rh * frw / frh; }
+    w = (int)(w * rw / frw);
+    h = (int)(h * rh / frh);
 
     if (c->surfr) IDirect3DSurface9_Release(c->surfr);
     IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
-        (int)fow, (int)foh, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
+        (int)rw, (int)rh, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
         c->d3dpp.MultiSampleQuality, FALSE, &c->surfr, NULL);
 
     if (!c->texture) {
@@ -84,10 +89,10 @@ static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle, int *
         pv[2].tu  = 1.0f; pv[2].tv  = 1.0f;
         pv[3].tu  = 0.0f; pv[3].tv  = 1.0f;
         pv[0].z = pv[1].z = pv[2].z = pv[3].z = 0.0f;
-        rotate_point((float)w, (float)h, (float)0, (float)0, fow / 2, foh / 2, radian, &(pv[0].x), &(pv[0].y));
-        rotate_point((float)w, (float)h, (float)w, (float)0, fow / 2, foh / 2, radian, &(pv[1].x), &(pv[1].y));
-        rotate_point((float)w, (float)h, (float)w, (float)h, fow / 2, foh / 2, radian, &(pv[2].x), &(pv[2].y));
-        rotate_point((float)w, (float)h, (float)0, (float)h, fow / 2, foh / 2, radian, &(pv[3].x), &(pv[3].y));
+        rotate_point((float)w, (float)h, (float)0, (float)0, rw / 2, rh / 2, radian, &(pv[0].x), &(pv[0].y));
+        rotate_point((float)w, (float)h, (float)w, (float)0, rw / 2, rh / 2, radian, &(pv[1].x), &(pv[1].y));
+        rotate_point((float)w, (float)h, (float)w, (float)h, rw / 2, rh / 2, radian, &(pv[2].x), &(pv[2].y));
+        rotate_point((float)w, (float)h, (float)0, (float)h, rw / 2, rh / 2, radian, &(pv[3].x), &(pv[3].y));
         IDirect3DVertexBuffer9_Unlock(c->vertexes);
     }
 }
@@ -119,7 +124,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     HDC     hdc;
 
     if (c->rotate && (c->status & VDEV_D3D_SET_ROTATE)) {
-        d3d_reinit_for_rotate(c, c->sw, c->sh, c->rotate, NULL, NULL);
+        d3d_reinit_for_rotate(c, c->sw, c->sh, c->rotate);
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
