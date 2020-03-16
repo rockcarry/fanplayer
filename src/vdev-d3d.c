@@ -161,12 +161,14 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             c->hfont = CreateFontIndirect(&logfont);
         }
 
-        IDirect3DSurface9_GetDC(c->surfw, &hdc);
-        SelectObject(hdc, c->hfont);
-        SetTextColor(hdc, c->textc);
-        SetBkMode   (hdc, TRANSPARENT);
-        TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
-        IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
+        if (c->textt[0]) {
+            IDirect3DSurface9_GetDC(c->surfw, &hdc);
+            SelectObject(hdc, c->hfont);
+            SetTextColor(hdc, c->textc);
+            SetBkMode   (hdc, TRANSPARENT);
+            TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
+            IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
+        }
 
         surf = c->surfw;
     }
@@ -248,6 +250,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         if (vdev_refresh_background(c) && ((AVFrame*)param)->pts != -1) {
+            if (!c->textt) c->textt = ""; // workaround for dxva2 hw surface rendering
             d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
             c->cmnvars->vpts = ((AVFrame*)param)->pts;
         }
