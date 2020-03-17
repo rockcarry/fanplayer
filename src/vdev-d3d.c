@@ -12,6 +12,7 @@
 #define DEF_VDEV_BUF_NUM       3
 #define VDEV_D3D_SET_RECT     (1 << 16)
 #define VDEV_D3D_SET_ROTATE   (1 << 17)
+#define VDEV_D3D_DXVA2        (1 << 18)
 
 // 内部类型定义
 typedef LPDIRECT3D9 (WINAPI *PFNDirect3DCreate9)(UINT);
@@ -128,7 +129,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
-    if (c->textt && (c->status & VDEV_D3D_SET_RECT)) {
+    if ((c->textt || (c->status & VDEV_D3D_DXVA2)) && (c->status & VDEV_D3D_SET_RECT)) {
         if (c->surfw) IDirect3DSurface9_Release(c->surfw);
         IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
             c->w, c->h, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
@@ -150,7 +151,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         }
     }
 
-    if (c->textt && c->surfw) {
+    if ((c->textt || (c->status & VDEV_D3D_DXVA2)) && c->surfw) {
         IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR);
 
         if (c->status & VDEV_CONFIG_FONT) {
@@ -161,14 +162,12 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             c->hfont = CreateFontIndirect(&logfont);
         }
 
-        if (c->textt[0]) {
-            IDirect3DSurface9_GetDC(c->surfw, &hdc);
-            SelectObject(hdc, c->hfont);
-            SetTextColor(hdc, c->textc);
-            SetBkMode   (hdc, TRANSPARENT);
-            TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
-            IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
-        }
+        IDirect3DSurface9_GetDC(c->surfw, &hdc);
+        SelectObject(hdc, c->hfont);
+        SetTextColor(hdc, c->textc);
+        SetBkMode   (hdc, TRANSPARENT);
+        TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
+        IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
 
         surf = c->surfw;
     }
@@ -250,8 +249,9 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         if (vdev_refresh_background(c) && ((AVFrame*)param)->pts != -1) {
-            if (!c->textt) c->textt = ""; // workaround for dxva2 hw surface rendering
+            c->status |= VDEV_D3D_DXVA2;
             d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
+            c->status &=~VDEV_D3D_DXVA2;
             c->cmnvars->vpts = ((AVFrame*)param)->pts;
         }
         vdev_avsync_and_complete(c);
