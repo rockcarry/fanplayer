@@ -129,7 +129,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
-    if ((c->textt || (c->status & VDEV_D3D_DXVA2)) && (c->status & VDEV_D3D_SET_RECT)) {
+    if ((c->textt[0] || (c->status & VDEV_D3D_DXVA2)) && (c->status & VDEV_D3D_SET_RECT)) {
         if (c->surfw) IDirect3DSurface9_Release(c->surfw);
         IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
             c->w, c->h, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
@@ -151,7 +151,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         }
     }
 
-    if ((c->textt || (c->status & VDEV_D3D_DXVA2)) && c->surfw) {
+    if ((c->textt[0] || (c->status & VDEV_D3D_DXVA2)) && c->surfw) {
         IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR);
 
         if (c->status & VDEV_CONFIG_FONT) {

@@ -55,7 +55,7 @@ extern "C" {
     int         textx;                          \
     int         texty;                          \
     int         textc;                          \
-    TCHAR      *textt;                          \
+    TCHAR       textt[256];                     \
     TCHAR       font_name[32];                  \
     int         font_size;                      \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8]); \

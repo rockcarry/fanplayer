@@ -31,7 +31,7 @@ static void* video_render_thread_proc(void *param)
 
         if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
             SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
-            if (c->textt) {
+            if (c->textt[0]) {
                 if (c->status & VDEV_CONFIG_FONT) {
                     c->status &= ~VDEV_CONFIG_FONT;
                     _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), c->font_name);

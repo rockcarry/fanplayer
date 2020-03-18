@@ -124,7 +124,11 @@ void vdev_textout(void *ctxt, int x, int y, int color, TCHAR *text)
     c->textx = x;
     c->texty = y;
     c->textc = color;
-    c->textt = text;
+    if (text) {
+        _tcscpy_s(c->textt, _countof(c->textt), text);
+    } else {
+        c->textt[0] = TEXT('\0');
+    }
 }
 
 void vdev_textcfg(void *ctxt, TCHAR *fontname, int fontsize)
