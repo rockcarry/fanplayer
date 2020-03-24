@@ -129,7 +129,7 @@ void pktqueue_release_packet(void *ctxt, AVPacket *pkt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->fncur >= ppq->fsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
+//  while (ppq->fncur >= ppq->fsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
     if (ppq->fncur < ppq->fsize) {
         ppq->fncur++;
         av_packet_unref(pkt);
