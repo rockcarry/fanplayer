@@ -24,18 +24,18 @@ typedef struct {
     HMODULE                 hDll ;
     LPDIRECT3D9             pD3D9;
     LPDIRECT3DDEVICE9       pD3DDev;
-    LPDIRECT3DSURFACE9     *surfs;    // offset screen surfaces
-    LPDIRECT3DSURFACE9      surfw;    // surface keeps same size as window
-    LPDIRECT3DSURFACE9      bkbuf;    // back buffer surface
-    LPDIRECT3DSURFACE9      surlocked;// current locked surface
+    LPDIRECT3DSURFACE9     *surfs;     // offset screen surfaces
+    LPDIRECT3DSURFACE9      surfw;     // surface keeps same size as window
+    LPDIRECT3DSURFACE9      bkbuf;     // back buffer surface
+    LPDIRECT3DSURFACE9      surflocked;// current locked surface
     D3DPRESENT_PARAMETERS   d3dpp;
     D3DFORMAT               d3dfmt;
 
-    LPDIRECT3DTEXTURE9      texture;  // texture for rotate
-    LPDIRECT3DVERTEXBUFFER9 vertexes; // vertex buffer for rotate
-    LPDIRECT3DSURFACE9      surft;    // surface of texture
-    LPDIRECT3DSURFACE9      surfr;    // surface for rotate
-    int                     rotate;   // rotate angle
+    LPDIRECT3DTEXTURE9      texture;   // texture for rotate
+    LPDIRECT3DVERTEXBUFFER9 vertexes;  // vertex buffer for rotate
+    LPDIRECT3DSURFACE9      surft;     // surface of texture
+    LPDIRECT3DSURFACE9      surfr;     // surface for rotate
+    int                     rotate;    // rotate angle
 
     HFONT                   hfont;
 } VDEVD3DCTXT;
@@ -223,7 +223,7 @@ static void vdev_d3d_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int lines
 
         // lock texture rect
         IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
-        c->surlocked = c->surfs[c->tail];
+        c->surflocked = c->surfs[c->tail];
         if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
         if (linesize) linesize[0] = rect.Pitch;
         if (++c->tail == c->bufnum) c->tail = 0;
@@ -235,9 +235,9 @@ static void vdev_d3d_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int lines
 static void vdev_d3d_unlock(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
-    if (c->surlocked) {
-        IDirect3DSurface9_UnlockRect(c->surlocked);
-        c->surlocked = NULL;
+    if (c->surflocked) {
+        IDirect3DSurface9_UnlockRect(c->surflocked);
+        c->surflocked = NULL;
     }
     pthread_mutex_unlock(&c->mutex);
 }
