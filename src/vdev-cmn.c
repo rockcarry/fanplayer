@@ -44,19 +44,28 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
 void vdev_destroy(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+
+    //++ rendering thread safely exit
+    if (c->mutex ) pthread_mutex_lock(&c->mutex);
+    c->status = VDEV_CLOSE;
+    if (c->cond  ) pthread_cond_signal(&c->cond);
+    if (c->mutex ) pthread_mutex_unlock(&c->mutex);
+    if (c->thread) pthread_join(c->thread, NULL);
+    //-- rendering thread safely exit
+
     if (c->destroy) c->destroy(c);
 }
 
-void vdev_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
+void vdev_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (c->lock) c->lock(c, buffer, linesize);
+    if (c->lock) c->lock(c, pts, buffer, linesize);
 }
 
-void vdev_unlock(void *ctxt, int64_t pts)
+void vdev_unlock(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (c->unlock) c->unlock(c, pts);
+    if (c->unlock) c->unlock(c);
 }
 
 void vdev_setrect(void *ctxt, int x, int y, int w, int h)

@@ -3,7 +3,6 @@
 
 // 包含头文件
 #include <pthread.h>
-#include <semaphore.h>
 #include "ffplayer.h"
 #include "ffrender.h"
 
@@ -35,8 +34,10 @@ extern "C" {
                                                 \
     int         head;                           \
     int         tail;                           \
-    sem_t       semr;                           \
-    sem_t       semw;                           \
+    int         size;                           \
+                                                \
+    pthread_mutex_t mutex;                      \
+    pthread_cond_t  cond;                       \
                                                 \
     CMNVARS    *cmnvars;                        \
     int         tickavdiff;                     \
@@ -58,8 +59,8 @@ extern "C" {
     TCHAR       textt[256];                     \
     TCHAR       font_name[32];                  \
     int         font_size;                      \
-    void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8]); \
-    void (*unlock  )(void *ctxt, int64_t pts);                         \
+    void (*lock    )(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8]); \
+    void (*unlock  )(void *ctxt);                         \
     void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
     void (*setparam)(void *ctxt, int id, void *param);                 \
     void (*getparam)(void *ctxt, int id, void *param);                 \
@@ -83,8 +84,8 @@ void* vdev_android_create(void *surface, int bufnum);
 // 函数声明
 void* vdev_create  (int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars);
 void  vdev_destroy (void *ctxt);
-void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8]);
-void  vdev_unlock  (void *ctxt, int64_t pts);
+void  vdev_lock    (void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8]);
+void  vdev_unlock  (void *ctxt);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
 void  vdev_pause   (void *ctxt, int pause);
 void  vdev_reset   (void *ctxt);

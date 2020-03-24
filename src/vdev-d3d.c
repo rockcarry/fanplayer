@@ -24,17 +24,18 @@ typedef struct {
     HMODULE                 hDll ;
     LPDIRECT3D9             pD3D9;
     LPDIRECT3DDEVICE9       pD3DDev;
-    LPDIRECT3DSURFACE9     *surfs; // offset screen surfaces
-    LPDIRECT3DSURFACE9      surfw; // surface keeps same size as window
-    LPDIRECT3DSURFACE9      bkbuf; // back buffer surface
+    LPDIRECT3DSURFACE9     *surfs;    // offset screen surfaces
+    LPDIRECT3DSURFACE9      surfw;    // surface keeps same size as window
+    LPDIRECT3DSURFACE9      bkbuf;    // back buffer surface
+    LPDIRECT3DSURFACE9      surlocked;// current locked surface
     D3DPRESENT_PARAMETERS   d3dpp;
     D3DFORMAT               d3dfmt;
 
-    LPDIRECT3DTEXTURE9      texture; // texture for rotate
-    LPDIRECT3DVERTEXBUFFER9 vertexes;// vertex buffer for rotate
-    LPDIRECT3DSURFACE9      surft;   // surface of texture
-    LPDIRECT3DSURFACE9      surfr;   // surface for rotate
-    int                     rotate;  // rotate angle
+    LPDIRECT3DTEXTURE9      texture;  // texture for rotate
+    LPDIRECT3DVERTEXBUFFER9 vertexes; // vertex buffer for rotate
+    LPDIRECT3DSURFACE9      surft;    // surface of texture
+    LPDIRECT3DSURFACE9      surfr;    // surface for rotate
+    int                     rotate;   // rotate angle
 
     HFONT                   hfont;
 } VDEVD3DCTXT;
@@ -180,18 +181,20 @@ static void* video_render_thread_proc(void *param)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)param;
 
-    while (1) {
-        sem_wait(&c->semr);
-        if (c->status & VDEV_CLOSE) break;
-
-        if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
-            d3d_draw_surf(c, c->surfs[c->head]);
-            c->cmnvars->vpts = c->ppts[c->head];
+    while (!(c->status & VDEV_CLOSE)) {
+        pthread_mutex_lock(&c->mutex);
+        while (c->size <= 0 && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
+        if (c->size > 0) {
+            c->size--;
+            if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
+                d3d_draw_surf(c, c->surfs[c->head]);
+                c->cmnvars->vpts = c->ppts[c->head];
+                av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmnvars->vpts);
+            }
+            if (++c->head == c->bufnum) c->head = 0;
+            pthread_cond_signal(&c->cond);
         }
-
-        av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmnvars->vpts);
-        if (++c->head == c->bufnum) c->head = 0;
-        sem_post(&c->semw);
+        pthread_mutex_unlock(&c->mutex);
 
         // handle av-sync & frame rate & complete
         vdev_avsync_and_complete(c);
@@ -200,35 +203,43 @@ static void* video_render_thread_proc(void *param)
     return NULL;
 }
 
-static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
+static void vdev_d3d_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
 {
     VDEVD3DCTXT    *c = (VDEVD3DCTXT*)ctxt;
     D3DLOCKED_RECT  rect;
 
-    sem_wait(&c->semw);
-
-    if (!c->surfs[c->tail]) {
-        // create surface
-        if (FAILED(IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev,
-                   c->sw, c->sh, c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL))) {
-            av_log(NULL, AV_LOG_ERROR, "failed to create d3d off screen plain surface !\n");
-            return;
+    pthread_mutex_lock(&c->mutex);
+    while (c->size >= c->bufnum && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
+    if (c->size < c->bufnum) {
+        c->ppts[c->tail] = pts;
+        if (!c->surfs[c->tail]) {
+            // create surface
+            if (FAILED(IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev,
+                       c->sw, c->sh, c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL))) {
+                av_log(NULL, AV_LOG_ERROR, "failed to create d3d off screen plain surface !\n");
+                return;
+            }
         }
-    }
 
-    // lock texture rect
-    IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
-    if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
-    if (linesize) linesize[0] = rect.Pitch;
+        // lock texture rect
+        IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
+        c->surlocked = c->surfs[c->tail];
+        if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
+        if (linesize) linesize[0] = rect.Pitch;
+        if (++c->tail == c->bufnum) c->tail = 0;
+        c->size++;
+        pthread_cond_signal(&c->cond);
+    }
 }
 
-static void vdev_d3d_unlock(void *ctxt, int64_t pts)
+static void vdev_d3d_unlock(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
-    if (c->surfs[c->tail]) IDirect3DSurface9_UnlockRect(c->surfs[c->tail]);
-    c->ppts[c->tail] = pts;
-    if (++c->tail == c->bufnum) c->tail = 0;
-    sem_post(&c->semr);
+    if (c->surlocked) {
+        IDirect3DSurface9_UnlockRect(c->surlocked);
+        c->surlocked = NULL;
+    }
+    pthread_mutex_unlock(&c->mutex);
 }
 
 static void vdev_d3d_setrect(void *ctxt, int x, int y, int w, int h)
@@ -284,11 +295,6 @@ static void vdev_d3d_destroy(void *ctxt)
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
     int          i;
 
-    // make visual effect & rendering thread safely exit
-    c->status = VDEV_CLOSE;
-    sem_post(&c->semr);
-    pthread_join(c->thread, NULL);
-
     // release for rotate
     d3d_release_for_rotate(c);
 
@@ -304,9 +310,8 @@ static void vdev_d3d_destroy(void *ctxt)
     if (c->pD3D9  ) IDirect3D9_Release(c->pD3D9);
     if (c->hDll   ) FreeLibrary(c->hDll);
 
-    // close semaphore
-    sem_destroy(&c->semr);
-    sem_destroy(&c->semw);
+    pthread_mutex_destroy(&c->mutex);
+    pthread_cond_destroy (&c->cond );
 
     // free memory
     free(c->ppts );
@@ -324,6 +329,10 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt = (VDEVD3DCTXT*)calloc(1, sizeof(VDEVD3DCTXT));
     if (!ctxt) return NULL;
 
+    // init mutex & cond
+    pthread_mutex_init(&ctxt->mutex, NULL);
+    pthread_cond_init (&ctxt->cond , NULL);
+
     // init vdev context
     bufnum         = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
     ctxt->bufnum   = bufnum;
@@ -339,15 +348,11 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->ppts  = (int64_t*)calloc(bufnum, sizeof(int64_t));
     ctxt->surfs = (LPDIRECT3DSURFACE9*)calloc(bufnum, sizeof(LPDIRECT3DSURFACE9));
 
-    // create semaphore
-    sem_init(&ctxt->semr, 0, 0     );
-    sem_init(&ctxt->semw, 0, bufnum);
-
     // create d3d
     ctxt->hDll  = LoadLibrary(TEXT("d3d9.dll"));
     create      = (PFNDirect3DCreate9)GetProcAddress(ctxt->hDll, "Direct3DCreate9");
     ctxt->pD3D9 = create(D3D_SDK_VERSION);
-    if (!ctxt->hDll || !ctxt->ppts || !ctxt->surfs || !ctxt->semr || !ctxt->semw || !ctxt->pD3D9) {
+    if (!ctxt->hDll || !ctxt->ppts || !ctxt->surfs || !ctxt->mutex || !ctxt->cond || !ctxt->pD3D9) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate resources for vdev-d3d !\n");
         exit(0);
     }
