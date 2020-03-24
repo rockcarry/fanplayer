@@ -32,7 +32,7 @@ inline int android_pixfmt_to_ffmpeg_pixfmt(int fmt)
     }
 }
 
-static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
+static void vdev_android_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
     if (c->status & VDEV_ANDROID_UPDATE_WIN) {
@@ -47,13 +47,13 @@ static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8])
         if (buffer  ) buffer  [0] = (uint8_t*)winbuf.bits;
         if (linesize) linesize[0] = winbuf.stride * 4;
     }
+    c->cmnvars->vpts = pts;
 }
 
-static void vdev_android_unlock(void *ctxt, int64_t pts)
+static void vdev_android_unlock(void *ctxt)
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
     if (c->win) ANativeWindow_unlockAndPost(c->win);
-    c->cmnvars->vpts = pts;
     vdev_avsync_and_complete(c);
 }
 

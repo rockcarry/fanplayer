@@ -46,11 +46,13 @@ void vdev_destroy(void *ctxt)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
 
     //++ rendering thread safely exit
-    if (c->mutex ) pthread_mutex_lock(&c->mutex);
-    c->status = VDEV_CLOSE;
-    if (c->cond  ) pthread_cond_signal(&c->cond);
-    if (c->mutex ) pthread_mutex_unlock(&c->mutex);
-    if (c->thread) pthread_join(c->thread, NULL);
+    if (c->thread) {
+        pthread_mutex_lock(&c->mutex);
+        c->status = VDEV_CLOSE;
+        pthread_cond_signal(&c->cond);
+        pthread_mutex_unlock(&c->mutex);
+        pthread_join(c->thread, NULL);
+    }
     //-- rendering thread safely exit
 
     if (c->destroy) c->destroy(c);
