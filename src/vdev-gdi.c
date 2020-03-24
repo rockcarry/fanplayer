@@ -47,7 +47,7 @@ static void* video_render_thread_proc(void *param)
                 }
                 BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
                 c->cmnvars->vpts = c->ppts[c->head];
-                av_log(NULL, AV_LOG_DEBUG, "vpts: %lld\n", c->cmnvars->vpts);
+                av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
             if (++c->head == c->bufnum) c->head = 0;
             pthread_cond_signal(&c->cond);

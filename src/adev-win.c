@@ -27,7 +27,7 @@ static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, 
     case WOM_DONE:
         c->bufcur = (int16_t*)c->pWaveHdr[c->head].lpData;
         c->cmnvars->apts = c->ppts[c->head];
-        av_log(NULL, AV_LOG_DEBUG, "apts: %lld\n", c->cmnvars->apts);
+        av_log(NULL, AV_LOG_INFO, "apts: %lld\n", c->cmnvars->apts);
         if (++c->head == c->bufnum) c->head = 0;
         ReleaseSemaphore(c->bufsem, 1, NULL);
         break;
