@@ -15,7 +15,6 @@ extern "C" {
 void* pktqueue_create (int size, CMNVARS *cmnvars); // important!! size must be power of 2
 void  pktqueue_destroy(void *ctxt);
 void  pktqueue_reset  (void *ctxt);
-void  pktqueue_stop   (void *ctxt);
 
 AVPacket* pktqueue_request_packet(void *ctxt); // request a packet
 void      pktqueue_release_packet(void *ctxt, AVPacket *pkt); // release a packet

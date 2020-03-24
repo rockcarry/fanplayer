@@ -91,19 +91,21 @@ void pktqueue_reset(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     AVPacket *pkt = NULL;
-    while (NULL != (pkt = pktqueue_audio_dequeue(ctxt))) {
-        pktqueue_release_packet(ctxt, pkt);
-    }
-    while (NULL != (pkt = pktqueue_video_dequeue(ctxt))) {
-        pktqueue_release_packet(ctxt, pkt);
-    }
-}
-
-void pktqueue_stop(void *ctxt)
-{
-    PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     pthread_mutex_lock(&ppq->lock);
-    ppq->status |= TS_STOP;
+    while (ppq->ancur > 0) {
+        ppq->ancur--;
+        pkt = ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
+        ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
+        av_packet_unref(pkt);
+        ppq->fncur++;
+    }
+    while (ppq->vncur > 0) {
+        ppq->vncur--;
+        pkt = ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
+        ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
+        av_packet_unref(pkt);
+        ppq->fncur++;
+    }
     pthread_cond_signal(&ppq->cond);
     pthread_mutex_unlock(&ppq->lock);
 }
