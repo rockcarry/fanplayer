@@ -565,7 +565,7 @@ static void* av_demux_thread_proc(void *param)
         //-- when player seek --//
 
         packet = pktqueue_request_packet(player->pktqueue);
-        if (packet == NULL) { av_usleep(20*1000); continue; }
+        if (packet == NULL) continue;
 
         retv = av_read_frame(player->avformat_context, packet);
         if (retv < 0) {

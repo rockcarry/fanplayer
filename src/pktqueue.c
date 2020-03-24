@@ -114,8 +114,14 @@ AVPacket* pktqueue_request_packet(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     AVPacket *pkt = NULL;
+    struct timespec ts;
+    int ret = 0;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += 100*1000*1000;
+    ts.tv_sec  += ts.tv_nsec / 1000000000;
+    ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-//  while (ppq->fncur <= 0 && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
+    while (ppq->fncur <= 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
     if (ppq->fncur > 0) {
         ppq->fncur--;
         pkt = ppq->fpkts[ppq->fhead++ & (ppq->fsize - 1)];
@@ -128,8 +134,14 @@ AVPacket* pktqueue_request_packet(void *ctxt)
 void pktqueue_release_packet(void *ctxt, AVPacket *pkt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
+    struct timespec ts;
+    int ret = 0;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += 100*1000*1000;
+    ts.tv_sec  += ts.tv_nsec / 1000000000;
+    ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-//  while (ppq->fncur >= ppq->fsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
+    while (ppq->fncur >= ppq->fsize && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
     if (ppq->fncur < ppq->fsize) {
         ppq->fncur++;
         av_packet_unref(pkt);
