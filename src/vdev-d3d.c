@@ -203,7 +203,7 @@ static void* video_render_thread_proc(void *param)
     return NULL;
 }
 
-static void vdev_d3d_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
+static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts)
 {
     VDEVD3DCTXT    *c = (VDEVD3DCTXT*)ctxt;
     D3DLOCKED_RECT  rect;

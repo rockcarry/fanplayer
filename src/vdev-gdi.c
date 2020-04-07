@@ -61,7 +61,7 @@ static void* video_render_thread_proc(void *param)
     return NULL;
 }
 
-static void vdev_gdi_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
+static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts)
 {
     VDEVGDICTXT *c       = (VDEVGDICTXT*)ctxt;
     int          bmpw    =  0;

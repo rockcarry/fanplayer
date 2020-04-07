@@ -32,7 +32,7 @@ inline int android_pixfmt_to_ffmpeg_pixfmt(int fmt)
     }
 }
 
-static void vdev_android_lock(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8])
+static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts)
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
     if (c->status & VDEV_ANDROID_UPDATE_WIN) {

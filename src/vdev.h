@@ -59,7 +59,7 @@ extern "C" {
     TCHAR       textt[256];                     \
     TCHAR       font_name[32];                  \
     int         font_size;                      \
-    void (*lock    )(void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8]); \
+    void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts); \
     void (*unlock  )(void *ctxt);                         \
     void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
     void (*setparam)(void *ctxt, int id, void *param);                 \
@@ -84,7 +84,7 @@ void* vdev_android_create(void *surface, int bufnum);
 // º¯ÊýÉùÃ÷
 void* vdev_create  (int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars);
 void  vdev_destroy (void *ctxt);
-void  vdev_lock    (void *ctxt, int64_t pts, uint8_t *buffer[8], int linesize[8]);
+void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts);
 void  vdev_unlock  (void *ctxt);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
 void  vdev_pause   (void *ctxt, int pause);
