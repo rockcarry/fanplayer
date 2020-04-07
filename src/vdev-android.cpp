@@ -68,13 +68,6 @@ static void vdev_android_setparam(void *ctxt, int id, void *param)
     }
 }
 
-static void vdev_android_setrect(void *ctxt, int x, int y, int w, int h)
-{
-    VDEVCTXT *c = (VDEVCTXT*)ctxt;
-    c->sw = w; c->sh = h;
-    c->status |= VDEV_ANDROID_UPDATE_WIN;
-}
-
 static void vdev_android_destroy(void *ctxt)
 {
     VDEVCTXT *c = (VDEVCTXT*)ctxt;
