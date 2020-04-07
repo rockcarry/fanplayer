@@ -536,6 +536,7 @@ void render_setparam(void *hrender, int id, void *param)
         render->surface = param;
 #endif
 #ifdef ANDROID
+        render->status |= RENDER_UPDATE_VDEV;
         JniReleaseWinObj(render->surface);
         render->surface = JniRequestWinObj(param);
         vdev_setparam(render->vdev, id, render->surface);
