@@ -5,10 +5,10 @@ includedir=${prefix}/include
 
 Name: libavdevice
 Description: FFmpeg device handling library
-Version: 57.1.100
-Requires: libavfilter >= 6.65.100, libavformat >= 57.56.101, libavcodec >= 57.64.101, libswresample >= 2.3.100, libavutil >= 55.34.101
+Version: 57.6.100
+Requires: libavfilter >= 6.82.100, libavformat >= 57.71.100, libavcodec >= 57.89.100, libswresample >= 2.7.100, libavutil >= 55.58.100
 Requires.private: 
 Conflicts:
-Libs: -L${libdir}  -lavdevice -LD:/msys32/mingw32/lib -lx264 -ldl -lm -lz -pthread
+Libs: -L${libdir}  -lavdevice -ldl -lm -lz -pthread
 Libs.private: 
 Cflags: -I${includedir}
