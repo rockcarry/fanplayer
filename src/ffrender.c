@@ -293,7 +293,7 @@ void render_audio(void *hrender, AVFrame *audio)
     int     sampnum;
     if (!hrender) return;
 
-    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn) return;
+    if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn) return;
     do {
         if (render->status & RENDER_UPDATE_ADEV) {
             //++ allocate & init swr context
@@ -359,7 +359,7 @@ void render_video(void *hrender, AVFrame *video)
         render->status       &= ~RENDER_DEFINITION_EVAL;
     }
 
-    if (render->cmnvars->init_params->avts_syncmode == AVSYNC_MODE_LIVE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
+    if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
         if (render->status & RENDER_UPDATE_VDEV) {

@@ -371,10 +371,13 @@ static int player_prepare(PLAYER *player)
         av_dict_set(&opts, "buffer_size"    , "1048576", 0);
         av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
         av_dict_set(&opts, "analyzeduration", "5000000", 0);
-        if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) player->init_params.avts_syncmode = AVSYNC_MODE_LIVE;
+        if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) {
+            player->init_params.avts_syncmode = memcmp(player->url, "rtmp://", 7) == 0 ? AVSYNC_MODE_LIVE_SYNC1 : AVSYNC_MODE_LIVE_SYNC0;
+        }
     } else {
         player->init_params.init_timeout   = 0;
         player->init_params.auto_reconnect = 0;
+        player->init_params.avts_syncmode  = AVSYNC_MODE_FILE;
     }
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];

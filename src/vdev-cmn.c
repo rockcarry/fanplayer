@@ -226,6 +226,6 @@ void vdev_avsync_and_complete(void *ctxt)
         c->ticksleep = c->tickframe;
     }
 
-    if (c->ticksleep > 0 && c->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_LIVE) av_usleep(c->ticksleep * 1000);
+    if (c->ticksleep > 0 && c->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_LIVE_SYNC0) av_usleep(c->ticksleep * 1000);
     av_log(NULL, AV_LOG_INFO, "d: %3d, s: %3d\n", avdiff, c->ticksleep);
 }

@@ -108,9 +108,10 @@ enum {
 };
 
 enum {
-    AVSYNC_MODE_AUTO,
-    AVSYNC_MODE_NORMAL,
-    AVSYNC_MODE_LIVE,
+    AVSYNC_MODE_AUTO,  // 自动
+    AVSYNC_MODE_FILE,  // 文件播放模式
+    AVSYNC_MODE_LIVE_SYNC0, // 直播模式，放弃音视频同步
+    AVSYNC_MODE_LIVE_SYNC1, // 直播模式，做音视频同步
 };
 
 // 初始化参数说明
@@ -151,7 +152,7 @@ typedef struct {
     int  open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
-    int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 常规模式，2 - 直播模式，3 - 同步音视频到外部时钟
+    int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 文件播放模式，2 - 直播模式，做音视频同步，3 - 直播模式，放弃音视频同步
     char filter_string[256];       // w  自定义的 video filter string
 } PLAYER_INIT_PARAMS;
 // video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
