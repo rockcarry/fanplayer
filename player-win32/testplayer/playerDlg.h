@@ -43,6 +43,7 @@ private:
     void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
     void PlayerShowText(int time);
+    void SetWindowClientSize(int w, int h);
 
 private:
     CDC  *m_pDrawDC;
@@ -70,4 +71,5 @@ public:
     afx_msg void   OnVdevD3dRotate();
     afx_msg void   OnRecordVideo();
     afx_msg void   OnDefinitionEval();
+    afx_msg void   OnWinfitVideosize();
 };

@@ -158,6 +158,20 @@ void CplayerDlg::PlayerShowText(int time)
     SetTimer(TIMER_ID_HIDE_TEXT, time, NULL);
 }
 
+void CplayerDlg::SetWindowClientSize(int w, int h)
+{
+    RECT rect1, rect2;
+    GetWindowRect(&rect1);
+    GetClientRect(&rect2);
+    w+= (rect1.right  - rect1.left) - rect2.right;
+    h+= (rect1.bottom - rect1.top ) - rect2.bottom;
+    int x = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
+    int y = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+    x = x > 0 ? x : 0;
+    y = y > 0 ? y : 0;
+    MoveWindow(x, y, w, h, TRUE);
+}
+
 BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_PAINT()
     ON_WM_QUERYDRAGICON()
@@ -166,21 +180,22 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
-    ON_COMMAND(ID_OPEN_FILE      , &CplayerDlg::OnOpenFile      )
-    ON_COMMAND(ID_VIDEO_MODE     , &CplayerDlg::OnVideoMode     )
-    ON_COMMAND(ID_EFFECT_MODE    , &CplayerDlg::OnEffectMode    )
-    ON_COMMAND(ID_VRENDER_TYPE   , &CplayerDlg::OnVRenderType   )
-    ON_COMMAND(ID_AUDIO_STREAM   , &CplayerDlg::OnAudioStream   )
-    ON_COMMAND(ID_VIDEO_STREAM   , &CplayerDlg::OnVideoStream   )
-    ON_COMMAND(ID_TAKE_SNAPSHOT  , &CplayerDlg::OnTakeSnapshot  )
-    ON_COMMAND(ID_STEP_FORWARD   , &CplayerDlg::OnStepForward   )
-    ON_COMMAND(ID_STEP_BACKWARD  , &CplayerDlg::OnStepBackward  )
-    ON_COMMAND(ID_PLAY_SPEED_DEC , &CplayerDlg::OnPlaySpeedDec  )
-    ON_COMMAND(ID_PLAY_SPEED_INC , &CplayerDlg::OnPlaySpeedInc  )
-    ON_COMMAND(ID_PLAY_SPEED_TYPE, &CplayerDlg::OnPlaySpeedType )
-    ON_COMMAND(ID_VDEVD3D_ROTATE , &CplayerDlg::OnVdevD3dRotate )
-    ON_COMMAND(ID_RECORD_VIDEO   , &CplayerDlg::OnRecordVideo   )
-    ON_COMMAND(ID_DEFINITION_EVAL, &CplayerDlg::OnDefinitionEval)
+    ON_COMMAND(ID_OPEN_FILE       , &CplayerDlg::OnOpenFile       )
+    ON_COMMAND(ID_VIDEO_MODE      , &CplayerDlg::OnVideoMode      )
+    ON_COMMAND(ID_EFFECT_MODE     , &CplayerDlg::OnEffectMode     )
+    ON_COMMAND(ID_VRENDER_TYPE    , &CplayerDlg::OnVRenderType    )
+    ON_COMMAND(ID_AUDIO_STREAM    , &CplayerDlg::OnAudioStream    )
+    ON_COMMAND(ID_VIDEO_STREAM    , &CplayerDlg::OnVideoStream    )
+    ON_COMMAND(ID_TAKE_SNAPSHOT   , &CplayerDlg::OnTakeSnapshot   )
+    ON_COMMAND(ID_STEP_FORWARD    , &CplayerDlg::OnStepForward    )
+    ON_COMMAND(ID_STEP_BACKWARD   , &CplayerDlg::OnStepBackward   )
+    ON_COMMAND(ID_PLAY_SPEED_DEC  , &CplayerDlg::OnPlaySpeedDec   )
+    ON_COMMAND(ID_PLAY_SPEED_INC  , &CplayerDlg::OnPlaySpeedInc   )
+    ON_COMMAND(ID_PLAY_SPEED_TYPE , &CplayerDlg::OnPlaySpeedType  )
+    ON_COMMAND(ID_VDEVD3D_ROTATE  , &CplayerDlg::OnVdevD3dRotate  )
+    ON_COMMAND(ID_RECORD_VIDEO    , &CplayerDlg::OnRecordVideo    )
+    ON_COMMAND(ID_DEFINITION_EVAL , &CplayerDlg::OnDefinitionEval )
+    ON_COMMAND(ID_WINFIT_VIDEOSIZE, &CplayerDlg::OnWinfitVideosize)
 END_MESSAGE_MAP()
 
 
@@ -556,5 +571,14 @@ void CplayerDlg::OnDefinitionEval()
     } else {
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
         player_textout(m_ffPlayer, 0, 0, 0, NULL);
+    }
+}
+
+void CplayerDlg::OnWinfitVideosize()
+{
+    if (m_ffPlayer) {
+        PLAYER_INIT_PARAMS params;
+        player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
+        SetWindowClientSize(params.video_owidth, params.video_oheight);
     }
 }
