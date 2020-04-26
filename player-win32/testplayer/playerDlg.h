@@ -46,7 +46,6 @@ private:
     void SetWindowClientSize(int w, int h);
 
 private:
-    CDC  *m_pDrawDC;
     BOOL  m_bPlayPause;
     RECT  m_rtClient;
 

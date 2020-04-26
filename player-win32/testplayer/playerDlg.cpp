@@ -219,9 +219,6 @@ BOOL CplayerDlg::OnInitDialog()
     // TODO: Add extra initialization here
     MoveWindow(0, 0, 800, 480);
 
-    // get dc
-    m_pDrawDC = GetDC();
-
     // setup init timer
     SetTimer(TIMER_ID_FIRST_DIALOG, 100, NULL);
 
@@ -286,7 +283,6 @@ HCURSOR CplayerDlg::OnQueryDragIcon()
 void CplayerDlg::OnDestroy()
 {
     CDialog::OnDestroy();
-    ReleaseDC(m_pDrawDC);
 
 #if 0
     // save fanplayer init params
