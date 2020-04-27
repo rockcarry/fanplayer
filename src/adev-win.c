@@ -100,17 +100,14 @@ void adev_destroy(void *ctxt)
     int           i;
     if (!ctxt) return;
 
-    // before close wavout, we need reset it first,
-    // otherwise it will cause crash on vs2013
-    waveOutReset(c->hWaveOut);
-
-    // unprepare wave header & close waveout device
-    for (i=0; i<c->bufnum; i++) {
-        if (c->hWaveOut) {
+    // close waveout
+    if (c->hWaveOut) {
+        waveOutReset(c->hWaveOut);
+        for (i=0; i<c->bufnum; i++) {
             waveOutUnprepareHeader(c->hWaveOut, &c->pWaveHdr[i], sizeof(WAVEHDR));
         }
+        waveOutClose(c->hWaveOut);
     }
-    waveOutClose(c->hWaveOut);
 
     // close semaphore
     CloseHandle(c->bufsem);
