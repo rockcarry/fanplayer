@@ -12,6 +12,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*);
 extern "C" {
 #endif
 
+void  JniAttachCurrentThread(void);
 void  JniDetachCurrentThread(void);
 void *JniRequestWinObj(void *data);
 void  JniReleaseWinObj(void *data);

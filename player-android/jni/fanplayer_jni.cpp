@@ -184,6 +184,7 @@ JNIEXPORT JNIEnv* get_jni_env(void)
 }
 //-- jni register --//
 
+void  JniAttachCurrentThread(void) { get_jni_env(); }
 void  JniDetachCurrentThread(void) { g_jvm->DetachCurrentThread(); }
 void *JniRequestWinObj(void *data) { return data ? get_jni_env()->NewGlobalRef((jobject)data) : NULL; }
 void  JniReleaseWinObj(void *data) { if (data) get_jni_env()->DeleteGlobalRef((jobject)data);         }
