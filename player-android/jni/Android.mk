@@ -16,15 +16,20 @@ LOCAL_SRC_FILES := \
     ../../src/vdev-cmn.c \
     ../../src/adev-android.cpp \
     ../../src/vdev-android.cpp \
+    ../../avkcpdemuxer/ikcp.c \
+    ../../avkcpdemuxer/ringbuf.c \
+    ../../avkcpdemuxer/avkcpc.c \
+    ../../avkcpdemuxer/avkcpd.c \
     fanplayer_jni.cpp
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/ndk-build-files/include \
     $(LOCAL_PATH)/../ffmpeg/include \
     $(LOCAL_PATH)/../soundtouch/include \
-    $(LOCAL_PATH)/../../src
+    $(LOCAL_PATH)/../../src \
+    $(LOCAL_PATH)/../../avkcpdemuxer
 
-LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -Os -mfpu=neon-vfpv4 -mfloat-abi=softfp
+LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -DENABLE_AVKCP_SUPPORT -Os -mfpu=neon-vfpv4 -mfloat-abi=softfp
 LOCAL_CXXFLAGS += -DHAVE_PTHREADS
 LOCAL_LDLIBS   += -lz -llog -landroid
 

@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <winsock2.h>
 #include "ringbuf.h"
 #include "ikcp.h"
 #include "avkcpc.h"
@@ -13,6 +12,21 @@
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
 #define get_tick_count GetTickCount
+#else
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#define SOCKET int
+#define closesocket close
+static uint32_t get_tick_count()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
 #endif
 
 typedef struct {
@@ -71,8 +85,12 @@ static void* avkcpc_thread_proc(void *argv)
         printf("failed to open socket !\n");
         goto _exit;
     }
+#ifdef WIN32
     opt = 1;        ioctlsocket(avkcpc->client_fd, FIONBIO, &opt); // setup non-block io mode
     opt = 256*1024; setsockopt(avkcpc->client_fd, SOL_SOCKET, SO_RCVBUF, (char*)&opt, sizeof(int));
+#else
+    fcntl(avkcpc->client_fd, F_SETFL, fcntl(avkcpc->client_fd, F_GETFL, 0) | O_NONBLOCK);
+#endif
 
     while (!(avkcpc->status & TS_EXIT)) {
         if (!(avkcpc->status & TS_START)) { usleep(100*1000); continue; }
@@ -97,12 +115,12 @@ static void* avkcpc_thread_proc(void *argv)
 
         while (1) {
             if ((ret = recvfrom(avkcpc->client_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)&fromaddr, &addrlen)) <= 0) break;
-            ikcp_input(avkcpc->ikcp, buffer, ret);
+            ikcp_input(avkcpc->ikcp, (char*)buffer, ret);
         }
 
         while (1) {
             int n = sizeof(avkcpc->buff) - avkcpc->size < sizeof(buffer) ? sizeof(avkcpc->buff) - avkcpc->size : sizeof(buffer);
-            if (n == 0 || (ret = ikcp_recv(avkcpc->ikcp, buffer, n)) <= 0) break;
+            if (n == 0 || (ret = ikcp_recv(avkcpc->ikcp, (char*)buffer, n)) <= 0) break;
             avkcpc->tail = ringbuf_write(avkcpc->buff, sizeof(avkcpc->buff), avkcpc->tail, buffer, ret);
             avkcpc->size+= ret;
         }
@@ -111,7 +129,7 @@ static void* avkcpc_thread_proc(void *argv)
             uint32_t typelen, head;
             head = ringbuf_read(avkcpc->buff, sizeof(avkcpc->buff), avkcpc->head, (uint8_t*)&typelen, sizeof(typelen));
             if ((int)((typelen >> 8) + sizeof(typelen)) > avkcpc->size) break;
-            ret = avkcpc->callback(avkcpc->cbctxt, typelen & 0xFF, avkcpc->buff, sizeof(avkcpc->buff), head, (typelen >> 8));
+            ret = avkcpc->callback(avkcpc->cbctxt, typelen & 0xFF, (char*)avkcpc->buff, sizeof(avkcpc->buff), head, (typelen >> 8));
             if (ret >= 0) {
                 avkcpc->head = ret;
                 avkcpc->size-= sizeof(typelen) + (typelen >> 8);

@@ -8,6 +8,14 @@
 #ifdef WIN32
 #include <windows.h>
 #pragma warning(disable:4996) // disable warnings
+#define get_tick_count GetTickCount
+#else
+static uint32_t get_tick_count()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
 #endif
 
 typedef struct {
@@ -69,13 +77,14 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
 {
     AVKCPDEMUXER    *avkcpd = (AVKCPDEMUXER*)ctxt;
     AVPacket        *packet = NULL;
+    AVCodec         *hwdec  = NULL;
     struct AVRational vrate;
     char avinfo[256], temp[256];
     int  ret = -1;
 
     switch (type) {
     case 'I':
-        ret = ringbuf_read(rbuf, rbsize, rbhead, avinfo, fsize);
+        ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, (uint8_t*)avinfo, fsize);
         if (avkcpd->inited) break;
         parse_params(avinfo, "aenc", avkcpd->aenctype, sizeof(avkcpd->aenctype));
         parse_params(avinfo, "venc", avkcpd->venctype, sizeof(avkcpd->venctype));
@@ -89,6 +98,17 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) avkcpd->acodec = avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
         if (strstr(avkcpd->venctype, "h264") == avkcpd->venctype) avkcpd->vcodec = avcodec_find_decoder(AV_CODEC_ID_H264    );
         if (strstr(avkcpd->venctype, "h265") == avkcpd->venctype) avkcpd->vcodec = avcodec_find_decoder(AV_CODEC_ID_H265    );
+#ifdef ANDROID
+        if (avkcpd->cmnvars->init_params->video_hwaccel) {
+            switch (avkcpd->vcodec->id) {
+            case AV_CODEC_ID_H264: hwdec = avcodec_find_decoder_by_name("h264_mediacodec" ); break;
+            case AV_CODEC_ID_HEVC: hwdec = avcodec_find_decoder_by_name("hevc_mediacodec" ); break;
+            default: break;
+            }
+            avkcpd->cmnvars->init_params->video_hwaccel = hwdec ? 1 : 0;
+            if (hwdec) avkcpd->vcodec = hwdec;
+        }
+#endif
         vrate.num = avkcpd->frate; vrate.den = 1;
         if (avkcpd->acodec) {
             *avkcpd->acodec_context = avcodec_alloc_context3(avkcpd->acodec);
@@ -132,8 +152,8 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         packet = avkcpd->pktqueue_request_packet(avkcpd->pktqueue);
         if (packet == NULL) return -1;
         av_new_packet(packet, fsize);
-        packet->pts = packet->dts = GetTickCount();
-        ret = ringbuf_read(rbuf, rbsize, rbhead, packet->data, fsize);
+        packet->pts = packet->dts = get_tick_count();
+        ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, packet->data, fsize);
         if (type == 'A') avkcpd->pktqueue_audio_enqueue(avkcpd->pktqueue, packet);
         else             avkcpd->pktqueue_video_enqueue(avkcpd->pktqueue, packet);
         break;
