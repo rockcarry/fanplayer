@@ -5,9 +5,6 @@
 #include "ringbuf.h"
 #include "ikcp.h"
 #include "avkcpc.h"
-
-#define AVKCP_CONV (('A' << 0) | ('V' << 8) | ('K' << 16) | ('C' << 24))
-
 #ifdef WIN32
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
@@ -28,6 +25,11 @@ static uint32_t get_tick_count()
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 #endif
+#ifdef ANDROID
+#include "fanplayer_jni.h"
+#endif
+
+#define AVKCP_CONV (('A' << 0) | ('V' << 8) | ('K' << 16) | ('C' << 24))
 
 typedef struct {
     #define TS_EXIT  (1 << 0)
@@ -78,6 +80,9 @@ static void* avkcpc_thread_proc(void *argv)
         printf("WSAStartup failed !\n");
         return NULL;
     }
+#endif
+#ifdef ANDROID
+    JniAttachCurrentThread();
 #endif
 
     avkcpc->client_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -153,6 +158,9 @@ _exit:
     if (avkcpc->ikcp) ikcp_release(avkcpc->ikcp);
 #ifdef WIN32
     WSACleanup();
+#endif
+#ifdef ANDROID
+    JniDetachCurrentThread();
 #endif
     return NULL;
 }

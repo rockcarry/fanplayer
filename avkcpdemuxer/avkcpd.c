@@ -19,8 +19,6 @@ static uint32_t get_tick_count()
 #endif
 
 typedef struct {
-    AVCodec         *acodec;
-    AVCodec         *vcodec;
     AVCodecContext **acodec_context;
     AVCodecContext **vcodec_context;
     void            *player;
@@ -76,6 +74,8 @@ static char* parse_params(const char *str, const char *key, char *val, int len)
 static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbhead, int fsize)
 {
     AVKCPDEMUXER    *avkcpd = (AVKCPDEMUXER*)ctxt;
+    AVCodec         *acodec = NULL;
+    AVCodec         *vcodec = NULL;
     AVPacket        *packet = NULL;
     AVCodec         *hwdec  = NULL;
     struct AVRational vrate;
@@ -94,48 +94,51 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         parse_params(avinfo, "height"  , temp, sizeof(temp)); avkcpd->vheight  = atoi(temp);
         parse_params(avinfo, "frate"   , temp, sizeof(temp)); avkcpd->frate    = atoi(temp);
         if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) { avkcpd->channels = 1; avkcpd->samprate = 8000; }
-        if (strstr(avkcpd->aenctype, "aac" ) == avkcpd->aenctype) avkcpd->acodec = avcodec_find_decoder(AV_CODEC_ID_AAC     );
-        if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) avkcpd->acodec = avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
-        if (strstr(avkcpd->venctype, "h264") == avkcpd->venctype) avkcpd->vcodec = avcodec_find_decoder(AV_CODEC_ID_H264    );
-        if (strstr(avkcpd->venctype, "h265") == avkcpd->venctype) avkcpd->vcodec = avcodec_find_decoder(AV_CODEC_ID_H265    );
-#ifdef ANDROID
-        if (avkcpd->cmnvars->init_params->video_hwaccel) {
-            switch (avkcpd->vcodec->id) {
-            case AV_CODEC_ID_H264: hwdec = avcodec_find_decoder_by_name("h264_mediacodec" ); break;
-            case AV_CODEC_ID_HEVC: hwdec = avcodec_find_decoder_by_name("hevc_mediacodec" ); break;
-            default: break;
-            }
-            avkcpd->cmnvars->init_params->video_hwaccel = hwdec ? 1 : 0;
-            if (hwdec) avkcpd->vcodec = hwdec;
-        }
-#endif
+        if (strstr(avkcpd->aenctype, "aac" ) == avkcpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_AAC     );
+        if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
+        if (strstr(avkcpd->venctype, "h264") == avkcpd->venctype) vcodec = avcodec_find_decoder(AV_CODEC_ID_H264    );
+        if (strstr(avkcpd->venctype, "h265") == avkcpd->venctype) vcodec = avcodec_find_decoder(AV_CODEC_ID_H265    );
         vrate.num = avkcpd->frate; vrate.den = 1;
-        if (avkcpd->acodec) {
-            *avkcpd->acodec_context = avcodec_alloc_context3(avkcpd->acodec);
-            if (avkcpd->acodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
+        if (acodec) {
+            *avkcpd->acodec_context = avcodec_alloc_context3(acodec);
+            if (acodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                 (*avkcpd->acodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
             }
             (*avkcpd->acodec_context)->channels       = avkcpd->channels;
             (*avkcpd->acodec_context)->channel_layout = avkcpd->channels == 2 ? AV_CH_LAYOUT_STEREO : AV_CH_LAYOUT_MONO;
             (*avkcpd->acodec_context)->sample_rate    = avkcpd->samprate;
-            (*avkcpd->acodec_context)->sample_fmt     = avkcpd->acodec->id == AV_CODEC_ID_AAC ? AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
-            if (avcodec_open2(*avkcpd->acodec_context, avkcpd->acodec, NULL) < 0) {
+            (*avkcpd->acodec_context)->sample_fmt     = acodec->id == AV_CODEC_ID_AAC ? AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
+            if (avcodec_open2(*avkcpd->acodec_context, acodec, NULL) < 0) {
                 avcodec_close(*avkcpd->acodec_context);
-                *avkcpd->acodec_context = NULL; avkcpd->acodec = NULL;
             }
         }
-        if (avkcpd->vcodec) {
-            *avkcpd->vcodec_context = avcodec_alloc_context3(avkcpd->vcodec);
-            if (avkcpd->vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
+        if (vcodec) {
+            *avkcpd->vcodec_context = avcodec_alloc_context3(vcodec);
+            if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                 (*avkcpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
             }
             (*avkcpd->vcodec_context)->width     = avkcpd->vwidth;
             (*avkcpd->vcodec_context)->height    = avkcpd->vheight;
             (*avkcpd->vcodec_context)->framerate = vrate;
             (*avkcpd->vcodec_context)->pix_fmt   = AV_PIX_FMT_YUV420P;
-            if (avcodec_open2(*avkcpd->vcodec_context, avkcpd->vcodec, NULL) < 0) {
-                avcodec_close(*avkcpd->vcodec_context);
-                *avkcpd->vcodec_context = NULL; avkcpd->vcodec = NULL;
+#ifdef ANDROID
+            if (avkcpd->cmnvars->init_params->video_hwaccel) {
+                switch (vcodec->id) {
+                case AV_CODEC_ID_H264: hwdec = avcodec_find_decoder_by_name("h264_mediacodec" ); break;
+                case AV_CODEC_ID_HEVC: hwdec = avcodec_find_decoder_by_name("hevc_mediacodec" ); break;
+                default: break;
+                }
+            }
+            if (hwdec) {
+                if (avcodec_open2(*avkcpd->vcodec_context, hwdec, NULL) == 0) {
+                    vcodec = hwdec;
+                }
+            }
+#endif
+            if (vcodec != hwdec) {
+                if (avcodec_open2(*avkcpd->vcodec_context, vcodec, NULL) < 0) {
+                    avcodec_close(*avkcpd->vcodec_context);
+                }
             }
         }
        *avkcpd->render = avkcpd->render_open(
@@ -210,6 +213,10 @@ void avkcpdemuxer_exit(void *ctxt)
 {
     AVKCPDEMUXER *avkcpd = (AVKCPDEMUXER*)ctxt;
     if (avkcpd) {
+        avcodec_close(*avkcpd->acodec_context);
+        avcodec_close(*avkcpd->vcodec_context);
+        avcodec_free_context(avkcpd->acodec_context);
+        avcodec_free_context(avkcpd->vcodec_context);
         avkcpc_exit(avkcpd->avkcpc);
         free(avkcpd);
     }
