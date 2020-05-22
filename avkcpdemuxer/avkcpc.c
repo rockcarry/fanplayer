@@ -85,11 +85,11 @@ static void* avkcpc_thread_proc(void *argv)
         printf("failed to open socket !\n");
         goto _exit;
     }
-#ifdef WIN32
-    opt = 1;        ioctlsocket(avkcpc->client_fd, FIONBIO, &opt); // setup non-block io mode
     opt = 256*1024; setsockopt(avkcpc->client_fd, SOL_SOCKET, SO_RCVBUF, (char*)&opt, sizeof(int));
+#ifdef WIN32
+    opt = 1; ioctlsocket(avkcpc->client_fd, FIONBIO, &opt); // setup non-block io mode
 #else
-    fcntl(avkcpc->client_fd, F_SETFL, fcntl(avkcpc->client_fd, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(avkcpc->client_fd, F_SETFL, fcntl(avkcpc->client_fd, F_GETFL, 0) | O_NONBLOCK);  // setup non-block io mode
 #endif
 
     while (!(avkcpc->status & TS_EXIT)) {
