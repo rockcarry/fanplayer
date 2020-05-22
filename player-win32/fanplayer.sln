@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual Studio 2005
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fanplayer", "fanplayer\fanplayer.vcproj", "{2537A15B-F975-416D-8106-22CD6EDFCCDE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C} = {8F731DF4-F11E-4704-AF28-DB1AD045C60C}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testplayer", "testplayer\testplayer.vcproj", "{0E175BF5-7997-4F54-86ED-40991B4D386A}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -11,6 +14,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ffspliter", "ffspliter\ffspliter.vcproj", "{E1E9BFAC-8EAA-47AB-B176-55E32C1C9487}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csharpplayer", "csharpplayer\csharpplayer.csproj", "{83E7939A-5029-4A23-B482-99C29D69C6E0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "avkcpdemuxer", "avkcpdemuxer\avkcpdemuxer.vcproj", "{8F731DF4-F11E-4704-AF28-DB1AD045C60C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -62,6 +67,16 @@ Global
 		{83E7939A-5029-4A23-B482-99C29D69C6E0}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{83E7939A-5029-4A23-B482-99C29D69C6E0}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{83E7939A-5029-4A23-B482-99C29D69C6E0}.Release|Win32.ActiveCfg = Release|Any CPU
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Debug|Win32.Build.0 = Debug|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Release|Any CPU.ActiveCfg = Release|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Release|Win32.ActiveCfg = Release|Win32
+		{8F731DF4-F11E-4704-AF28-DB1AD045C60C}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

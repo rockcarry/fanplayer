@@ -13,6 +13,10 @@
 #include "libavfilter/buffersrc.h"
 #include "libavfilter/buffersink.h"
 
+#ifdef ENABLE_AVKCP_SUPPORT
+#include "avkcpd.h"
+#endif
+
 #ifdef ANDROID
 #include "fanplayer_jni.h"
 #endif
@@ -80,6 +84,10 @@ typedef struct {
 
     // recorder used for recording
     void  *recorder;
+
+#ifdef ENABLE_AVKCP_SUPPORT
+    void  *avkcpd;
+#endif
 } PLAYER;
 
 // 内部常量定义
@@ -807,14 +815,28 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 #endif
     //-- for player_prepare
 
-    if (player->init_params.open_syncmode && player_prepare(player) == -1) {
-        av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
-        goto error_handler;
-    }
-
     // make sure player status paused
     player->status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE);
-    pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
+
+#ifdef ENABLE_AVKCP_SUPPORT
+    if (strstr(player->url, "avkcp://") != player->url)
+#endif
+    {
+        if (player->init_params.open_syncmode && player_prepare(player) == -1) {
+            av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
+            goto error_handler;
+        }
+        pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
+    }
+#ifdef ENABLE_AVKCP_SUPPORT
+    else {
+        player->avkcpd = avkcpdemuxer_init(player->url, player, player->pktqueue, &player->acodec_context, &player->vcodec_context, &player->status,
+                        &player->astream_timebase, &player->vstream_timebase, &player->render,
+                         player->init_params.adev_render_type, player->init_params.vdev_render_type, &player->cmnvars,
+                         render_open, pktqueue_request_packet, pktqueue_audio_enqueue, pktqueue_video_enqueue, player_send_message);
+    }
+#endif
+
     pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
     pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
     return player; // return
@@ -841,14 +863,18 @@ void player_close(void *hplayer)
     player->status |= PS_CLOSE;
     render_pause(player->render, 0);
 
+#ifdef ENABLE_AVKCP_SUPPORT
+    avkcpdemuxer_exit(player->avkcpd);
+#endif
+
     // wait audio/video demuxing thread exit
-    pthread_join(player->avdemux_thread, NULL);
+    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL);
 
     // wait audio decoding thread exit
-    pthread_join(player->adecode_thread, NULL);
+    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL);
 
     // wait video decoding thread exit
-    pthread_join(player->vdecode_thread, NULL);
+    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL);
 
     // free avfilter graph
     vfilter_graph_free(player);
