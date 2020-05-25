@@ -833,7 +833,12 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
         player->avkcpd = avkcpdemuxer_init(player->url, player, player->pktqueue, &player->acodec_context, &player->vcodec_context, &player->status,
                         &player->astream_timebase, &player->vstream_timebase, &player->render,
                          player->init_params.adev_render_type, player->init_params.vdev_render_type, &player->cmnvars,
-                         render_open, pktqueue_request_packet, pktqueue_audio_enqueue, pktqueue_video_enqueue, player_send_message);
+                         render_open, render_getparam, pktqueue_request_packet, pktqueue_audio_enqueue, pktqueue_video_enqueue, player_send_message,
+#ifdef WIN32
+                         dxva2hwa_init);
+#else
+                         NULL);
+#endif
     }
 #endif
 

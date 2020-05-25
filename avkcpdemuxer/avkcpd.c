@@ -36,10 +36,12 @@ typedef struct {
     int              vdevtype;
     CMNVARS         *cmnvars;
     void*          (*render_open )(int, int, int, int64_t, int, void*, struct AVRational, int, int, int, CMNVARS*);
+    void           (*render_getparam        )(void*, int, void*);
     AVPacket*      (*pktqueue_request_packet)(void*);
     void           (*pktqueue_audio_enqueue )(void*, AVPacket*);
     void           (*pktqueue_video_enqueue )(void*, AVPacket*);
     void           (*player_send_message    )(void*, int32_t, int64_t);
+    int            (*dxva2hwa_init          )(AVCodecContext*, void*);
     int             *playerstatus;
     int              inited;
     uint8_t          buffer[1024*1024];
@@ -78,6 +80,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
     AVCodec         *vcodec = NULL;
     AVPacket        *packet = NULL;
     AVCodec         *hwdec  = NULL;
+    AVCodecContext  *hwctxt = NULL;
     struct AVRational vrate;
     char avinfo[256], temp[256];
     int  ret = -1;
@@ -110,17 +113,10 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
             (*avkcpd->acodec_context)->sample_fmt     = acodec->id == AV_CODEC_ID_AAC ? AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
             if (avcodec_open2(*avkcpd->acodec_context, acodec, NULL) < 0) {
                 avcodec_close(*avkcpd->acodec_context);
+                avcodec_free_context(avkcpd->acodec_context);
             }
         }
         if (vcodec) {
-            *avkcpd->vcodec_context = avcodec_alloc_context3(vcodec);
-            if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
-                (*avkcpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
-            }
-            (*avkcpd->vcodec_context)->width     = avkcpd->vwidth;
-            (*avkcpd->vcodec_context)->height    = avkcpd->vheight;
-            (*avkcpd->vcodec_context)->framerate = vrate;
-            (*avkcpd->vcodec_context)->pix_fmt   = AV_PIX_FMT_YUV420P;
 #ifdef ANDROID
             if (avkcpd->cmnvars->init_params->video_hwaccel) {
                 switch (vcodec->id) {
@@ -130,16 +126,41 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 }
             }
             if (hwdec) {
-                if (avcodec_open2(*avkcpd->vcodec_context, hwdec, NULL) == 0) {
-                    vcodec = hwdec;
+                hwctxt = avcodec_alloc_context3(hwdec);
+                if (hwdec->capabilities & AV_CODEC_CAP_TRUNCATED) {
+                    hwctxt->flags |= AV_CODEC_FLAG_TRUNCATED;
+                }
+                if (avcodec_open2(hwctxt, hwdec, NULL) == 0) {
+                   *avkcpd->vcodec_context = hwctxt;
+                } else {
+                    avkcpd->cmnvars->init_params->video_hwaccel = 0;
+                    avcodec_close(hwctxt);
+                    avcodec_free_context(&hwctxt);
+                }
+            } else avkcpd->cmnvars->init_params->video_hwaccel = 0;
+#endif
+            if (avkcpd->cmnvars->init_params->video_hwaccel == 0) {
+                *avkcpd->vcodec_context = avcodec_alloc_context3(vcodec);
+                if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
+                    (*avkcpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
+                }
+                (*avkcpd->vcodec_context)->width     = avkcpd->vwidth;
+                (*avkcpd->vcodec_context)->height    = avkcpd->vheight;
+                (*avkcpd->vcodec_context)->framerate = vrate;
+                (*avkcpd->vcodec_context)->pix_fmt   = AV_PIX_FMT_YUV420P;
+                if (avcodec_open2(*avkcpd->vcodec_context, vcodec, NULL) < 0) {
+                    avcodec_close(*avkcpd->vcodec_context);
+                    avcodec_free_context(avkcpd->vcodec_context);
+                }
+            }
+#ifdef WIN32
+            if (1) {
+                void *d3ddev = NULL; avkcpd->render_getparam(avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+                if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev) != 0) {
+                    avkcpd->cmnvars->init_params->video_hwaccel = 0;
                 }
             }
 #endif
-            if (vcodec != hwdec) {
-                if (avcodec_open2(*avkcpd->vcodec_context, vcodec, NULL) < 0) {
-                    avcodec_close(*avkcpd->vcodec_context);
-                }
-            }
         }
        *avkcpd->render = avkcpd->render_open(
             avkcpd->adevtype, avkcpd->samprate, (*avkcpd->acodec_context)->sample_fmt, (*avkcpd->acodec_context)->channel_layout,
@@ -166,7 +187,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
 
 void* avkcpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext **acodec_context, AVCodecContext **vcodec_context, int *playerstatus,
                         AVRational *astream_timebase, AVRational *vstream_timebase, void **render, int adevtype, int vdevtype, CMNVARS *cmnvars,
-                        void *pfnrenderopen, void *pfnpktqrequest, void *pfnpktqaenqueue, void *pfnpktqvenqueue, void *pfnplayermsg)
+                        void *pfnrenderopen, void *pfnrendergetparam, void *pfnpktqrequest, void *pfnpktqaenqueue, void *pfnpktqvenqueue, void *pfnplayermsg, void *pfndxva2hwinit)
 {
     AVKCPDEMUXER *avkcpd = NULL;
     char         *str    = NULL;
@@ -200,12 +221,14 @@ void* avkcpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     avkcpd->adevtype       = adevtype;
     avkcpd->vdevtype       = vdevtype;
     avkcpd->cmnvars        = cmnvars;
-    avkcpd->render_open    = pfnrenderopen;
 
+    avkcpd->render_open             = pfnrenderopen;
+    avkcpd->render_getparam         = pfnrendergetparam;
     avkcpd->pktqueue_request_packet = pfnpktqrequest;
     avkcpd->pktqueue_audio_enqueue  = pfnpktqaenqueue;
     avkcpd->pktqueue_video_enqueue  = pfnpktqvenqueue;
     avkcpd->player_send_message     = pfnplayermsg;
+    avkcpd->dxva2hwa_init           = pfndxva2hwinit;
     return avkcpd;
 }
 
