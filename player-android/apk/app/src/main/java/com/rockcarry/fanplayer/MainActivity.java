@@ -26,6 +26,7 @@ import android.widget.Toast;
 import android.util.Log;
 
 public class MainActivity extends Activity {
+    private static final String PLAYER_INIT_PARAMS = "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;audio_bufpktn=5;video_bufpktn=5;rtsp_transport=2;";
     private MediaPlayer  mPlayer    = null;
     private playerView   mRoot      = null;
     private SurfaceView  mVideo     = null;
@@ -64,8 +65,8 @@ public class MainActivity extends Activity {
                 cursor.moveToFirst();
                 mURL = cursor.getString(colidx);
             }
-            mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
-            mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;video_rotate=0");
+            mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://");
+            mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
         } else {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("open url:");
@@ -84,8 +85,8 @@ public class MainActivity extends Activity {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     mURL = edt.getText().toString();
-                    mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://");
-                    mPlayer = new MediaPlayer(mURL, mHandler, "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;rtsp_transport=2;audio_bufpktn=100;video_bufpktn=100;");
+                    mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://");
+                    mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
                     mPlayer.setDisplaySurface(mVideoSurface);
                     testPlayerPlay(true);
                 }
