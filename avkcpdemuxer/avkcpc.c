@@ -104,7 +104,7 @@ static void* avkcpc_thread_proc(void *argv)
             avkcpc->ikcp = ikcp_create(AVKCP_CONV, avkcpc);
             if (avkcpc->ikcp) {
                 ikcp_setoutput(avkcpc->ikcp, udp_output);
-                ikcp_nodelay(avkcpc->ikcp, 2, 10, 2, 1);
+                ikcp_nodelay(avkcpc->ikcp, 1, 10, 2, 1);
                 ikcp_wndsize(avkcpc->ikcp, 256, 1024);
                 avkcpc->ikcp->interval = 1;
                 avkcpc->ikcp->rx_minrto = 5;
