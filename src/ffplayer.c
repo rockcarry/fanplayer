@@ -868,10 +868,6 @@ void player_close(void *hplayer)
     player->status |= PS_CLOSE;
     render_pause(player->render, 0);
 
-#ifdef ENABLE_AVKCP_SUPPORT
-    avkcpdemuxer_exit(player->avkcpd);
-#endif
-
     // wait audio/video demuxing thread exit
     if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL);
 
@@ -895,6 +891,10 @@ void player_close(void *hplayer)
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
     if (player->render          ) render_close (player->render);
     if (player->recorder        ) recorder_free(player->recorder);
+
+#ifdef ENABLE_AVKCP_SUPPORT
+    avkcpdemuxer_exit(player->avkcpd);
+#endif
 
 #ifdef ANDROID
     JniReleaseWinObj(player->cmnvars.winmsg);
