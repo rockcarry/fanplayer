@@ -85,20 +85,23 @@ static void* avkcpc_thread_proc(void *argv)
     JniAttachCurrentThread();
 #endif
 
-    avkcpc->client_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (avkcpc->client_fd < 0) {
-        printf("failed to open socket !\n");
-        goto _exit;
-    }
-    opt = 256*1024; setsockopt(avkcpc->client_fd, SOL_SOCKET, SO_RCVBUF, (char*)&opt, sizeof(int));
-#ifdef WIN32
-    opt = 1; ioctlsocket(avkcpc->client_fd, FIONBIO, &opt); // setup non-block io mode
-#else
-    fcntl(avkcpc->client_fd, F_SETFL, fcntl(avkcpc->client_fd, F_GETFL, 0) | O_NONBLOCK);  // setup non-block io mode
-#endif
-
     while (!(avkcpc->status & TS_EXIT)) {
         if (!(avkcpc->status & TS_START)) { usleep(100*1000); continue; }
+
+        if (avkcpc->client_fd <= 0) {
+            avkcpc->client_fd = socket(AF_INET, SOCK_DGRAM, 0);
+            if (avkcpc->client_fd > 0) {
+                opt = 256*1024; setsockopt(avkcpc->client_fd, SOL_SOCKET, SO_RCVBUF, (char*)&opt, sizeof(int));
+#ifdef WIN32
+                opt = 1; ioctlsocket(avkcpc->client_fd, FIONBIO, &opt); // setup non-block io mode
+#else
+                fcntl(avkcpc->client_fd, F_SETFL, fcntl(avkcpc->client_fd, F_GETFL, 0) | O_NONBLOCK);  // setup non-block io mode
+#endif
+            } else {
+                printf("failed to open socket !\n");
+                usleep(100*1000); continue;
+            }
+        }
 
         if (avkcpc->ikcp == NULL) {
             avkcpc->ikcp = ikcp_create(AVKCP_CONV, avkcpc);
@@ -145,6 +148,7 @@ static void* avkcpc_thread_proc(void *argv)
         if (tickgetframe && get_tick_count() > tickgetframe + 2000) {
 //          printf("===ck=== avkcpc disconnect !\n");
             ikcp_release(avkcpc->ikcp); avkcpc->ikcp = NULL;
+            closesocket(avkcpc->client_fd); avkcpc->client_fd = 0;
             avkcpc->head = avkcpc->tail = avkcpc->size = 0;
             tickgetframe = 0; tickheartbeat= 0;
         }
@@ -153,9 +157,8 @@ static void* avkcpc_thread_proc(void *argv)
         usleep(1*1000);
     }
 
-_exit:
     if (avkcpc->ikcp) ikcp_release(avkcpc->ikcp);
-    if (avkcpc->client_fd >= 0) closesocket(avkcpc->client_fd);
+    if (avkcpc->client_fd > 0) closesocket(avkcpc->client_fd);
 #ifdef WIN32
     WSACleanup();
 #endif
