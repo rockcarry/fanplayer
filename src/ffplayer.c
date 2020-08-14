@@ -880,9 +880,6 @@ void player_close(void *hplayer)
     // free avfilter graph
     vfilter_graph_free(player);
 
-    // destroy packet queue
-    pktqueue_destroy(player->pktqueue);
-
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
 #endif
@@ -895,6 +892,9 @@ void player_close(void *hplayer)
 #ifdef ENABLE_AVKCP_SUPPORT
     avkcpdemuxer_exit(player->avkcpd);
 #endif
+
+    // destroy packet queue
+    pktqueue_destroy(player->pktqueue);
 
 #ifdef ANDROID
     JniReleaseWinObj(player->cmnvars.winmsg);
