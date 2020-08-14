@@ -154,8 +154,8 @@ static void* avkcpc_thread_proc(void *argv)
     }
 
 _exit:
-    if (avkcpc->client_fd >= 0) closesocket(avkcpc->client_fd);
     if (avkcpc->ikcp) ikcp_release(avkcpc->ikcp);
+    if (avkcpc->client_fd >= 0) closesocket(avkcpc->client_fd);
 #ifdef WIN32
     WSACleanup();
 #endif
