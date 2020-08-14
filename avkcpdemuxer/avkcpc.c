@@ -142,7 +142,7 @@ static void* avkcpc_thread_proc(void *argv)
             }
         }
 
-        if (tickgetframe && get_tick_count() > tickgetframe + 3000) {
+        if (tickgetframe && get_tick_count() > tickgetframe + 2000) {
 //          printf("===ck=== avkcpc disconnect !\n");
             ikcp_release(avkcpc->ikcp); avkcpc->ikcp = NULL;
             avkcpc->head = avkcpc->tail = avkcpc->size = 0;
