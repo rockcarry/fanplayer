@@ -20,6 +20,9 @@ LOCAL_SRC_FILES := \
     ../../avkcpdemuxer/ringbuf.c \
     ../../avkcpdemuxer/avkcpc.c \
     ../../avkcpdemuxer/avkcpd.c \
+    ../../ffrdpdemuxer/ffrdp.c \
+    ../../ffrdpdemuxer/ffrdpc.c \
+    ../../ffrdpdemuxer/ffrdpd.c \
     fanplayer_jni.cpp
 
 LOCAL_C_INCLUDES += \
@@ -27,9 +30,10 @@ LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../ffmpeg/include \
     $(LOCAL_PATH)/../soundtouch/include \
     $(LOCAL_PATH)/../../src \
-    $(LOCAL_PATH)/../../avkcpdemuxer
+    $(LOCAL_PATH)/../../avkcpdemuxer \
+    $(LOCAL_PATH)/../../ffrdpdemuxer
 
-LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -DENABLE_AVKCP_SUPPORT -Os -mfpu=neon-vfpv4 -mfloat-abi=softfp
+LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -DENABLE_AVKCP_SUPPORT -DENABLE_FFRDP_SUPPORT -Os -mfpu=neon-vfpv4 -mfloat-abi=softfp
 LOCAL_CXXFLAGS += -DHAVE_PTHREADS
 LOCAL_LDLIBS   += -lz -llog -landroid
 

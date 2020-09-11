@@ -1,0 +1,4 @@
+EXPORTS
+
+ffrdpdemuxer_init
+ffrdpdemuxer_exit

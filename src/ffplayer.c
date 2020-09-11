@@ -17,6 +17,10 @@
 #include "avkcpd.h"
 #endif
 
+#ifdef ENABLE_FFRDP_SUPPORT
+#include "ffrdpd.h"
+#endif
+
 #ifdef ANDROID
 #include "fanplayer_jni.h"
 #endif
@@ -87,6 +91,10 @@ typedef struct {
 
 #ifdef ENABLE_AVKCP_SUPPORT
     void  *avkcpd;
+#endif
+
+#ifdef ENABLE_FFRDP_SUPPORT
+    void  *ffrdpd;
 #endif
 } PLAYER;
 
@@ -818,18 +826,9 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
     // make sure player status paused
     player->status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE);
 
+    if (0) {
 #ifdef ENABLE_AVKCP_SUPPORT
-    if (strstr(player->url, "avkcp://") != player->url)
-#endif
-    {
-        if (player->init_params.open_syncmode && player_prepare(player) == -1) {
-            av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
-            goto error_handler;
-        }
-        pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
-    }
-#ifdef ENABLE_AVKCP_SUPPORT
-    else {
+    } else if (strstr(player->url, "avkcp://") == player->url) {
         player->avkcpd = avkcpdemuxer_init(player->url, player, player->pktqueue, &player->acodec_context, &player->vcodec_context, &player->status,
                         &player->astream_timebase, &player->vstream_timebase, &player->render,
                          player->init_params.adev_render_type, player->init_params.vdev_render_type, &player->cmnvars,
@@ -839,8 +838,26 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 #else
                          NULL);
 #endif
-    }
 #endif
+#ifdef ENABLE_FFRDP_SUPPORT
+    } else if (strstr(player->url, "ffrdp://") == player->url) {
+        player->ffrdpd = ffrdpdemuxer_init(player->url, player, player->pktqueue, &player->acodec_context, &player->vcodec_context, &player->status,
+                        &player->astream_timebase, &player->vstream_timebase, &player->render,
+                         player->init_params.adev_render_type, player->init_params.vdev_render_type, &player->cmnvars,
+                         render_open, render_getparam, pktqueue_request_packet, pktqueue_audio_enqueue, pktqueue_video_enqueue, player_send_message,
+#ifdef WIN32
+                         dxva2hwa_init);
+#else
+                         NULL);
+#endif
+#endif
+    } else {
+        if (player->init_params.open_syncmode && player_prepare(player) == -1) {
+            av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
+            goto error_handler;
+        }
+        pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
+    }
 
     pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
     pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
@@ -891,6 +908,10 @@ void player_close(void *hplayer)
 
 #ifdef ENABLE_AVKCP_SUPPORT
     avkcpdemuxer_exit(player->avkcpd);
+#endif
+
+#ifdef ENABLE_AVKCP_SUPPORT
+    ffrdpdemuxer_exit(player->ffrdpd);
 #endif
 
     // destroy packet queue

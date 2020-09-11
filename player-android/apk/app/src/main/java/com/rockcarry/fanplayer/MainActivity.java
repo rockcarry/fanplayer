@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
                 cursor.moveToFirst();
                 mURL = cursor.getString(colidx);
             }
-            mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://");
+            mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://") || mURL.startsWith("ffrdp://");
             mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
         } else {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     mURL = edt.getText().toString();
-                    mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://");
+                    mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://") || mURL.startsWith("ffrdp://");
                     mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
                     mPlayer.setDisplaySurface(mVideoSurface);
                     testPlayerPlay(true);
