@@ -139,7 +139,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 }
             } else avkcpd->cmnvars->init_params->video_hwaccel = 0;
 #endif
-            if (avkcpd->cmnvars->init_params->video_hwaccel == 0) {
+            if (!hwctxt) {
                 *avkcpd->vcodec_context = avcodec_alloc_context3(vcodec);
                 if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                     (*avkcpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
@@ -153,18 +153,18 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                     avcodec_free_context(avkcpd->vcodec_context);
                 }
             }
-#ifdef WIN32
-            if (1) {
-                void *d3ddev = NULL; avkcpd->render_getparam(avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
-                if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev) != 0) {
-                    avkcpd->cmnvars->init_params->video_hwaccel = 0;
-                }
-            }
-#endif
         }
        *avkcpd->render = avkcpd->render_open(
             avkcpd->adevtype, avkcpd->samprate, (*avkcpd->acodec_context)->sample_fmt, (*avkcpd->acodec_context)->channel_layout,
             avkcpd->vdevtype, avkcpd->cmnvars->winmsg, vrate, (*avkcpd->vcodec_context)->pix_fmt, avkcpd->vwidth, avkcpd->vheight, avkcpd->cmnvars);
+#ifdef WIN32
+        if (vcodec && avkcpd->cmnvars->init_params->video_hwaccel) {
+            void *d3ddev = NULL; avkcpd->render_getparam(*avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+            if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev) != 0) {
+                avkcpd->cmnvars->init_params->video_hwaccel = 0;
+            }
+        }
+#endif
         avkcpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
         avkcpd->cmnvars->init_params->video_vwidth  = avkcpd->cmnvars->init_params->video_owidth  = avkcpd->vwidth ;
         avkcpd->cmnvars->init_params->video_vheight = avkcpd->cmnvars->init_params->video_oheight = avkcpd->vheight;

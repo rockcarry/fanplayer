@@ -139,7 +139,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 }
             } else ffrdpd->cmnvars->init_params->video_hwaccel = 0;
 #endif
-            if (ffrdpd->cmnvars->init_params->video_hwaccel == 0) {
+            if (!hwdec) {
                 *ffrdpd->vcodec_context = avcodec_alloc_context3(vcodec);
                 if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                     (*ffrdpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
@@ -153,18 +153,18 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                     avcodec_free_context(ffrdpd->vcodec_context);
                 }
             }
-#ifdef WIN32
-            if (1) {
-                void *d3ddev = NULL; ffrdpd->render_getparam(ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
-                if (ffrdpd->dxva2hwa_init(*ffrdpd->vcodec_context, d3ddev) != 0) {
-                    ffrdpd->cmnvars->init_params->video_hwaccel = 0;
-                }
-            }
-#endif
         }
        *ffrdpd->render = ffrdpd->render_open(
             ffrdpd->adevtype, ffrdpd->samprate, (*ffrdpd->acodec_context)->sample_fmt, (*ffrdpd->acodec_context)->channel_layout,
             ffrdpd->vdevtype, ffrdpd->cmnvars->winmsg, vrate, (*ffrdpd->vcodec_context)->pix_fmt, ffrdpd->vwidth, ffrdpd->vheight, ffrdpd->cmnvars);
+#ifdef WIN32
+        if (vcodec && ffrdpd->cmnvars->init_params->video_hwaccel) {
+            void *d3ddev = NULL; ffrdpd->render_getparam(ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+            if (ffrdpd->dxva2hwa_init(*ffrdpd->vcodec_context, d3ddev) != 0) {
+                ffrdpd->cmnvars->init_params->video_hwaccel = 0;
+            }
+        }
+#endif
         ffrdpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
         ffrdpd->cmnvars->init_params->video_vwidth  = ffrdpd->cmnvars->init_params->video_owidth  = ffrdpd->vwidth ;
         ffrdpd->cmnvars->init_params->video_vheight = ffrdpd->cmnvars->init_params->video_oheight = ffrdpd->vheight;
