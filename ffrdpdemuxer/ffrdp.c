@@ -304,6 +304,14 @@ void* ffrdp_init(char *ip, int port, int server)
         goto failed;
     }
 
+#ifdef WIN32
+    opt = 1; ioctlsocket(ffrdp->udp_fd, FIONBIO, &opt); // setup non-block io mode
+#else
+    fcntl(ffrdp->udp_fd, F_SETFL, fcntl(ffrdp->udp_fd, F_GETFL, 0) | O_NONBLOCK);  // setup non-block io mode
+#endif
+    opt = FFRDP_UDPRBUF_SIZE; setsockopt(ffrdp->udp_fd, SOL_SOCKET, SO_RCVBUF   , (char*)&opt, sizeof(int)); // setup udp recv buffer size
+    opt = 1;                  setsockopt(ffrdp->udp_fd, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(int)); // setup reuse addr
+
     if (server) {
         ffrdp->flags |= FLAG_SERVER;
         if (bind(ffrdp->udp_fd, (struct sockaddr*)&ffrdp->server_addr, sizeof(ffrdp->server_addr)) == -1) {
@@ -311,13 +319,6 @@ void* ffrdp_init(char *ip, int port, int server)
             goto failed;
         }
     }
-
-#ifdef WIN32
-    opt = 1; ioctlsocket(ffrdp->udp_fd, FIONBIO, &opt); // setup non-block io mode
-#else
-    fcntl(ffrdp->udp_fd, F_SETFL, fcntl(ffrdp->udp_fd, F_GETFL, 0) | O_NONBLOCK);  // setup non-block io mode
-#endif
-    opt = FFRDP_UDPRBUF_SIZE; setsockopt(ffrdp->udp_fd, SOL_SOCKET, SO_RCVBUF, (char*)&opt, sizeof(int)); // setup udp recv buffer size
     return ffrdp;
 
 failed:
@@ -347,7 +348,7 @@ int ffrdp_send(void *ctxt, char *buf, int len)
     int               n = len, size;
     if (  !ffrdp || ((ffrdp->flags & FLAG_SERVER) && (ffrdp->flags & FLAG_CONNECTED) == 0)
        || ((len + FFRDP_MTU_SIZE - 1) / FFRDP_MTU_SIZE + ffrdp->wait_snd > FFRDP_MAX_WAITSND)) {
-        ffrdp->counter_send_failed++;
+        if (ffrdp) ffrdp->counter_send_failed++;
         return -1;
     }
     while (n > 0) {
