@@ -159,7 +159,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
             ffrdpd->vdevtype, ffrdpd->cmnvars->winmsg, vrate, (*ffrdpd->vcodec_context)->pix_fmt, ffrdpd->vwidth, ffrdpd->vheight, ffrdpd->cmnvars);
 #ifdef WIN32
         if (vcodec && ffrdpd->cmnvars->init_params->video_hwaccel) {
-            void *d3ddev = NULL; ffrdpd->render_getparam(ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+            void *d3ddev = NULL; ffrdpd->render_getparam(*ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
             if (ffrdpd->dxva2hwa_init(*ffrdpd->vcodec_context, d3ddev) != 0) {
                 ffrdpd->cmnvars->init_params->video_hwaccel = 0;
             }
