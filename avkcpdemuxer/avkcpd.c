@@ -136,6 +136,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                     avkcpd->cmnvars->init_params->video_hwaccel = 0;
                     avcodec_close(hwctxt);
                     avcodec_free_context(&hwctxt);
+                    hwdec = NULL;
                 }
             } else avkcpd->cmnvars->init_params->video_hwaccel = 0;
 #endif

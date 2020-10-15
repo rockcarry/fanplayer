@@ -4,6 +4,7 @@
 #include "ringbuf.h"
 #include "ffrdpc.h"
 #include "ffrdpd.h"
+#include "libavutil/log.h"
 
 #ifdef WIN32
 #include <windows.h>
@@ -136,6 +137,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                     ffrdpd->cmnvars->init_params->video_hwaccel = 0;
                     avcodec_close(hwctxt);
                     avcodec_free_context(&hwctxt);
+                    hwdec = NULL;
                 }
             } else ffrdpd->cmnvars->init_params->video_hwaccel = 0;
 #endif
