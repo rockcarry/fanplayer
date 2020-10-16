@@ -46,7 +46,7 @@ typedef struct {
 static void* ffrdpc_thread_proc(void *argv)
 {
     FFRDPC  *ffrdpc = (FFRDPC*)argv;
-    uint32_t tickgetframe = 0;
+    uint32_t tickgetframe = 0, ticktryconnect = 0;
     uint8_t  buffer[1500];
     int      ret;
 
@@ -63,7 +63,10 @@ static void* ffrdpc_thread_proc(void *argv)
         }
 
         if (!(ffrdpc->status & TS_CONNECTED)) {
-            ffrdp_send(ffrdpc->ffrdp, "1", 1);
+            if (get_tick_count() - ticktryconnect > 1000) {
+                ffrdp_send(ffrdpc->ffrdp, "1", 1);
+                ticktryconnect = get_tick_count();
+            }
         }
 
         while (1) {
@@ -83,7 +86,7 @@ static void* ffrdpc_thread_proc(void *argv)
                 ffrdpc->head = ret;
                 ffrdpc->size-= sizeof(typelen) + (typelen >> 8);
                 tickgetframe = get_tick_count();
-            }
+            } else break;
         }
 
         ffrdp_update(ffrdpc->ffrdp);
