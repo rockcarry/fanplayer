@@ -37,14 +37,14 @@ static uint32_t get_tick_count()
 
 #define FFRDP_RECVBUF_SIZE  (64 * 1024 - 4)
 #define FFRDP_MTU_SIZE       1024 // should align to 4 bytes
-#define FFRDP_MIN_RTO        20
+#define FFRDP_MIN_RTO        100
 #define FFRDP_MAX_RTO        2000
 #define FFRDP_WIN_CYCLE      100
 #define FFRDP_MAX_WAITSND    256
 #define FFRDP_DEAD_TIMEOUT   3000
 #define FFRDP_SNDPKT_FLOWCTL 32
 #define FFRDP_UDPRBUF_SIZE  (128 * FFRDP_MTU_SIZE)
-#define FFRDP_SELECT_SLEEP   0
+#define FFRDP_SELECT_SLEEP   1
 #define FFRDP_SELECT_TIMEOUT 10000
 #define FFRDP_USLEEP_TIMEOUT 1000
 #define FFRDP_ENABLE_FEC     0
@@ -380,7 +380,7 @@ int ffrdp_isdead(void *ctxt)
 {
     FFRDPCONTEXT *ffrdp = (FFRDPCONTEXT*)ctxt;
     if (!ctxt) return -1;
-    return ffrdp->send_list_head && (ffrdp->send_list_head->flags & (FLAG_FIRST_SEND|FLAG_FAST_RESEND)) && (int32_t)get_tick_count() - (int32_t)ffrdp->send_list_head->tick_send > FFRDP_DEAD_TIMEOUT;
+    return ffrdp->send_list_head && (int32_t)get_tick_count() - (int32_t)ffrdp->send_list_head->tick_send > FFRDP_DEAD_TIMEOUT;
 }
 
 void ffrdp_update(void *ctxt)
