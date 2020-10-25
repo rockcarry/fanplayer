@@ -56,8 +56,8 @@ want to learn more?
 ==================
 want to learn more about fanplayer, please visit our wiki.
 
-https://github.com/rockcarry/fanplayer/wiki
-
+Chinese  https://github.com/rockcarry/fanplayer/wiki <br>
+English  https://translate.google.com/translate?sl=auto&tl=en&u=https%3A%2F%2Fgithub.com%2Frockcarry%2Ffanplayer%2Fwiki
 
 contact and discuss
 ===================
