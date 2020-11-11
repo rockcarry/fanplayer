@@ -41,7 +41,7 @@ static uint32_t get_tick_count()
 #define FFRDP_MAX_RTO        2000
 #define FFRDP_WIN_CYCLE      100
 #define FFRDP_MAX_WAITSND    256
-#define FFRDP_DEAD_TIMEOUT   3000
+#define FFRDP_DEAD_TIMEOUT   5000
 #define FFRDP_SNDPKT_FLOWCTL 32
 #define FFRDP_UDPRBUF_SIZE  (128 * FFRDP_MTU_SIZE)
 #define FFRDP_SELECT_SLEEP   1
