@@ -12,9 +12,7 @@ extern "C" {
 #include "libavcodec/avcodec.h"
 
 // 函数声明
-void*render_open(int adevtype, int srate, int sndfmt, int64_t ch_layout,
-                 int vdevtype, void *surface, struct AVRational frate, int pixfmt, int w, int h,
-                 CMNVARS *cmnvars);
+void*render_open(int adevtype, int vdevtype, void *surface, struct AVRational frate, int w, int h, CMNVARS *cmnvars);
 void render_close   (void *hrender);
 void render_audio   (void *hrender, struct AVFrame *audio);
 void render_video   (void *hrender, struct AVFrame *video);

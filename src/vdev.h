@@ -11,70 +11,69 @@ extern "C" {
 #endif
 
 // 常量定义
-#define VDEV_CLOSE       (1 << 0)
-#define VDEV_PAUSE       (1 << 1)
-#define VDEV_COMPLETED   (1 << 2)
-#define VDEV_ERASE_BG0   (1 << 3)
-#define VDEV_ERASE_BG1   (1 << 4)
-#define VDEV_CONFIG_FONT (1 << 5)
+#define VDEV_CLOSE      (1 << 0)
+#define VDEV_PAUSE      (1 << 1)
+#define VDEV_COMPLETED  (1 << 2)
+#define VDEV_CLEAR      (1 << 3)
 
 //++ vdev context common members
-#define VDEV_COMMON_MEMBERS \
-    int         bufnum; \
-    int         pixfmt; \
-    int         x;   /* video display rect x */ \
-    int         y;   /* video display rect y */ \
-    int         w;   /* video display rect w */ \
-    int         h;   /* video display rect h */ \
-    int         sw;  /* surface width        */ \
-    int         sh;  /* surface height       */ \
-                                                \
-    void       *surface;                        \
-    int64_t    *ppts;                           \
-                                                \
-    int         head;                           \
-    int         tail;                           \
-    int         size;                           \
-                                                \
-    pthread_mutex_t mutex;                      \
-    pthread_cond_t  cond;                       \
-                                                \
-    CMNVARS    *cmnvars;                        \
-    int         tickavdiff;                     \
-    int         tickframe;                      \
-    int         ticksleep;                      \
-    int64_t     ticklast;                       \
-                                                \
-    int         speed;                          \
-    int         status;                         \
-    pthread_t   thread;                         \
-                                                \
-    int         completed_counter;              \
-    int64_t     completed_apts;                 \
-    int64_t     completed_vpts;                 \
-                                                \
-    int         textx;                          \
-    int         texty;                          \
-    int         textc;                          \
-    TCHAR       textt[256];                     \
-    TCHAR       font_name[32];                  \
-    int         font_size;                      \
+#define VDEV_COMMON_MEMBERS        \
+    int         bufnum;            \
+    int         pixfmt;            \
+    int         vw, vh, vm;        \
+    RECT        rectr;             \
+    RECT        rectv;             \
+                                   \
+    void       *surface;           \
+    int64_t    *ppts;              \
+                                   \
+    int         head;              \
+    int         tail;              \
+    int         size;              \
+                                   \
+    pthread_mutex_t mutex;         \
+    pthread_cond_t  cond;          \
+                                   \
+    CMNVARS    *cmnvars;           \
+    int         tickavdiff;        \
+    int         tickframe;         \
+    int         ticksleep;         \
+    int64_t     ticklast;          \
+                                   \
+    int         speed;             \
+    int         status;            \
+    pthread_t   thread;            \
+                                   \
+    int         completed_counter; \
+    int64_t     completed_apts;    \
+    int64_t     completed_vpts;    \
+                                   \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts); \
-    void (*unlock  )(void *ctxt);                         \
-    void (*setrect )(void *ctxt, int x, int y, int w, int h);          \
-    void (*setparam)(void *ctxt, int id, void *param);                 \
-    void (*getparam)(void *ctxt, int id, void *param);                 \
+    void (*unlock  )(void *ctxt);  \
+    void (*setrect )(void *ctxt, int x, int y, int w, int h); \
+    void (*setparam)(void *ctxt, int id, void *param);        \
+    void (*getparam)(void *ctxt, int id, void *param);        \
     void (*destroy )(void *ctxt);
 //-- vdev context common members
+
+#define VDEV_WIN32__MEMBERS \
+    HDC      hoverlay; \
+    HBITMAP  hoverbmp; \
+    BYTE    *poverlay; \
+    RECT     overlay_rects[8];
 
 // 类型定义
 typedef struct {
     VDEV_COMMON_MEMBERS
+#ifdef WIN32
+    VDEV_WIN32__MEMBERS
+#endif
 } VDEV_COMMON_CTXT;
 
 #ifdef WIN32
 void* vdev_gdi_create(void *surface, int bufnum);
 void* vdev_d3d_create(void *surface, int bufnum);
+void  vdev_win32_render_overlay(void *surface, HDC hdc);
 #endif
 
 #ifdef ANDROID
@@ -92,15 +91,7 @@ void  vdev_reset   (void *ctxt);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
 
-#ifdef WIN32
-#define DEF_FONT_SIZE   32
-#define DEF_FONT_NAME   TEXT("Arial")
-void  vdev_textout (void *ctxt, int x, int y, int color, TCHAR *text);
-void  vdev_textcfg (void *ctxt, TCHAR *fontname, int fontsize);
-#endif
-
 // internal helper function
-int   vdev_refresh_background (void *ctxt);
 void  vdev_avsync_and_complete(void *ctxt);
 
 #ifdef __cplusplus

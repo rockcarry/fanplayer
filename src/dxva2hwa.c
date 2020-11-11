@@ -100,18 +100,14 @@ static int dxva2_alloc(AVCodecContext *s)
     int ret;
 
     ctx = (DXVA2Context*)av_mallocz(sizeof(*ctx));
-    if (!ctx) {
-        return AVERROR(ENOMEM);
-    }
+    if (!ctx) return AVERROR(ENOMEM);
 
     hwa->hwaccel_ctx = ctx;
     hwa->hwaccel_get_buffer = dxva2_get_buffer;
     hwa->hwaccel_get_format = dxva2_get_format;
     ret = av_hwdevice_ctx_create(&ctx->hw_device_ctx, AV_HWDEVICE_TYPE_DXVA2,
                                  (char*)hwa->hwaccel_d3ddev, NULL, 0);
-    if (ret < 0) {
-        goto fail;
-    }
+    if (ret < 0) goto fail;
     device_ctx   = (AVHWDeviceContext*)ctx->hw_device_ctx->data;
     device_hwctx = (AVDXVA2DeviceContext*)device_ctx->hwctx;
 
@@ -132,10 +128,7 @@ static int dxva2_alloc(AVCodecContext *s)
     }
 
     s->hwaccel_context = av_mallocz(sizeof(struct dxva_context));
-    if (!s->hwaccel_context) {
-        goto fail;
-    }
-
+    if (!s->hwaccel_context) goto fail;
     return 0;
 
 fail:
@@ -164,7 +157,6 @@ static int dxva2_get_decoder_configuration(AVCodecContext *s, const GUID *device
 
     for (i = 0; i < cfg_count; i++) {
         DXVA2_ConfigPictureDecode *cfg = &cfg_list[i];
-
         unsigned score;
         if (cfg->ConfigBitstreamRaw == 1) {
             score = 1;
@@ -221,22 +213,17 @@ static int dxva2_create_decoder(AVCodecContext *s)
         D3DFORMAT *target_list = NULL;
         unsigned  target_count = 0;
         const dxva2_mode *mode = &dxva2_modes[i];
-        if (mode->codec != s->codec_id) {
-            continue;
-        }
+        if (mode->codec != s->codec_id) continue;
 
         for (j=0; j<guid_count; j++) {
             if (IsEqualGUID(mode->guid, &guid_list[j]))
                 break;
         }
-        if (j == guid_count) {
-            continue;
-        }
+        if (j == guid_count) continue;
 
         hr = IDirectXVideoDecoderService_GetDecoderRenderTargets(ctx->decoder_service, mode->guid, &target_count, &target_list);
-        if (FAILED(hr)) {
-            continue;
-        }
+        if (FAILED(hr)) continue;
+
         for (j=0; j<target_count; j++) {
             const D3DFORMAT format = target_list[j];
             if (format == surface_format) {
@@ -262,9 +249,7 @@ static int dxva2_create_decoder(AVCodecContext *s)
     desc.Format       = target_format;
 
     ret = dxva2_get_decoder_configuration(s, &device_guid, &desc, &config);
-    if (ret < 0) {
-        goto fail;
-    }
+    if (ret < 0) goto fail;
 
     /* decoding MPEG-2 requires additional alignment on some Intel GPUs,
        but it causes issues for H.264 on certain AMD GPUs..... */
@@ -365,9 +350,7 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev)
 
     if (!hwa->hwaccel_ctx) {
         ret = dxva2_alloc(s);
-        if (ret < 0) {
-            return ret;
-        }
+        if (ret < 0) return ret;
     }
     ctx = (DXVA2Context*)hwa->hwaccel_ctx;
 

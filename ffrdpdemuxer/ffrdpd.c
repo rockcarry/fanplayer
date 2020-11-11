@@ -36,7 +36,7 @@ typedef struct {
     int              adevtype;
     int              vdevtype;
     CMNVARS         *cmnvars;
-    void*          (*render_open )(int, int, int, int64_t, int, void*, struct AVRational, int, int, int, CMNVARS*);
+    void*          (*render_open )(int, int, void*, struct AVRational, int, int, CMNVARS*);
     void           (*render_getparam        )(void*, int, void*);
     AVPacket*      (*pktqueue_request_packet)(void*);
     void           (*pktqueue_audio_enqueue )(void*, AVPacket*);
@@ -156,9 +156,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 }
             }
         }
-       *ffrdpd->render = ffrdpd->render_open(
-            ffrdpd->adevtype, ffrdpd->samprate, (*ffrdpd->acodec_context)->sample_fmt, (*ffrdpd->acodec_context)->channel_layout,
-            ffrdpd->vdevtype, ffrdpd->cmnvars->winmsg, vrate, (*ffrdpd->vcodec_context)->pix_fmt, ffrdpd->vwidth, ffrdpd->vheight, ffrdpd->cmnvars);
+       *ffrdpd->render = ffrdpd->render_open(ffrdpd->adevtype, ffrdpd->vdevtype, ffrdpd->cmnvars->winmsg, vrate, ffrdpd->vwidth, ffrdpd->vheight, ffrdpd->cmnvars);
 #ifdef WIN32
         if (vcodec && ffrdpd->cmnvars->init_params->video_hwaccel) {
             void *d3ddev = NULL; ffrdpd->render_getparam(*ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);

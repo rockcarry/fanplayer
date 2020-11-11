@@ -149,11 +149,8 @@ void adev_pause(void *ctxt, int pause)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     if (!ctxt) return;
-    if (pause) {
-        waveOutPause(c->hWaveOut);
-    } else {
-        waveOutRestart(c->hWaveOut);
-    }
+    if (pause) waveOutPause  (c->hWaveOut);
+    else       waveOutRestart(c->hWaveOut);
 }
 
 void adev_reset(void *ctxt)

@@ -78,6 +78,24 @@ static void save_fanplayer_params(PLAYER_INIT_PARAMS *params)
     }
 }
 
+static void player_textout(void *player, HFONT hfont, int x, int y, int color, TCHAR *text)
+{
+    RECT  rect[2] = { { 20, 20, 380, 75 } };
+    HDC   hdc = NULL;
+    player_getparam(player, PARAM_VDEV_GET_OVERLAY_HDC, &hdc);
+    if (hdc && text) {
+        CDC cdc;
+        cdc.Attach(hdc);
+        cdc.FillSolidRect(rect, RGB(0, 0, 100));
+        cdc.SelectObject(CFont::FromHandle(hfont));
+        cdc.SetTextColor(RGB(255, 255, 255));
+        cdc.SetBkMode(TRANSPARENT);
+        cdc.DrawText(text, -1, rect, DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+        cdc.Detach();
+    }
+    player_setparam(player, PARAM_VDEV_SET_OVERLAY_RECT, rect + (text ? 0 : 1));
+}
+
 // CplayerDlg dialog
 CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     : CDialog(CplayerDlg::IDD, pParent)
@@ -157,7 +175,7 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
 
 void CplayerDlg::PlayerShowText(int time)
 {
-    player_textout(m_ffPlayer, 20, 20, RGB(0, 255, 0), m_strTxt);
+    player_textout(m_ffPlayer, m_hFont, 20, 20, RGB(0, 255, 0), m_strTxt);
     SetTimer(TIMER_ID_HIDE_TEXT, time, NULL);
 }
 
@@ -219,6 +237,11 @@ BOOL CplayerDlg::OnInitDialog()
     // load accelerators
     m_hAcc = LoadAccelerators(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ACCELERATOR1)); 
 
+    LOGFONT logfont = {0};
+    _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), TEXT("宋体"));
+    logfont.lfHeight = 32;
+    m_hFont = CreateFontIndirect(&logfont);
+
     // TODO: Add extra initialization here
     MoveWindow(0, 0, 800, 480);
 
@@ -267,11 +290,6 @@ void CplayerDlg::OnPaint()
         } else {
             SetWindowText(pos == -1 ? TEXT("testplayer - buffering") : TEXT("testplayer"));
         }
-#if 0 // for player_testout test
-        static int x = 0;
-        x++; x %= m_rtClient.right;
-        player_textout(m_ffPlayer, x, 10, 0x00ff00, "testplayer textout test !");
-#endif
         CDialog::OnPaint();
     }
 }
@@ -298,6 +316,10 @@ void CplayerDlg::OnDestroy()
     player_close(m_ffPlayer);
     m_ffPlayer = NULL;
 
+    // delete font
+    DeleteObject(m_hFont);
+    m_hFont = NULL;
+
     // uninit COM
     CoUninitialize();
 }
@@ -323,15 +345,15 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
 
     case TIMER_ID_HIDE_TEXT:
         KillTimer(TIMER_ID_HIDE_TEXT);
-        player_textout(m_ffPlayer, 0, 0, 0, NULL);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, NULL);
         m_strTxt[0] = '\0';
         break;
 
     case TIMER_ID_DISP_DEFINITIONVAL: {
             float val;
             player_getparam(m_ffPlayer, PARAM_DEFINITION_VALUE, &val);
-            _stprintf(m_strTxt, TEXT("清晰度 %.1f"), val);
-            player_textout(m_ffPlayer, 20, 20, RGB(0, 255, 0), m_strTxt);
+            _stprintf(m_strTxt, TEXT("清晰度 %3.1f"), val);
+            player_textout(m_ffPlayer, m_hFont, 20, 20, RGB(0, 255, 0), m_strTxt);
         }
         break;
 
@@ -569,7 +591,7 @@ void CplayerDlg::OnDefinitionEval()
         SetTimer(TIMER_ID_DISP_DEFINITIONVAL, 200, NULL);
     } else {
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
-        player_textout(m_ffPlayer, 0, 0, 0, NULL);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, NULL);
     }
 }
 

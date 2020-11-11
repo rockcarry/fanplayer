@@ -38,7 +38,7 @@ static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], i
     if (c->status & VDEV_ANDROID_UPDATE_WIN) {
         if (c->win    ) { ANativeWindow_release(c->win); c->win = NULL; }
         if (c->surface) c->win = ANativeWindow_fromSurface(get_jni_env(), (jobject)c->surface);
-        if (c->win    ) ANativeWindow_setBuffersGeometry(c->win, c->sw, c->sh, DEF_WIN_PIX_FMT);
+        if (c->win    ) ANativeWindow_setBuffersGeometry(c->win, c->vw, c->vh, DEF_WIN_PIX_FMT);
         c->status &= ~VDEV_ANDROID_UPDATE_WIN;
     }
     if (c->win) {
@@ -46,6 +46,8 @@ static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], i
         ANativeWindow_lock(c->win, &winbuf, NULL);
         if (buffer  ) buffer  [0] = (uint8_t*)winbuf.bits;
         if (linesize) linesize[0] = winbuf.stride * 4;
+        if (linesize) linesize[6] = c->vw;
+        if (linesize) linesize[7] = c->vh;
     }
     c->cmnvars->vpts = pts;
 }

@@ -22,6 +22,7 @@ protected:
 protected:
     HICON  m_hIcon;
     HACCEL m_hAcc;
+    HFONT  m_hFont;
 
     // Generated message map functions
     virtual BOOL OnInitDialog();

@@ -1,10 +1,5 @@
 // 包含头文件
 #include "vdev.h"
-
-#ifdef WIN32
-#include <tchar.h>
-#endif
-
 #include "libavutil/log.h"
 #include "libavutil/time.h"
 
@@ -20,24 +15,38 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum); break;
     case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum); break;
     }
+    if (1) {
+        BITMAPINFO bmpinfo = {0};
+        HDC        hdc     = NULL;
+        hdc = GetDC((HWND)c->surface);
+        c->hoverlay = CreateCompatibleDC(hdc);
+        bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
+        bmpinfo.bmiHeader.biWidth       =  GetSystemMetrics(SM_CXSCREEN);
+        bmpinfo.bmiHeader.biHeight      = -GetSystemMetrics(SM_CYSCREEN);
+        bmpinfo.bmiHeader.biPlanes      =  1;
+        bmpinfo.bmiHeader.biBitCount    =  32;
+        bmpinfo.bmiHeader.biCompression =  BI_RGB;
+        c->hoverbmp = CreateDIBSection(c->hoverlay, &bmpinfo, DIB_RGB_COLORS, &c->poverlay, NULL, 0);
+        SelectObject(c->hoverlay, c->hoverbmp);
+        ReleaseDC((HWND)c->surface, hdc);
+    }
     if (!c) return NULL;
-    _tcscpy(c->font_name, DEF_FONT_NAME);
-    c->font_size = DEF_FONT_SIZE;
-    c->status   |= VDEV_CONFIG_FONT;
 #endif
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum);
     if (!c) return NULL;
     c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
-    c->surface   = surface;
-    c->w         = MAX(w, 1);
-    c->h         = MAX(h, 1);
-    c->sw        = MAX(w, 1);
-    c->sh        = MAX(h, 1);
-    c->tickframe = ftime;
-    c->ticksleep = ftime;
-    c->cmnvars   = cmnvars;
+    c->surface     = surface;
+    c->vw          = w;
+    c->vh          = h;
+    c->rectr.right = MAX(w - 1, 1);
+    c->rectr.bottom= MAX(h - 1, 1);
+    c->rectv.right = MAX(w - 1, 1);
+    c->rectv.bottom= MAX(h - 1, 1);
+    c->tickframe   = ftime;
+    c->ticksleep   = ftime;
+    c->cmnvars     = cmnvars;
     return c;
 }
 
@@ -55,6 +64,10 @@ void vdev_destroy(void *ctxt)
     }
     //-- rendering thread safely exit
 
+#ifdef WIN32
+    DeleteDC(c->hoverlay);
+    DeleteObject(c->hoverbmp);
+#endif
     if (c->destroy) c->destroy(c);
 }
 
@@ -73,9 +86,11 @@ void vdev_unlock(void *ctxt)
 void vdev_setrect(void *ctxt, int x, int y, int w, int h)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->x = x; c->y = y;
-    c->w = w; c->h = h;
-    c->status |= VDEV_ERASE_BG0;
+    pthread_mutex_lock(&c->mutex);
+    c->rectr.left  = x;         c->rectr.top    = y;
+    c->rectr.right = x + w - 1; c->rectr.bottom = y + h - 1;
+    pthread_mutex_unlock(&c->mutex);
+    vdev_setparam(c, PARAM_VIDEO_MODE, &c->vm);
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
 
@@ -83,18 +98,14 @@ void vdev_pause(void *ctxt, int pause)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     if (!ctxt) return;
-    if (pause) {
-        c->status |=  VDEV_PAUSE;
-    } else {
-        c->status &= ~VDEV_PAUSE;
-    }
+    if (pause) c->status |=  VDEV_PAUSE;
+    else       c->status &= ~VDEV_PAUSE;
 }
 
 void vdev_reset(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     if (!ctxt) return;
-    c->status &= VDEV_CONFIG_FONT;
 }
 
 void vdev_setparam(void *ctxt, int id, void *param)
@@ -102,12 +113,43 @@ void vdev_setparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     if (!ctxt) return;
     switch (id) {
+    case PARAM_VIDEO_MODE:
+        {
+            int rw = c->rectr.right - c->rectr.left + 1, rh = c->rectr.bottom - c->rectr.top + 1, vw, vh;
+            if (*(int*)param == VIDEO_MODE_LETTERBOX) {
+                if (rw * c->vh < rh * c->vw) {
+                    vw = rw; vh = vw * c->vh / c->vw;
+                } else {
+                    vh = rh; vw = vh * c->vw / c->vh;
+                }
+            } else { vw = rw; vh = rh; }
+            pthread_mutex_lock(&c->mutex);
+            c->rectv.left  = (rw - vw) / 2;
+            c->rectv.top   = (rh - vh) / 2;
+            c->rectv.right = c->rectv.left + vw - 1;
+            c->rectv.bottom= c->rectv.top  + vh - 1;
+            c->vm      = *(int*)param;
+            c->status |= VDEV_CLEAR;
+            pthread_mutex_unlock(&c->mutex);
+        }
+        break;
     case PARAM_PLAY_SPEED_VALUE:
         if (param) c->speed = *(int*)param;
         break;
     case PARAM_AVSYNC_TIME_DIFF:
         if (param) c->tickavdiff = *(int*)param;
         break;
+#ifdef WIN32
+    case PARAM_VDEV_SET_OVERLAY_RECT:
+        if (param) {
+            int i;
+            for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]); i++) {
+                c->overlay_rects[i] = ((RECT*)param)[i];
+                if (((RECT*)param)[i].left == 0 && ((RECT*)param)[i].top == 0 && ((RECT*)param)[i].right == 0 && ((RECT*)param)[i].bottom == 0) break;
+            }
+        } else memset(&(c->overlay_rects[0]), 0, sizeof(RECT));
+        break;
+#endif
     }
     if (c->setparam) c->setparam(c, id, param);
 }
@@ -116,68 +158,17 @@ void vdev_getparam(void *ctxt, int id, void *param)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     if (!ctxt || !param) return;
-
     switch (id) {
-    case PARAM_PLAY_SPEED_VALUE:
-        *(int*)param = c->speed;
+    case PARAM_VIDEO_MODE      : *(int*)param = c->vm;         break;
+    case PARAM_PLAY_SPEED_VALUE: *(int*)param = c->speed;      break;
+    case PARAM_AVSYNC_TIME_DIFF: *(int*)param = c->tickavdiff; break;
+#ifdef WIN32
+    case PARAM_VDEV_GET_OVERLAY_HDC:
+        *(HDC*)param = c->hoverlay;
         break;
-    case PARAM_AVSYNC_TIME_DIFF:
-        *(int*)param = c->tickavdiff;
-        break;
+#endif
     }
     if (c->getparam) c->getparam(c, id, param);
-}
-
-#ifdef WIN32
-void vdev_textout(void *ctxt, int x, int y, int color, TCHAR *text)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->textx = x;
-    c->texty = y;
-    c->textc = color;
-    if (text) {
-        _tcscpy_s(c->textt, _countof(c->textt), text);
-    } else {
-        c->textt[0] = TEXT('\0');
-    }
-}
-
-void vdev_textcfg(void *ctxt, TCHAR *fontname, int fontsize)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->font_size = fontsize;
-    _tcscpy_s(c->font_name, _countof(c->font_name), fontname);
-    c->status |= VDEV_CONFIG_FONT;
-}
-#endif
-
-int vdev_refresh_background(void *ctxt)
-{
-    int ret = 1;
-#ifdef WIN32
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    RECT rtwin, rect1, rect2, rect3, rect4;
-    int  x = c->x, y = c->y, w = c->w, h = c->h;
-    HWND hwnd = (HWND)c->surface;
-    if (c->status & VDEV_ERASE_BG0) {
-        c->status &= ~VDEV_ERASE_BG0;
-        GetClientRect(hwnd, &rtwin);
-        rect1.left = 0;   rect1.top = 0;   rect1.right = rtwin.right; rect1.bottom = y;
-        rect2.left = 0;   rect2.top = y;   rect2.right = x;           rect2.bottom = y+h;
-        rect3.left = x+w; rect3.top = y;   rect3.right = rtwin.right; rect3.bottom = y+h;
-        rect4.left = 0;   rect4.top = y+h; rect4.right = rtwin.right; rect4.bottom = rtwin.bottom;
-        InvalidateRect(hwnd, &rect1, TRUE);
-        InvalidateRect(hwnd, &rect2, TRUE);
-        InvalidateRect(hwnd, &rect3, TRUE);
-        InvalidateRect(hwnd, &rect4, TRUE);
-    }
-    if (c->status & VDEV_ERASE_BG1) {
-        rect1.left = x; rect1.top = y; rect1.right = x + w; rect1.bottom = y + h;
-        InvalidateRect(hwnd, &rect1, TRUE);
-        ret = 0;
-    }
-#endif
-    return ret;
 }
 
 void vdev_avsync_and_complete(void *ctxt)
@@ -229,3 +220,58 @@ void vdev_avsync_and_complete(void *ctxt)
     if (c->ticksleep > 0 && c->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_LIVE_SYNC0) av_usleep(c->ticksleep * 1000);
     av_log(NULL, AV_LOG_INFO, "d: %3d, s: %3d\n", avdiff, c->ticksleep);
 }
+
+#ifdef WIN32
+void vdev_win32_render_overlay(void *ctxt, HDC hdc)
+{
+    VDEV_COMMON_CTXT *c   = (VDEV_COMMON_CTXT*)ctxt;
+    BLENDFUNCTION     func= {0};
+    RECT              rect= {0};
+    int               i;
+
+    if (memcmp(&rect, c->overlay_rects, sizeof(RECT)) == 0) {
+        c->status |= VDEV_CLEAR;
+        return;
+    }
+
+    func.BlendOp             = AC_SRC_OVER;
+    func.SourceConstantAlpha = 180;
+    for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]); i++) {
+        if (c->rectv.top > c->overlay_rects[i].top) {
+            rect.left   = c->overlay_rects[i].left;
+            rect.right  = c->overlay_rects[i].right;
+            rect.top    = c->overlay_rects[i].top;
+            rect.bottom = c->rectv.top;
+            FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
+        }
+        if (c->rectv.bottom < c->overlay_rects[i].bottom) {
+            rect.left   = c->overlay_rects[i].left;
+            rect.right  = c->overlay_rects[i].right;
+            rect.top    = c->rectv.bottom;
+            rect.bottom = c->overlay_rects[i].bottom;
+            FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
+        }
+        if (c->rectv.left > c->overlay_rects[i].left) {
+            rect.left   = c->overlay_rects[i].left;
+            rect.right  = c->rectv.left;
+            rect.top    = c->overlay_rects[i].top;
+            rect.bottom = c->overlay_rects[i].bottom;
+            FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
+        }
+        if (c->rectv.right < c->overlay_rects[i].right) {
+            rect.left   = c->rectv.right;
+            rect.right  = c->overlay_rects[i].right;
+            rect.top    = c->overlay_rects[i].top;
+            rect.bottom = c->overlay_rects[i].bottom;
+            FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
+        }
+        AlphaBlend(hdc, c->overlay_rects[i].left, c->overlay_rects[i].top,
+            c->overlay_rects[i].right - c->overlay_rects[i].left,
+            c->overlay_rects[i].bottom- c->overlay_rects[i].top ,
+            c->hoverlay,c->overlay_rects[i].left, c->overlay_rects[i].top,
+            c->overlay_rects[i].right - c->overlay_rects[i].left,
+            c->overlay_rects[i].bottom- c->overlay_rects[i].top , func);
+        if (c->overlay_rects[i].left == 0 && c->overlay_rects[i].top == 0 && c->overlay_rects[i].right == 0 && c->overlay_rects[i].bottom == 0) break;
+    }
+}
+#endif

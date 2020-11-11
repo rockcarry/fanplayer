@@ -12,7 +12,6 @@
 #define DEF_VDEV_BUF_NUM       3
 #define VDEV_D3D_SET_RECT     (1 << 16)
 #define VDEV_D3D_SET_ROTATE   (1 << 17)
-#define VDEV_D3D_DXVA2        (1 << 18)
 
 // 内部类型定义
 typedef LPDIRECT3D9 (WINAPI *PFNDirect3DCreate9)(UINT);
@@ -20,14 +19,15 @@ typedef LPDIRECT3D9 (WINAPI *PFNDirect3DCreate9)(UINT);
 typedef struct {
     // common members
     VDEV_COMMON_MEMBERS
+    VDEV_WIN32__MEMBERS
 
     HMODULE                 hDll ;
     LPDIRECT3D9             pD3D9;
     LPDIRECT3DDEVICE9       pD3DDev;
+    LPDIRECT3DSURFACE9      surfb;     // black color surface
     LPDIRECT3DSURFACE9     *surfs;     // offset screen surfaces
-    LPDIRECT3DSURFACE9      surfw;     // surface keeps same size as window
+    LPDIRECT3DSURFACE9      surfw;     // surface keeps same size as render window
     LPDIRECT3DSURFACE9      bkbuf;     // back buffer surface
-    LPDIRECT3DSURFACE9      surflocked;// current locked surface
     D3DPRESENT_PARAMETERS   d3dpp;
     D3DFORMAT               d3dfmt;
 
@@ -36,8 +36,6 @@ typedef struct {
     LPDIRECT3DSURFACE9      surft;     // surface of texture
     LPDIRECT3DSURFACE9      surfr;     // surface for rotate
     int                     rotate;    // rotate angle
-
-    HFONT                   hfont;
 } VDEVD3DCTXT;
 
 typedef struct {
@@ -121,21 +119,20 @@ static void d3d_release_for_rotate(VDEVD3DCTXT *c)
 
 static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 {
-    RECT    rect    = { c->x, c->y, c->x + c->w, c->y + c->h };
-    LOGFONT logfont = {0};
-    HDC     hdc;
+    D3DSURFACE_DESC desc = {0};
+    D3DLOCKED_RECT  rect = {0};
+    HDC             hdc  = NULL;
 
     if (c->rotate && (c->status & VDEV_D3D_SET_ROTATE)) {
-        d3d_reinit_for_rotate(c, c->sw, c->sh, c->rotate);
+        d3d_reinit_for_rotate(c, c->vw, c->vh, c->rotate);
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
-    if ((c->textt[0] || (c->status & VDEV_D3D_DXVA2)) && (c->status & VDEV_D3D_SET_RECT)) {
-        if (c->surfw) IDirect3DSurface9_Release(c->surfw);
-        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
-            c->w, c->h, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
-            c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
-        if (c->surfw) c->status &= ~VDEV_D3D_SET_RECT;
+    if (c->surfw) IDirect3DSurface9_GetDesc(c->surfw, &desc);
+    if (desc.Width != c->rectr.right - c->rectr.left + 1 || desc.Height != c->rectr.bottom - c->rectr.top + 1) {
+        if (c->surfw) { IDirect3DSurface9_Release(c->surfw); c->surfw = NULL; }
+        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rectr.right - c->rectr.left + 1, c->rectr.bottom - c->rectr.top + 1,
+            c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
     }
 
     if (c->rotate && c->surft && c->surfr) {
@@ -152,29 +149,13 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         }
     }
 
-    if ((c->textt[0] || (c->status & VDEV_D3D_DXVA2)) && c->surfw) {
-        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surfw, NULL, D3DTEXF_LINEAR);
-
-        if (c->status & VDEV_CONFIG_FONT) {
-            c->status &= ~VDEV_CONFIG_FONT;
-            logfont.lfHeight = c->font_size;
-            _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), c->font_name);
-            if (c->hfont) DeleteObject(c->hfont);
-            c->hfont = CreateFontIndirect(&logfont);
-        }
-
-        IDirect3DSurface9_GetDC(c->surfw, &hdc);
-        SelectObject(hdc, c->hfont);
-        SetTextColor(hdc, c->textc);
-        SetBkMode   (hdc, TRANSPARENT);
-        TextOut(hdc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
-        IDirect3DSurface9_ReleaseDC(c->surfw, hdc);
-
-        surf = c->surfw;
-    }
-
-    IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR);
-    IDirect3DDevice9_Present(c->pD3DDev, NULL, &rect, NULL, NULL);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL     , D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, &c->rectv, D3DTEXF_POINT);
+    IDirect3DSurface9_GetDC     (c->surfw, &hdc);
+    vdev_win32_render_overlay   (c, hdc        );
+    IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR);
+    IDirect3DDevice9_Present(c->pD3DDev, NULL, &c->rectr, NULL, NULL);
 }
 
 static void* video_render_thread_proc(void *param)
@@ -186,7 +167,7 @@ static void* video_render_thread_proc(void *param)
         while (c->size <= 0 && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
         if (c->size > 0) {
             c->size--;
-            if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
+            if (c->ppts[c->head] != -1) {
                 d3d_draw_surf(c, c->surfs[c->head]);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
@@ -205,52 +186,38 @@ static void* video_render_thread_proc(void *param)
 
 static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts)
 {
-    VDEVD3DCTXT    *c = (VDEVD3DCTXT*)ctxt;
+    VDEVD3DCTXT    *c    = (VDEVD3DCTXT*)ctxt;
+    D3DSURFACE_DESC desc = {0};
     D3DLOCKED_RECT  rect;
 
     pthread_mutex_lock(&c->mutex);
     while (c->size >= c->bufnum && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
     if (c->size < c->bufnum) {
         c->ppts[c->tail] = pts;
-        if (!c->surfs[c->tail]) {
-            // create surface
-            if (FAILED(IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev,
-                       c->sw, c->sh, c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL))) {
-                av_log(NULL, AV_LOG_ERROR, "failed to create d3d off screen plain surface !\n");
-                return;
-            }
+        if (c->surfs[c->tail]) IDirect3DSurface9_GetDesc(c->surfs[c->tail], &desc);
+        if (desc.Width != c->rectv.right - c->rectv.left + 1 || desc.Height != c->rectv.bottom - c->rectv.top + 1) {
+            if (c->surfs[c->tail]) { IDirect3DSurface9_Release(c->surfs[c->tail]); c->surfs[c->tail] = NULL; }
+            IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev, c->rectv.right - c->rectv.left + 1, c->rectv.bottom - c->rectv.top + 1,
+                c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL);
+            if (c->surfs[c->tail] == NULL) return;
         }
 
         // lock texture rect
         IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
-        c->surflocked = c->surfs[c->tail];
         if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
         if (linesize) linesize[0] = rect.Pitch;
-        if (++c->tail == c->bufnum) c->tail = 0;
-        c->size++;
-        pthread_cond_signal(&c->cond);
+        if (linesize) linesize[6] = c->rectv.right  - c->rectv.left + 1;
+        if (linesize) linesize[7] = c->rectv.bottom - c->rectv.top  + 1;
     }
 }
 
 static void vdev_d3d_unlock(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
-    if (c->surflocked) {
-        IDirect3DSurface9_UnlockRect(c->surflocked);
-        c->surflocked = NULL;
-    }
+    if (c->surfs[c->tail]) IDirect3DSurface9_UnlockRect(c->surfs[c->tail]);
+    if (++c->tail == c->bufnum) c->tail = 0;
+    c->size++; pthread_cond_signal(&c->cond);
     pthread_mutex_unlock(&c->mutex);
-}
-
-static void vdev_d3d_setrect(void *ctxt, int x, int y, int w, int h)
-{
-    VDEVD3DCTXT    *c    = (VDEVD3DCTXT*)ctxt;
-    D3DSURFACE_DESC desc = {0};
-    if (!c->surfw || SUCCEEDED(IDirect3DSurface9_GetDesc(c->surfw, &desc))) {
-        if (desc.Width != w || desc.Height != h) {
-            c->status |= VDEV_D3D_SET_RECT;
-        }
-    }
 }
 
 void vdev_d3d_setparam(void *ctxt, int id, void *param)
@@ -259,10 +226,8 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     if (!ctxt || !param) return;
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
-        if (vdev_refresh_background(c) && ((AVFrame*)param)->pts != -1) {
-            c->status |= VDEV_D3D_DXVA2;
+        if (((AVFrame*)param)->pts != -1) {
             d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-            c->status &=~VDEV_D3D_DXVA2;
             c->cmnvars->vpts = ((AVFrame*)param)->pts;
         }
         vdev_avsync_and_complete(c);
@@ -304,9 +269,10 @@ static void vdev_d3d_destroy(void *ctxt)
         }
     }
 
-    if (c->surfw  ) IDirect3DSurface9_Release(c->surfw);
-    if (c->bkbuf  ) IDirect3DSurface9_Release(c->bkbuf);
-    if (c->pD3DDev) IDirect3DDevice9_Release(c->pD3DDev);
+    if (c->surfb  ) IDirect3DSurface9_Release(c->surfb  );
+    if (c->surfw  ) IDirect3DSurface9_Release(c->surfw  );
+    if (c->bkbuf  ) IDirect3DSurface9_Release(c->bkbuf  );
+    if (c->pD3DDev) IDirect3DDevice9_Release (c->pD3DDev);
     if (c->pD3D9  ) IDirect3D9_Release(c->pD3D9);
     if (c->hDll   ) FreeLibrary(c->hDll);
 
@@ -338,11 +304,9 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->bufnum   = bufnum;
     ctxt->lock     = vdev_d3d_lock;
     ctxt->unlock   = vdev_d3d_unlock;
-    ctxt->setrect  = vdev_d3d_setrect;
     ctxt->setparam = vdev_d3d_setparam;
     ctxt->getparam = vdev_d3d_getparam;
     ctxt->destroy  = vdev_d3d_destroy;
-    ctxt->status   = VDEV_D3D_SET_RECT;
 
     // alloc buffer & semaphore
     ctxt->ppts  = (int64_t*)calloc(bufnum, sizeof(int64_t));
@@ -393,19 +357,25 @@ void* vdev_d3d_create(void *surface, int bufnum)
 
     //++ try pixel format
     if (SUCCEEDED(IDirect3DDevice9_CreateOffscreenPlainSurface(ctxt->pD3DDev,
-            1, 1, D3DFMT_YUY2, D3DPOOL_DEFAULT, &ctxt->surfs[0], NULL))) {
+            2, 2, D3DFMT_YUY2, D3DPOOL_DEFAULT, &ctxt->surfb, NULL))) {
         ctxt->d3dfmt = D3DFMT_YUY2;
         ctxt->pixfmt = AV_PIX_FMT_YUYV422;
     } else if (SUCCEEDED(IDirect3DDevice9_CreateOffscreenPlainSurface(ctxt->pD3DDev,
-            1, 1, D3DFMT_UYVY, D3DPOOL_DEFAULT, &ctxt->surfs[0], NULL))) {
+            2, 2, D3DFMT_UYVY, D3DPOOL_DEFAULT, &ctxt->surfb, NULL))) {
         ctxt->d3dfmt = D3DFMT_UYVY;
         ctxt->pixfmt = AV_PIX_FMT_UYVY422;
     } else {
         ctxt->d3dfmt = D3DFMT_X8R8G8B8;
         ctxt->pixfmt = AV_PIX_FMT_RGB32;
     }
-    IDirect3DSurface9_Release(ctxt->surfs[0]);
-    ctxt->surfs[0] = NULL;
+    if (ctxt->surfb) { IDirect3DSurface9_Release(ctxt->surfb); ctxt->surfb = NULL; }
+    IDirect3DDevice9_CreateOffscreenPlainSurface(ctxt->pD3DDev, 2, 2, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &ctxt->surfb, NULL);
+    if (ctxt->surfb) {
+        D3DLOCKED_RECT rect;
+        IDirect3DSurface9_LockRect(ctxt->surfb, &rect, NULL, D3DLOCK_DISCARD);
+        memset(rect.pBits, 0, 2 * rect.Pitch);
+        IDirect3DSurface9_UnlockRect(ctxt->surfb);
+    }
     //-- try pixel format
 
     // create video rendering thread

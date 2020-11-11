@@ -96,13 +96,13 @@ enum {
     PARAM_VDEV_POST_SURFACE,
     PARAM_VDEV_GET_D3DDEV,
     PARAM_VDEV_D3D_ROTATE,
+    PARAM_VDEV_GET_OVERLAY_HDC,
+    PARAM_VDEV_SET_OVERLAY_RECT,
     //-- for vdev
 
     //++ for render
     PARAM_RENDER_GET_CONTEXT = 0x4000,
     PARAM_RENDER_STEPFORWARD,
-    PARAM_RENDER_REINIT_A,
-    PARAM_RENDER_REINIT_V,
     PARAM_RENDER_VDEV_WIN,
     //-- for render
 };
@@ -185,11 +185,6 @@ int   player_record  (void *hplayer, char *file);
 void  player_setparam(void *hplayer, int id, void *param);
 void  player_getparam(void *hplayer, int id, void *param);
 
-#ifdef WIN32
-void  player_textout (void *hplayer, int x, int y, int color, TCHAR *text);
-void  player_textcfg (void *hplayer, TCHAR *fontname, int fontsize);
-#endif
-
 // internal helper function
 void  player_send_message(void *extra, int32_t msg, int64_t param);
 void  player_load_params (PLAYER_INIT_PARAMS *params, char *str);
@@ -236,17 +231,6 @@ player_snapshot 视频播放截图
 player_record   将当前播放器的视频录像保存
     hplayer     - 指向 player_open 返回的 player 对象
     file        - 录像文件名，仅支持 .mp4 格式，传入 NULL 为停止录像
-
-player_textout  在视频显示上叠加文字输出
-    hplayer     - 指向 player_open 返回的 player 对象
-    x, y        - 文字输出坐标
-    color       - 文字颜色
-    text        - 文字字符串
-
-player_textcfg  叠加文字输出的字体设置
-    hplayer     - 指向 player_open 返回的 player 对象
-    fontname    - 字体名
-    fontsize    - 字体大小
 
 player_setparam 设置参数
     hplayer     - 指向 player_open 返回的 player 对象

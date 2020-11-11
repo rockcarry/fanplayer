@@ -42,13 +42,8 @@ typedef struct {
     AVRational       vstream_timebase;
     AVFrame          vframe;
 
-    // pktqueue
-    void            *pktqueue;
-
-    // render
-    void            *render;
-    RECT             vdrect;
-    int              vdmode;
+    void            *pktqueue; // pktqueue
+    void            *render;   // render
 
     // thread
     #define PS_A_PAUSE    (1 << 0)  // audio decoding pause
@@ -226,11 +221,7 @@ static void vfilter_graph_input(PLAYER *player, AVFrame *frame)
 
 static int vfilter_graph_output(PLAYER *player, AVFrame *frame)
 {
-    if (player->vfilter_graph) {
-        return av_buffersink_get_frame(player->vfilter_sink_ctx, frame);
-    } else {
-        return 0;
-    }
+    return player->vfilter_graph ? av_buffersink_get_frame(player->vfilter_sink_ctx, frame) : 0;
 }
 //-- for filter graph
 
@@ -476,10 +467,8 @@ static int player_prepare(PLAYER *player)
     vfilter_graph_init(player);
 
     // open render
-    player->render = render_open(
-        player->init_params.adev_render_type, arate, aformat, alayout,
-        player->init_params.vdev_render_type, player->cmnvars.winmsg, vrate, vformat,
-        player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
+    player->render = render_open(player->init_params.adev_render_type, player->init_params.vdev_render_type,
+        player->cmnvars.winmsg, vrate, player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
 
     if (player->vstream_index == -1) {
         int effect = VISUAL_EFFECT_WAVEFORM;
@@ -531,7 +520,6 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
     }
 
     if (reconnect) {
-        VDEV_COMMON_CTXT *vdev = NULL;
         vfilter_graph_free(player);
         if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
         if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
@@ -539,12 +527,9 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
         av_frame_unref(&player->aframe); player->aframe.pts = -1;
         av_frame_unref(&player->vframe); player->vframe.pts = -1;
 
-        player_getparam(player, PARAM_VDEV_GET_CONTEXT, &vdev);
-        if (vdev) vdev->status |= VDEV_ERASE_BG1;
         player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, (int64_t)player);
         player_prepare(player);
         player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , (int64_t)player);
-        if (vdev) vdev->status &=~VDEV_ERASE_BG1;
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
         if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
@@ -737,8 +722,6 @@ static void* video_decode_thread_proc(void *param)
                 player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
                 vfilter_graph_free(player);
                 vfilter_graph_init(player);
-                player_setparam(player, PARAM_RENDER_REINIT_V, &player->init_params.video_owidth);
-                player_setparam(player, PARAM_VIDEO_MODE, &player->vdmode);
                 player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
             }
 
@@ -946,38 +929,8 @@ void player_pause(void *hplayer)
 void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
 {
     PLAYER *player = (PLAYER*)hplayer;
-    int    rw, rh, vw, vh;
     if (!hplayer) return;
-
-    //++ if set visual effect rect
-    if (type == 1) {
-        render_setrect(player->render, type, x, y, w, h);
-        return;
-    }
-    //-- if set visual effect rect
-
-    rw = rh = 0;
-    vw = player->init_params.video_owidth ;
-    vh = player->init_params.video_oheight;
-    if (!vw || !vh) return;
-
-    player->vdrect.left   = x;
-    player->vdrect.top    = y;
-    player->vdrect.right  = x + w;
-    player->vdrect.bottom = y + h;
-
-    switch (player->vdmode)
-    {
-    case VIDEO_MODE_LETTERBOX:
-        if (w * vh < h * vw) { rw = w; rh = rw * vh / vw; }
-        else                 { rh = h; rw = rh * vw / vh; }
-        break;
-    case VIDEO_MODE_STRETCHED: rw = w; rh = h; break;
-    }
-
-    if (rw <= 0) rw = 1;
-    if (rh <= 0) rh = 1;
-    render_setrect(player->render, type, x + (w - rw) / 2, y + (h - rh) / 2, rw, rh);
+    render_setrect(player->render, type, x, y, w, h);
 }
 
 void player_seek(void *hplayer, int64_t ms, int type)
@@ -1039,32 +992,8 @@ void player_setparam(void *hplayer, int id, void *param)
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
 
-    switch (id)
-    {
-    case PARAM_VIDEO_MODE:
-        player->vdmode = *(int*)param;
-        player_setrect(hplayer, 0,
-            player->vdrect.left, player->vdrect.top,
-            player->vdrect.right - player->vdrect.left,
-            player->vdrect.bottom - player->vdrect.top);
-        break;
-    case PARAM_VDEV_D3D_ROTATE: {
-            double radian = (*(int*)param) * M_PI / 180;
-            player->init_params.video_owidth = abs((int)(player->vcodec_context->width  * cos(radian)))
-                                             + abs((int)(player->vcodec_context->height * sin(radian)));
-            player->init_params.video_oheight= abs((int)(player->vcodec_context->width  * sin(radian)))
-                                             + abs((int)(player->vcodec_context->height * cos(radian)));
-            render_setparam(player->render, id, param);
-            player_setrect(hplayer, 0,
-                player->vdrect.left, player->vdrect.top,
-                player->vdrect.right - player->vdrect.left,
-                player->vdrect.bottom - player->vdrect.top);
-
-        }
-        break;
-    default:
-        render_setparam(player->render, id, param);
-        break;
+    switch (id) {
+    default: render_setparam(player->render, id, param); break;
     }
 }
 
@@ -1094,9 +1023,6 @@ void player_getparam(void *hplayer, int id, void *param)
         if (!player->vcodec_context) *(int*)param = 0;
         else *(int*)param = player->init_params.video_oheight;
         break;
-    case PARAM_VIDEO_MODE:
-        *(int*)param = player->vdmode;
-        break;
     case PARAM_RENDER_GET_CONTEXT:
         *(void**)param = player->render;
         break;
@@ -1108,22 +1034,6 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     }
 }
-
-#ifdef WIN32
-void player_textout(void *hplayer, int x, int y, int color, TCHAR *text)
-{
-    void *vdev = NULL;
-    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
-    if (vdev) vdev_textout(vdev, x, y, color, text);
-}
-
-void player_textcfg(void *hplayer, TCHAR *fontname, int fontsize)
-{
-    void *vdev = NULL;
-    player_getparam((void*)hplayer, PARAM_VDEV_GET_CONTEXT, &vdev);
-    if (vdev) vdev_textcfg(vdev, fontname, fontsize);
-}
-#endif
 
 void player_send_message(void *extra, int32_t msg, int64_t param) {
 #ifdef WIN32

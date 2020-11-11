@@ -10,42 +10,28 @@
 typedef struct {
     // common members
     VDEV_COMMON_MEMBERS
-
+    VDEV_WIN32__MEMBERS
     HDC      hdcsrc;
     HDC      hdcdst;
     HBITMAP *hbitmaps;
     BYTE   **pbmpbufs;
-    HFONT    hfont;
+    int      nclear;
 } VDEVGDICTXT;
 
 // 内部函数实现
 static void* video_render_thread_proc(void *param)
 {
     VDEVGDICTXT  *c = (VDEVGDICTXT*)param;
-    LOGFONT logfont = {0};
-    HFONT     hfont = NULL;
 
     while (!(c->status & VDEV_CLOSE)) {
         pthread_mutex_lock(&c->mutex);
         while (c->size <= 0 && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
         if (c->size > 0) {
             c->size--;
-            if (vdev_refresh_background(c) && c->ppts[c->head] != -1) {
+            if (c->ppts[c->head] != -1) {
                 SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
-                if (c->textt[0]) {
-                    if (c->status & VDEV_CONFIG_FONT) {
-                        c->status &= ~VDEV_CONFIG_FONT;
-                        _tcscpy_s(logfont.lfFaceName, _countof(logfont.lfFaceName), c->font_name);
-                        logfont.lfHeight = c->font_size;
-                        hfont = CreateFontIndirect(&logfont);
-                        SelectObject(c->hdcsrc, hfont);
-                        if (c->hfont) DeleteObject(c->hfont);
-                        c->hfont = hfont;
-                    }
-                    SetTextColor(c->hdcsrc, c->textc);
-                    TextOut(c->hdcsrc, c->textx, c->texty, c->textt, (int)_tcslen(c->textt));
-                }
-                BitBlt(c->hdcdst, c->x, c->y, c->w, c->h, c->hdcsrc, 0, 0, SRCCOPY);
+                vdev_win32_render_overlay(c, c->hdcsrc);
+                BitBlt(c->hdcdst, c->rectr.left, c->rectr.top, c->rectr.right - c->rectr.left + 1, c->rectr.bottom - c->rectr.top + 1, c->hdcsrc, 0, 0, SRCCOPY);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
@@ -79,49 +65,45 @@ static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
             bmph = bitmap.bmHeight;
         }
 
-        if (bmpw != c->w || bmph != c->h) {
-            c->sw = c->w; c->sh = c->h;
-            if (c->hbitmaps[c->tail]) {
-                DeleteObject(c->hbitmaps[c->tail]);
-            }
-
+        if (bmpw != c->rectr.right - c->rectr.left + 1 || bmph != c->rectr.bottom - c->rectr.top + 1) {
+            if (c->hbitmaps[c->tail]) DeleteObject(c->hbitmaps[c->tail]);
             bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
-            bmpinfo.bmiHeader.biWidth       =  c->w;
-            bmpinfo.bmiHeader.biHeight      = -c->h;
+            bmpinfo.bmiHeader.biWidth       =  (c->rectr.right  - c->rectr.left + 1);
+            bmpinfo.bmiHeader.biHeight      = -(c->rectr.bottom - c->rectr.top  + 1);
             bmpinfo.bmiHeader.biPlanes      =  1;
             bmpinfo.bmiHeader.biBitCount    =  32;
             bmpinfo.bmiHeader.biCompression =  BI_RGB;
-            c->hbitmaps[c->tail] = CreateDIBSection(c->hdcsrc, &bmpinfo, DIB_RGB_COLORS,
-                                            (void**)&c->pbmpbufs[c->tail], NULL, 0);
+            c->hbitmaps[c->tail] = CreateDIBSection(c->hdcsrc, &bmpinfo, DIB_RGB_COLORS, (void**)&c->pbmpbufs[c->tail], NULL, 0);
             GetObject(c->hbitmaps[c->tail], sizeof(BITMAP), &bitmap);
+        } else if (c->status & VDEV_CLEAR) {
+            if (c->nclear++ != c->bufnum) {
+                memset(c->pbmpbufs[c->tail], 0, bitmap.bmWidthBytes * bitmap.bmHeight);
+            } else {
+                c->nclear  = 0;
+                c->status &= ~VDEV_CLEAR;
+            }
         }
 
-        if (buffer  ) buffer[0]   = c->pbmpbufs[c->tail];
-        if (linesize) linesize[0] = bitmap.bmWidthBytes ;
-        if (++c->tail == c->bufnum) c->tail = 0;
-        c->size++;
-        pthread_cond_signal(&c->cond);
+        if (buffer  ) buffer  [0] = c->pbmpbufs[c->tail] + c->rectv.top * bitmap.bmWidthBytes + c->rectv.left * sizeof(uint32_t);
+        if (linesize) linesize[0] = bitmap.bmWidthBytes;
+        if (linesize) linesize[6] = (c->rectv.right - c->rectv.left) | 1;
+        if (linesize) linesize[7] = (c->rectv.bottom - c->rectv.top) | 1;
     }
 }
 
 static void vdev_gdi_unlock(void *ctxt)
 {
     VDEVGDICTXT *c = (VDEVGDICTXT*)ctxt;
+    if (++c->tail == c->bufnum) c->tail = 0;
+    c->size++; pthread_cond_signal(&c->cond);
     pthread_mutex_unlock(&c->mutex);
-}
-
-static void vdev_gdi_setrect(void *ctxt, int x, int y, int w, int h)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    c->sw = w; c->sh = h;
 }
 
 static void vdev_gdi_destroy(void *ctxt)
 {
-    int i;
     VDEVGDICTXT *c = (VDEVGDICTXT*)ctxt;
+    int          i;
 
-    //++ for video
     DeleteDC (c->hdcsrc);
     ReleaseDC((HWND)c->surface, c->hdcdst);
     for (i=0; i<c->bufnum; i++) {
@@ -129,15 +111,10 @@ static void vdev_gdi_destroy(void *ctxt)
             DeleteObject(c->hbitmaps[i]);
         }
     }
-    //-- for video
-
-    // delete font
-    DeleteObject(c->hfont);
 
     pthread_mutex_destroy(&c->mutex);
     pthread_cond_destroy (&c->cond );
 
-    // free memory
     free(c->ppts    );
     free(c->hbitmaps);
     free(c->pbmpbufs);
@@ -160,7 +137,6 @@ void* vdev_gdi_create(void *surface, int bufnum)
     ctxt->pixfmt   = AV_PIX_FMT_RGB32;
     ctxt->lock     = vdev_gdi_lock;
     ctxt->unlock   = vdev_gdi_unlock;
-    ctxt->setrect  = vdev_gdi_setrect;
     ctxt->destroy  = vdev_gdi_destroy;
 
     // alloc buffer & semaphore
@@ -174,7 +150,6 @@ void* vdev_gdi_create(void *surface, int bufnum)
         av_log(NULL, AV_LOG_ERROR, "failed to allocate resources for vdev-gdi !\n");
         exit(0);
     }
-    SetBkMode(ctxt->hdcsrc, TRANSPARENT);
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);
