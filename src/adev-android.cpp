@@ -5,6 +5,12 @@
 #include <semaphore.h>
 #include "adev.h"
 
+// 类型定义
+typedef struct {
+    int16_t *data;
+    int32_t  size;
+} AUDIOBUF;
+
 // for jni
 JNIEXPORT JavaVM* get_jni_jvm(void);
 JNIEXPORT JNIEnv* get_jni_env(void);
@@ -160,21 +166,13 @@ void adev_destroy(void *ctxt)
     free(c);
 }
 
-void adev_lock(void *ctxt, AUDIOBUF **ppab)
+void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
 {
     if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     sem_wait(&c->semw);
-    *ppab = (AUDIOBUF*)&c->pWaveHdr[c->tail];
-    (*ppab)->size = c->buflen;
-}
-
-void adev_unlock(void *ctxt, int64_t pts)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    c->ppts[c->tail] = pts;
-    if (++c->tail == c->bufnum) c->tail = 0;
+    memcpy(c->pWaveHdr[c->tail].data, buf, MIN(c->pWaveHdr[c->tail].size, len));
+    c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
     sem_post(&c->semr);
 }
 

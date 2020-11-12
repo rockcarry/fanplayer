@@ -9,8 +9,7 @@
 #define DEF_ADEV_BUF_LEN  2048
 
 // 内部类型定义
-typedef struct
-{
+typedef struct {
     ADEV_COMMON_MEMBERS
     HWAVEOUT hWaveOut;
     WAVEHDR *pWaveHdr;
@@ -21,14 +20,13 @@ typedef struct
 static void CALLBACK waveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)dwInstance;
-    switch (uMsg)
-    {
+    switch (uMsg) {
     case WOM_DONE:
         c->bufcur = (int16_t*)c->pWaveHdr[c->head].lpData;
         c->cmnvars->apts = c->ppts[c->head];
-        av_log(NULL, AV_LOG_INFO, "apts: %lld\n", c->cmnvars->apts);
         if (++c->head == c->bufnum) c->head = 0;
         ReleaseSemaphore(c->bufsem, 1, NULL);
+        av_log(NULL, AV_LOG_INFO, "apts: %lld\n", c->cmnvars->apts);
         break;
     }
 }
@@ -113,21 +111,13 @@ void adev_destroy(void *ctxt)
     free(c);
 }
 
-void adev_lock(void *ctxt, AUDIOBUF **ppab)
+void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (!ctxt) return;
-    WaitForSingleObject(c->bufsem, -1);
-    *ppab = (AUDIOBUF*)&c->pWaveHdr[c->tail];
-}
-
-void adev_unlock(void *ctxt, int64_t pts)
-{
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (!ctxt) return;
-    c->ppts[c->tail] = pts;
+    if (!ctxt || WAIT_OBJECT_0 != WaitForSingleObject(c->bufsem, -1)) return;
+    memcpy(c->pWaveHdr[c->tail].lpData, buf, MIN((int)c->pWaveHdr[c->tail].dwBufferLength, len));
     waveOutWrite(c->hWaveOut, &c->pWaveHdr[c->tail], sizeof(WAVEHDR));
-    if (++c->tail == c->bufnum) c->tail = 0;
+    c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
 }
 
 void adev_pause(void *ctxt, int pause)

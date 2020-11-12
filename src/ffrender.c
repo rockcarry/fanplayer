@@ -27,9 +27,10 @@
 // 内部类型定义
 typedef struct
 {
+    uint8_t           *adev_buf_data ;
+    uint8_t           *adev_buf_cur  ;
+    int                adev_buf_size ;
     int                adev_buf_avail;
-    uint8_t           *adev_buf_cur;
-    AUDIOBUF          *adev_hdr_cur;
 
     void              *surface;
     AVRational         frmrate;
@@ -133,21 +134,15 @@ void swvol_scaler_run(int16_t *buf, int n, int multiplier)
             *buf++ = (int16_t)v;
         }
     } else if (multiplier < (1 << 14)) {
-        while (n--) {
-            *buf = ((int32_t)*buf * multiplier) >> 14; buf++;
-        }
+        while (n--) { *buf = ((int32_t)*buf * multiplier) >> 14; buf++; }
     }
 }
 
 static void render_setspeed(RENDER *render, int speed)
 {
-    if (speed > 0) {
-        // set vdev playback speed
-        vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &speed);
-
-        // set speed_value_new to triger swr_context re-create
-        render->new_speed_value = speed;
-    }
+    if (speed <= 0) return;
+    vdev_setparam(render->vdev, PARAM_PLAY_SPEED_VALUE, &speed); // set vdev playback speed
+    render->new_speed_value = speed; // set speed_value_new to triger swr_context re-create
 }
 
 // 函数实现
@@ -162,16 +157,16 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
         exit(0);
     }
 
-    // init for video
-#ifdef WIN32
     render->surface = surface;
-#endif
     render->frmrate = frate;
+    render->cmnvars = cmnvars;
+
+    render->adev_buf_avail = render->adev_buf_size = (int)((double)ADEV_SAMPLE_RATE / 60 + 0.5) * 4;
+    render->adev_buf_cur   = render->adev_buf_data = malloc(render->adev_buf_size);
 
     // init for cmnvars
-    render->adev = adev_create(adevtype, 0, (int)((double)ADEV_SAMPLE_RATE * frate.den / frate.num + 0.5) * 4, cmnvars);
+    render->adev = adev_create(adevtype, 5, render->adev_buf_size, cmnvars);
     render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, cmnvars);
-    render->cmnvars = cmnvars;
 
     // init for visual effect
 #if CONFIG_ENABLE_VEFFECT
@@ -239,16 +234,15 @@ void render_close(void *hrender)
 #endif
 
     // free context
+    free(render->adev_buf_data);
     free(render);
 }
 
 #if CONFIG_ENABLE_SOUNDTOUCH
 static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
 {
-    int16_t  buf[1024];
-    int16_t *out = buf;
-    int      num_samp;
-    int      num_st;
+    int16_t  buf[1024], *out = buf;
+    int      num_samp, num_st;
 
     num_samp = swr_convert(render->swr_context,
         (uint8_t**)&out, 1024 / 2,
@@ -258,28 +252,23 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
 
     soundtouch_putSamples_i16(render->stcontext, out, num_samp);
     do {
+        num_st = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
+        render->adev_buf_avail -= num_st * 4;
+        render->adev_buf_cur   += num_st * 4;
         if (render->adev_buf_avail == 0) {
-            adev_lock(render->adev, &render->adev_hdr_cur);
-            if (render->adev_hdr_cur) {
-                render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-                render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
-            }
 #if CONFIG_ENABLE_VEFFECT
             if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
                 veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
                     render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
             }
 #endif
-        }
-        num_st = soundtouch_receiveSamples_i16(render->stcontext, (int16_t*)render->adev_buf_cur, render->adev_buf_avail / 4);
-        render->adev_buf_avail -= num_st * 4;
-        render->adev_buf_cur   += num_st * 4;
-        if (render->adev_buf_avail == 0) {
-            swvol_scaler_run(render->adev_hdr_cur->data, render->adev_hdr_cur->size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
+            swvol_scaler_run((int16_t*)render->adev_buf_data, render->adev_buf_size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
             audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
-            adev_unlock(render->adev, audio->pts);
+            adev_write(render->adev, render->adev_buf_data, render->adev_buf_size, audio->pts);
+            render->adev_buf_avail = render->adev_buf_size;
+            render->adev_buf_cur   = render->adev_buf_data;
         }
-    } while (num_st != 0);
+    } while (num_st);
     return num_samp;
 }
 #endif
@@ -287,20 +276,6 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
 static int render_audio_swresample(RENDER *render, AVFrame *audio)
 {
     int num_samp;
-
-    if (render->adev_buf_avail == 0) {
-        adev_lock(render->adev, &render->adev_hdr_cur);
-        if (render->adev_hdr_cur) {
-            render->adev_buf_avail = (int     )render->adev_hdr_cur->size;
-            render->adev_buf_cur   = (uint8_t*)render->adev_hdr_cur->data;
-        }
-#if CONFIG_ENABLE_VEFFECT
-        if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
-            veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
-                render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
-        }
-#endif
-    }
 
     //++ do resample audio data ++//
     num_samp = swr_convert(render->swr_context,
@@ -313,9 +288,17 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
     //-- do resample audio data --//
 
     if (render->adev_buf_avail == 0) {
-        swvol_scaler_run(render->adev_hdr_cur->data, render->adev_hdr_cur->size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
+#if CONFIG_ENABLE_VEFFECT
+        if (render->veffect_type != VISUAL_EFFECT_DISABLE) {
+            veffect_render(render->veffect_context, render->veffect_x, render->veffect_y,
+                render->veffect_w, render->veffect_h, render->veffect_type, render->adev);
+        }
+#endif
+        swvol_scaler_run((int16_t*)render->adev_buf_data, render->adev_buf_size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
         audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
-        adev_unlock(render->adev, audio->pts);
+        adev_write(render->adev, render->adev_buf_data, render->adev_buf_size, audio->pts);
+        render->adev_buf_avail = render->adev_buf_size;
+        render->adev_buf_cur   = render->adev_buf_data;
     }
     return num_samp;
 }
@@ -352,7 +335,7 @@ void render_audio(void *hrender, AVFrame *audio)
         {
             sampnum = render_audio_swresample(render, audio);
         }
-    } while (sampnum > 0);
+    } while (sampnum);
 }
 
 static float definition_evaluation(uint8_t *img, int w, int h, int stride)
@@ -501,9 +484,7 @@ int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
     // wait take snapshot done
     if (waitt > 0) {
         int retry = waitt / 10;
-        while ((render->status & RENDER_SNAPSHOT) && retry--) {
-            av_usleep(10 * 1000);
-        }
+        while ((render->status & RENDER_SNAPSHOT) && retry--) av_usleep(10 * 1000);
     }
 #endif
 
