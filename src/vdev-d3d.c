@@ -171,7 +171,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL     , D3DTEXF_POINT);
     IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, c->rotate ? &c->rotrect : &c->rectv, D3DTEXF_POINT);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
-    vdev_win32_render_overlay   (c, hdc        );
+    vdev_win32_render_overlay   (c, hdc ,     0);
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR);
     IDirect3DDevice9_Present(c->pD3DDev, NULL, &c->rectr, NULL, NULL);

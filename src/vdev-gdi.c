@@ -30,7 +30,7 @@ static void* video_render_thread_proc(void *param)
             c->size--;
             if (c->ppts[c->head] != -1) {
                 SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
-                vdev_win32_render_overlay(c, c->hdcsrc);
+                vdev_win32_render_overlay(c, c->hdcsrc, 1);
                 BitBlt(c->hdcdst, c->rectr.left, c->rectr.top, c->rectr.right - c->rectr.left, c->rectr.bottom - c->rectr.top, c->hdcsrc, 0, 0, SRCCOPY);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);

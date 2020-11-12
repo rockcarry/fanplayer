@@ -73,7 +73,7 @@ typedef struct {
 #ifdef WIN32
 void* vdev_gdi_create(void *surface, int bufnum);
 void* vdev_d3d_create(void *surface, int bufnum);
-void  vdev_win32_render_overlay(void *surface, HDC hdc);
+void  vdev_win32_render_overlay(void *surface, HDC hdc, int erase);
 #endif
 
 #ifdef ANDROID
