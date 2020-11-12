@@ -157,7 +157,9 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
         exit(0);
     }
 
+#ifdef WIN32
     render->surface = surface;
+#endif
     render->frmrate = frate;
     render->cmnvars = cmnvars;
 
