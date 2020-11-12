@@ -30,6 +30,8 @@ features
 14. dxva2 hardware acceleration on windows
 15. rotation for direct3d video rendering
 16. support auto-reconnect for live stream playing
+17. support avkcp and ffrdp protocol
+18. support overlay for win32 platform
 
 
 testplayer
@@ -50,6 +52,8 @@ ctrl+down - play speed down
 ctrl+T    - switch speed type  
 ctrl+X    - rotate video (only for d3d rendering mode)  
 ctrl+C    - record current playing media to record.mp4 file  
+ctrl+W    - set window size to video size  
+ctrl+D    - display video definition  
 
 
 want to learn more?
