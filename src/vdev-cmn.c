@@ -144,10 +144,10 @@ void vdev_setparam(void *ctxt, int id, void *param)
         if (param) {
             int i;
             for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]); i++) {
-                c->overlay_rects[i] = ((RECT*)param)[i];
-                if (((RECT*)param)[i].left == 0 && ((RECT*)param)[i].top == 0 && ((RECT*)param)[i].right == 0 && ((RECT*)param)[i].bottom == 0) break;
+                c->overlay_rects[i] = ((RECTOVERLAY*)param)[i];
+                if (((RECTOVERLAY*)param)[i].type == 0) break;
             }
-        } else memset(&(c->overlay_rects[0]), 0, sizeof(RECT));
+        } else c->overlay_rects[0].type = 0;
         break;
 #endif
     }
@@ -229,51 +229,52 @@ void vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase)
     RECT              rect= {0};
     int               i;
 
-    if (memcmp(&rect, c->overlay_rects, sizeof(RECT)) == 0) {
-        c->status |= VDEV_CLEAR;
-        return;
-    }
-
-    func.BlendOp             = AC_SRC_OVER;
-    func.SourceConstantAlpha = 180;
-    for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]); i++) {
+    if (c->overlay_rects[0].type == 0) { c->status |= VDEV_CLEAR; return; }
+    for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]) && c->overlay_rects[i].type != 0; i++) {
         if (erase) {
-            if (c->rectv.top > c->overlay_rects[i].top) {
-                rect.left   = c->overlay_rects[i].left;
-                rect.right  = c->overlay_rects[i].right;
-                rect.top    = c->overlay_rects[i].top;
-                rect.bottom = MIN(c->overlay_rects[i].bottom, c->rectv.top);
+            int oleft  = c->overlay_rects[i].dstx;
+            int oright = c->overlay_rects[i].dstx + c->overlay_rects[i].dstw;
+            int otop   = c->overlay_rects[i].dsty;
+            int obottom= c->overlay_rects[i].dsty + c->overlay_rects[i].dsth;
+            if (c->rectv.top > otop) {
+                rect.left   = oleft;
+                rect.right  = oright;
+                rect.top    = otop;
+                rect.bottom = MIN(obottom, c->rectv.top);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.bottom < c->overlay_rects[i].bottom) {
-                rect.left   = c->overlay_rects[i].left;
-                rect.right  = c->overlay_rects[i].right;
-                rect.top    = MAX(c->overlay_rects[i].top, c->rectv.bottom);
-                rect.bottom = c->overlay_rects[i].bottom;
+            if (c->rectv.bottom < obottom) {
+                rect.left   = oleft;
+                rect.right  = oright;
+                rect.top    = MAX(otop, c->rectv.bottom);
+                rect.bottom = obottom;
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.left > c->overlay_rects[i].left) {
-                rect.left   = c->overlay_rects[i].left;
-                rect.right  = MIN(c->overlay_rects[i].right , c->rectv.left  );
-                rect.top    = MAX(c->overlay_rects[i].top   , c->rectv.top   );
-                rect.bottom = MIN(c->overlay_rects[i].bottom, c->rectv.bottom);
+            if (c->rectv.left > oleft) {
+                rect.left   = oleft;
+                rect.right  = MIN(oright , c->rectv.left  );
+                rect.top    = MAX(otop   , c->rectv.top   );
+                rect.bottom = MIN(obottom, c->rectv.bottom);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.right < c->overlay_rects[i].right) {
-                rect.left   = MAX(c->overlay_rects[i].left  , c->rectv.right );
-                rect.right  = c->overlay_rects[i].right;
-                rect.top    = MAX(c->overlay_rects[i].top   , c->rectv.top   );
-                rect.bottom = MIN(c->overlay_rects[i].bottom, c->rectv.bottom);
+            if (c->rectv.right < oright) {
+                rect.left   = MAX(oleft  , c->rectv.right );
+                rect.right  = oright;
+                rect.top    = MAX(otop   , c->rectv.top   );
+                rect.bottom = MIN(obottom, c->rectv.bottom);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
         }
-        AlphaBlend(hdc, c->overlay_rects[i].left, c->overlay_rects[i].top,
-            c->overlay_rects[i].right - c->overlay_rects[i].left,
-            c->overlay_rects[i].bottom- c->overlay_rects[i].top ,
-            c->hoverlay,c->overlay_rects[i].left, c->overlay_rects[i].top,
-            c->overlay_rects[i].right - c->overlay_rects[i].left,
-            c->overlay_rects[i].bottom- c->overlay_rects[i].top , func);
-        if (c->overlay_rects[i].left == 0 && c->overlay_rects[i].top == 0 && c->overlay_rects[i].right == 0 && c->overlay_rects[i].bottom == 0) break;
+        func.BlendOp             = AC_SRC_OVER;
+        func.SourceConstantAlpha = c->overlay_rects[i].type == OVERLAY_COPY_BITBLT ? 255 : c->overlay_rects[i].alpha;
+        func.AlphaFormat         = c->overlay_rects[i].type == OVERLAY_PIXEL_ALPHA ? AC_SRC_ALPHA : 0;
+        if (c->overlay_rects[i].type == OVERLAY_TRANSPARENT) {
+            TransparentBlt(hdc, c->overlay_rects[i].dstx, c->overlay_rects[i].dsty, c->overlay_rects[i].dstw, c->overlay_rects[i].dsth,
+                   c->hoverlay, c->overlay_rects[i].srcx, c->overlay_rects[i].srcy, c->overlay_rects[i].srcw, c->overlay_rects[i].srch, c->overlay_rects[i].transparent);
+        } else {
+            AlphaBlend(hdc, c->overlay_rects[i].dstx, c->overlay_rects[i].dsty, c->overlay_rects[i].dstw, c->overlay_rects[i].dsth,
+               c->hoverlay, c->overlay_rects[i].srcx, c->overlay_rects[i].srcy, c->overlay_rects[i].srcw, c->overlay_rects[i].srch, func);
+        }
     }
 }
 #endif

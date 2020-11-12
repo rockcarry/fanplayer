@@ -173,6 +173,18 @@ typedef struct { // for internal use only
 } CMNVARS;
 //-- player common variables
 
+#ifdef WIN32
+typedef struct {
+    int srcx, srcy, srcw, srch;
+    int dstx, dsty, dstw, dsth;
+    #define OVERLAY_COPY_BITBLT   1  // bitblt
+    #define OVERLAY_TRANSPARENT   2  // 透明色的 bitblt
+    #define OVERLAY_CONST_ALPHA   3  // 固定 alpha 值的透明混合
+    #define OVERLAY_PIXEL_ALPHA   4  // 逐像素点的透明混合
+    int type, alpha, transparent;
+} RECTOVERLAY;
+#endif
+
 // 函数声明
 void* player_open    (char *file, void *appdata, PLAYER_INIT_PARAMS *params);
 void  player_close   (void *hplayer);

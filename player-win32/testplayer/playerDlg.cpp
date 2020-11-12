@@ -80,20 +80,20 @@ static void save_fanplayer_params(PLAYER_INIT_PARAMS *params)
 
 static void player_textout(void *player, HFONT hfont, int x, int y, int color, TCHAR *text)
 {
-    RECT  rect[2] = { { 20, 20, 380, 75 } };
-    HDC   hdc = NULL;
+    RECTOVERLAY overlay[2] = { { 0, 0, 360, 50, 10, 10, 360, 50, OVERLAY_CONST_ALPHA, 200, 0 } };
+    HDC         hdc        = NULL;
     player_getparam(player, PARAM_VDEV_GET_OVERLAY_HDC, &hdc);
     if (hdc && text) {
-        CDC cdc;
+        CDC cdc; RECT rect = { overlay->srcx, overlay->srcy, overlay->srcx + overlay->srcw, overlay->srcy + overlay->srch };
         cdc.Attach(hdc);
-        cdc.FillSolidRect(rect, RGB(0, 0, 100));
+        cdc.FillSolidRect(&rect, RGB(0, 0, 100));
         cdc.SelectObject(CFont::FromHandle(hfont));
         cdc.SetTextColor(RGB(255, 255, 255));
         cdc.SetBkMode(TRANSPARENT);
-        cdc.DrawText(text, -1, rect, DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+        cdc.DrawText(text, -1, &rect, DT_CENTER|DT_VCENTER|DT_SINGLELINE);
         cdc.Detach();
     }
-    player_setparam(player, PARAM_VDEV_SET_OVERLAY_RECT, rect + (text ? 0 : 1));
+    player_setparam(player, PARAM_VDEV_SET_OVERLAY_RECT, overlay + !text);
 }
 
 // CplayerDlg dialog

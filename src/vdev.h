@@ -57,10 +57,10 @@ extern "C" {
 //-- vdev context common members
 
 #define VDEV_WIN32__MEMBERS \
-    HDC      hoverlay; \
-    HBITMAP  hoverbmp; \
-    BYTE    *poverlay; \
-    RECT     overlay_rects[8];
+    HDC         hoverlay; \
+    HBITMAP     hoverbmp; \
+    BYTE       *poverlay; \
+    RECTOVERLAY overlay_rects[8];
 
 // 类型定义
 typedef struct {
