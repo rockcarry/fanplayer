@@ -60,6 +60,13 @@ typedef struct
     int                sws_dst_width;
     int                sws_dst_height;
 
+    /* software volume */
+    #define SW_VOLUME_MINDB  -30
+    #define SW_VOLUME_MAXDB  +12
+    int                vol_scaler[256];
+    int                vol_zerodb;
+    int                vol_curvol;
+
     // render status
     #define RENDER_CLOSE                  (1 << 0)
     #define RENDER_PAUSE                  (1 << 1)
@@ -93,6 +100,45 @@ typedef struct
 } RENDER;
 
 // 内部函数实现
+
+// 函数实现
+int swvol_scaler_init(int *scaler, int mindb, int maxdb)
+{
+    double tabdb[256];
+    double tabf [256];
+    int    z, i;
+
+    for (i=0; i<256; i++) {
+        tabdb[i]  = mindb + (maxdb - mindb) * i / 256.0;
+        tabf [i]  = pow(10.0, tabdb[i] / 20.0);
+        scaler[i] = (int)((1 << 14) * tabf[i]); // Q14 fix point
+    }
+
+    z = -mindb * 256 / (maxdb - mindb);
+    z = MAX(z, 0  );
+    z = MIN(z, 255);
+    scaler[0] = 0;        // mute
+    scaler[z] = (1 << 14);// 0db
+    return z;
+}
+
+void swvol_scaler_run(int16_t *buf, int n, int multiplier)
+{
+    if (multiplier > (1 << 14)) {
+        int64_t v;
+        while (n--) {
+            v = ((int32_t)*buf * multiplier) >> 14;
+            v = MAX(v,-0x7fff);
+            v = MIN(v, 0x7fff);
+            *buf++ = (int16_t)v;
+        }
+    } else if (multiplier < (1 << 14)) {
+        while (n--) {
+            *buf = ((int32_t)*buf * multiplier) >> 14; buf++;
+        }
+    }
+}
+
 static void render_setspeed(RENDER *render, int speed)
 {
     if (speed > 0) {
@@ -148,6 +194,10 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
 
     // set default playback speed
     render_setspeed(render, 100);
+
+    // init software volume scaler
+    render->vol_zerodb = swvol_scaler_init(render->vol_scaler, SW_VOLUME_MINDB, SW_VOLUME_MAXDB);
+    render->vol_curvol = render->vol_zerodb;
     return render;
 }
 
@@ -225,11 +275,11 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
         render->adev_buf_avail -= num_st * 4;
         render->adev_buf_cur   += num_st * 4;
         if (render->adev_buf_avail == 0) {
+            swvol_scaler_run(render->adev_hdr_cur->data, render->adev_hdr_cur->size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
             audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
             adev_unlock(render->adev, audio->pts);
         }
     } while (num_st != 0);
-
     return num_samp;
 }
 #endif
@@ -263,10 +313,10 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
     //-- do resample audio data --//
 
     if (render->adev_buf_avail == 0) {
+        swvol_scaler_run(render->adev_hdr_cur->data, render->adev_hdr_cur->size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
         audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
         adev_unlock(render->adev, audio->pts);
     }
-
     return num_samp;
 }
 
@@ -471,7 +521,15 @@ void render_setparam(void *hrender, int id, void *param)
     if (!hrender) return;
     switch (id)
     {
-    case PARAM_AUDIO_VOLUME    : adev_setparam(render->adev, id, param); break;
+    case PARAM_AUDIO_VOLUME:
+        {
+            int vol = *(int*)param;
+            vol += render->vol_zerodb;
+            vol  = MAX(vol, 0  );
+            vol  = MIN(vol, 255);;
+            render->vol_curvol = vol;
+        }
+        break;
     case PARAM_PLAY_SPEED_VALUE: render_setspeed(render, *(int*)param);  break;
     case PARAM_PLAY_SPEED_TYPE : render->new_speed_type = *(int*)param;  break;
 #if CONFIG_ENABLE_VEFFECT
@@ -521,7 +579,7 @@ void render_getparam(void *hrender, int id, void *param)
             *(int64_t*)param = MAX(render->cmnvars->apts, render->cmnvars->vpts);
         }
         break;
-    case PARAM_AUDIO_VOLUME    : adev_getparam(render->adev, id, param); break;
+    case PARAM_AUDIO_VOLUME    : *(int*)param = render->vol_curvol - render->vol_zerodb; break;
     case PARAM_PLAY_SPEED_VALUE: *(int*)param = render->cur_speed_value; break;
     case PARAM_PLAY_SPEED_TYPE : *(int*)param = render->cur_speed_type;  break;
 #if CONFIG_ENABLE_VEFFECT

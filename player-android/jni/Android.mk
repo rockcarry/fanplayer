@@ -12,10 +12,9 @@ LOCAL_SRC_FILES := \
     ../../src/pktqueue.c \
     ../../src/snapshot.c \
     ../../src/recorder.c \
-    ../../src/adev-cmn.c \
     ../../src/vdev-cmn.c \
-    ../../src/adev-android.cpp \
     ../../src/vdev-android.cpp \
+    ../../src/adev-android.cpp \
     ../../avkcpdemuxer/ikcp.c \
     ../../avkcpdemuxer/ringbuf.c \
     ../../avkcpdemuxer/avkcpc.c \

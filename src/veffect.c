@@ -350,10 +350,9 @@ void veffect_destroy(void *ctxt)
 void veffect_render(void *ctxt, int x, int y, int w, int h, int type, void *adev)
 {
     VEFFECT *ve  = (VEFFECT*)ctxt;
-    void    *buf = NULL;
-    int      len = 0;
+    void    *buf = ((ADEV_COMMON_CTXT*)adev)->bufcur;
+    int      len = ((ADEV_COMMON_CTXT*)adev)->buflen;
 
-    adev_bufcur(adev, &buf, &len);
     if (!ve->data_buf) {
         ve->data_len = 1 << (int)(log(len/4.0)/log(2.0));
         ve->data_buf = (float*)calloc(ve->data_len, sizeof(float) * 2);

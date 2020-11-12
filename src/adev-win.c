@@ -12,7 +12,6 @@
 typedef struct
 {
     ADEV_COMMON_MEMBERS
-
     HWAVEOUT hWaveOut;
     WAVEHDR *pWaveHdr;
     HANDLE   bufsem;
@@ -87,10 +86,6 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
         ctxt->pWaveHdr[i].dwBufferLength = buflen;
         waveOutPrepareHeader(ctxt->hWaveOut, &ctxt->pWaveHdr[i], sizeof(WAVEHDR));
     }
-
-    // init software volume scaler
-    ctxt->vol_zerodb = swvol_scaler_init(ctxt->vol_scaler, SW_VOLUME_MINDB, SW_VOLUME_MAXDB);
-    ctxt->vol_curvol = ctxt->vol_zerodb;
     return ctxt;
 }
 
@@ -129,17 +124,7 @@ void adev_lock(void *ctxt, AUDIOBUF **ppab)
 void adev_unlock(void *ctxt, int64_t pts)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    int           multiplier, n;
-    int16_t      *buf;
     if (!ctxt) return;
-
-    //++ software volume scale
-    multiplier = c->vol_scaler[c->vol_curvol];
-    buf        = (int16_t*)c->pWaveHdr[c->tail].lpData;
-    n          = c->pWaveHdr[c->tail].dwBufferLength / sizeof(int16_t);
-    swvol_scaler_run(buf, n, multiplier);
-    //-- software volume scale
-
     c->ppts[c->tail] = pts;
     waveOutWrite(c->hWaveOut, &c->pWaveHdr[c->tail], sizeof(WAVEHDR));
     if (++c->tail == c->bufnum) c->tail = 0;

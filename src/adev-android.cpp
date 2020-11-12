@@ -53,9 +53,7 @@ static void* audio_render_thread_proc(void *param)
 
         sem_wait(&c->semr);
         if (c->status & ADEV_CLOSE) break;
-        if (c->vol_curvol) {
-            env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
-        }
+        env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
         c->bufcur = c->pWaveHdr[c->head].data;
         c->cmnvars->apts = c->ppts[c->head];
         if (++c->head == c->bufnum) c->head = 0;
@@ -125,10 +123,6 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     // start audiotrack
     env->CallVoidMethod(ctxt->jobj_at, ctxt->jmid_at_play);
 
-    // init software volume scaler
-    ctxt->vol_zerodb = swvol_scaler_init(ctxt->vol_scaler, SW_VOLUME_MINDB, SW_VOLUME_MAXDB);
-    ctxt->vol_curvol = ctxt->vol_zerodb;
-
     // create semaphore
     sem_init(&ctxt->semr, 0, 0     );
     sem_init(&ctxt->semw, 0, bufnum);
@@ -180,14 +174,6 @@ void adev_unlock(void *ctxt, int64_t pts)
     if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     c->ppts[c->tail] = pts;
-
-    //++ software volume scale
-    int      multiplier = c->vol_scaler[c->vol_curvol];
-    int16_t *buf        = c->pWaveHdr[c->tail].data;
-    int      n          = c->pWaveHdr[c->tail].size / sizeof(int16_t);
-    swvol_scaler_run(buf, n, multiplier);
-    //-- software volume scale
-
     if (++c->tail == c->bufnum) c->tail = 0;
     sem_post(&c->semr);
 }
@@ -200,8 +186,7 @@ void adev_pause(void *ctxt, int pause)
     if (pause) {
         c->status |=  ADEV_PAUSE;
         env->CallVoidMethod(c->jobj_at, c->jmid_at_pause);
-    }
-    else {
+    } else {
         c->status &= ~ADEV_PAUSE;
         env->CallVoidMethod(c->jobj_at, c->jmid_at_play );
     }
