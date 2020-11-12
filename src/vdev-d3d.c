@@ -36,6 +36,8 @@ typedef struct {
     LPDIRECT3DSURFACE9      surft;     // surface of texture
     LPDIRECT3DSURFACE9      surfr;     // surface for rotate
     int                     rotate;    // rotate angle
+    int                     rotw, roth;
+    RECT                    rotrect;
 } VDEVD3DCTXT;
 
 typedef struct {
@@ -124,6 +126,10 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     HDC             hdc  = NULL;
 
     if (c->rotate && (c->status & VDEV_D3D_SET_ROTATE)) {
+        double radian = c->rotate * M_PI / 180;
+        c->rotw = abs((int)(c->vw  * cos(radian))) + abs((int)(c->vh * sin(radian)));
+        c->roth = abs((int)(c->vw  * sin(radian))) + abs((int)(c->vh * cos(radian)));
+
         d3d_reinit_for_rotate(c, c->rectv.right - c->rectv.left, c->rectv.bottom - c->rectv.top, c->rotate);
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
@@ -147,10 +153,23 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             IDirect3DDevice9_EndScene(c->pD3DDev);
             surf = c->surfr;
         }
+
+        if (c->vm == VIDEO_MODE_LETTERBOX) {
+            int rw = c->rectr.right - c->rectr.left, rh = c->rectr.bottom - c->rectr.top, vw, vh;
+            if (rw * c->roth < rh * c->rotw) {
+                vw = rw; vh = vw * c->roth / c->rotw;
+            } else {
+                vh = rh; vw = vh * c->rotw / c->roth;
+            }
+            c->rotrect.left  = (rw - vw) / 2;
+            c->rotrect.top   = (rh - vh) / 2;
+            c->rotrect.right = c->rotrect.left + vw;
+            c->rotrect.bottom= c->rotrect.top  + vh;
+        } else c->rotrect = c->rectr;
     }
 
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL     , D3DTEXF_POINT);
-    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, &c->rectv, D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, c->rotate ? &c->rotrect : &c->rectv, D3DTEXF_POINT);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
     vdev_win32_render_overlay   (c, hdc        );
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
