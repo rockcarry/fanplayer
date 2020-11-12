@@ -40,10 +40,10 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->surface     = surface;
     c->vw          = w;
     c->vh          = h;
-    c->rectr.right = MAX(w - 1, 1);
-    c->rectr.bottom= MAX(h - 1, 1);
-    c->rectv.right = MAX(w - 1, 1);
-    c->rectv.bottom= MAX(h - 1, 1);
+    c->rectr.right = MAX(w, 1);
+    c->rectr.bottom= MAX(h, 1);
+    c->rectv.right = MAX(w, 1);
+    c->rectv.bottom= MAX(h, 1);
     c->tickframe   = ftime;
     c->ticksleep   = ftime;
     c->cmnvars     = cmnvars;
@@ -87,8 +87,8 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     pthread_mutex_lock(&c->mutex);
-    c->rectr.left  = x;         c->rectr.top    = y;
-    c->rectr.right = x + w - 1; c->rectr.bottom = y + h - 1;
+    c->rectr.left  = x;     c->rectr.top    = y;
+    c->rectr.right = x + w; c->rectr.bottom = y + h;
     pthread_mutex_unlock(&c->mutex);
     vdev_setparam(c, PARAM_VIDEO_MODE, &c->vm);
     if (c->setrect) c->setrect(c, x, y, w, h);
@@ -115,7 +115,7 @@ void vdev_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VIDEO_MODE:
         {
-            int rw = c->rectr.right - c->rectr.left + 1, rh = c->rectr.bottom - c->rectr.top + 1, vw, vh;
+            int rw = c->rectr.right - c->rectr.left, rh = c->rectr.bottom - c->rectr.top, vw, vh;
             if (*(int*)param == VIDEO_MODE_LETTERBOX) {
                 if (rw * c->vh < rh * c->vw) {
                     vw = rw; vh = vw * c->vh / c->vw;
@@ -126,8 +126,8 @@ void vdev_setparam(void *ctxt, int id, void *param)
             pthread_mutex_lock(&c->mutex);
             c->rectv.left  = (rw - vw) / 2;
             c->rectv.top   = (rh - vh) / 2;
-            c->rectv.right = c->rectv.left + vw - 1;
-            c->rectv.bottom= c->rectv.top  + vh - 1;
+            c->rectv.right = c->rectv.left + vw;
+            c->rectv.bottom= c->rectv.top  + vh;
             c->vm      = *(int*)param;
             c->status |= VDEV_CLEAR;
             pthread_mutex_unlock(&c->mutex);

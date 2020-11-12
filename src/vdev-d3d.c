@@ -124,19 +124,19 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     HDC             hdc  = NULL;
 
     if (c->rotate && (c->status & VDEV_D3D_SET_ROTATE)) {
-        d3d_reinit_for_rotate(c, c->vw, c->vh, c->rotate);
+        d3d_reinit_for_rotate(c, c->rectv.right - c->rectv.left, c->rectv.bottom - c->rectv.top, c->rotate);
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
     if (c->surfw) IDirect3DSurface9_GetDesc(c->surfw, &desc);
-    if (desc.Width != c->rectr.right - c->rectr.left + 1 || desc.Height != c->rectr.bottom - c->rectr.top + 1) {
+    if (desc.Width != c->rectr.right - c->rectr.left || desc.Height != c->rectr.bottom - c->rectr.top) {
         if (c->surfw) { IDirect3DSurface9_Release(c->surfw); c->surfw = NULL; }
-        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rectr.right - c->rectr.left + 1, c->rectr.bottom - c->rectr.top + 1,
+        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rectr.right - c->rectr.left, c->rectr.bottom - c->rectr.top,
             c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
     }
 
     if (c->rotate && c->surft && c->surfr) {
-        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_LINEAR);
+        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_POINT);
         if (SUCCEEDED(IDirect3DDevice9_BeginScene(c->pD3DDev))) {
             IDirect3DDevice9_SetRenderTarget(c->pD3DDev, 0, c->surfr);
             IDirect3DDevice9_Clear(c->pD3DDev, 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
@@ -195,9 +195,9 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
     if (c->size < c->bufnum) {
         c->ppts[c->tail] = pts;
         if (c->surfs[c->tail]) IDirect3DSurface9_GetDesc(c->surfs[c->tail], &desc);
-        if (desc.Width != c->rectv.right - c->rectv.left + 1 || desc.Height != c->rectv.bottom - c->rectv.top + 1) {
+        if (desc.Width != c->rectv.right - c->rectv.left || desc.Height != c->rectv.bottom - c->rectv.top) {
             if (c->surfs[c->tail]) { IDirect3DSurface9_Release(c->surfs[c->tail]); c->surfs[c->tail] = NULL; }
-            IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev, c->rectv.right - c->rectv.left + 1, c->rectv.bottom - c->rectv.top + 1,
+            IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev, c->rectv.right - c->rectv.left, c->rectv.bottom - c->rectv.top,
                 c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL);
             if (c->surfs[c->tail] == NULL) return;
         }
@@ -206,8 +206,8 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
         IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
         if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
         if (linesize) linesize[0] = rect.Pitch;
-        if (linesize) linesize[6] = c->rectv.right  - c->rectv.left + 1;
-        if (linesize) linesize[7] = c->rectv.bottom - c->rectv.top  + 1;
+        if (linesize) linesize[6] = c->rectv.right  - c->rectv.left;
+        if (linesize) linesize[7] = c->rectv.bottom - c->rectv.top ;
     }
 }
 
