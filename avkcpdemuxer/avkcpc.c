@@ -59,7 +59,7 @@ static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 static void avkcpc_ikcp_update(AVKCPC *avkcpc)
 {
     uint32_t tickcur = get_tick_count();
-    if (tickcur >= avkcpc->tick_kcp_update) {
+    if ((int32_t)tickcur - (int32_t)avkcpc->tick_kcp_update >= 0) {
         ikcp_update(avkcpc->ikcp, tickcur);
         avkcpc->tick_kcp_update = ikcp_check(avkcpc->ikcp, get_tick_count());
     }
@@ -117,7 +117,7 @@ static void* avkcpc_thread_proc(void *argv)
             } else { usleep(100*1000); continue; }
         }
 
-        if (get_tick_count() >= tickheartbeat + 1000) {
+        if ((int32_t)get_tick_count() - (int32_t)tickheartbeat >= 1000) {
             tickheartbeat = get_tick_count();
             ikcp_send(avkcpc->ikcp, "hb", 3);
         }
@@ -146,7 +146,7 @@ static void* avkcpc_thread_proc(void *argv)
             }
         }
 
-        if (tickgetframe && get_tick_count() > tickgetframe + 3000) {
+        if (tickgetframe && (int32_t)get_tick_count() - (int32_t)tickgetframe > 3000) {
 //          printf("===ck=== avkcpc disconnect !\n");
             ikcp_release(avkcpc->ikcp); avkcpc->ikcp = NULL;
             closesocket(avkcpc->client_fd); avkcpc->client_fd = 0;
