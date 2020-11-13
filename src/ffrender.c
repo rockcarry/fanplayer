@@ -265,7 +265,7 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
             }
 #endif
             swvol_scaler_run((int16_t*)render->adev_buf_data, render->adev_buf_size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
-            audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
+            audio->pts += 5 * render->cur_speed_value * render->adev_buf_size / (2 * ADEV_SAMPLE_RATE);
             adev_write(render->adev, render->adev_buf_data, render->adev_buf_size, audio->pts);
             render->adev_buf_avail = render->adev_buf_size;
             render->adev_buf_cur   = render->adev_buf_data;
@@ -297,7 +297,7 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
         }
 #endif
         swvol_scaler_run((int16_t*)render->adev_buf_data, render->adev_buf_size / sizeof(int16_t), render->vol_scaler[render->vol_curvol]);
-        audio->pts += 10 * render->cur_speed_value * render->frmrate.den / render->frmrate.num;
+        audio->pts += 5 * render->cur_speed_value * render->adev_buf_size / (2 * ADEV_SAMPLE_RATE);
         adev_write(render->adev, render->adev_buf_data, render->adev_buf_size, audio->pts);
         render->adev_buf_avail = render->adev_buf_size;
         render->adev_buf_cur   = render->adev_buf_data;
