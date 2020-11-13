@@ -173,6 +173,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         ffrdpd->player_send_message(ffrdpd->cmnvars->winmsg, MSG_OPEN_DONE, (int64_t)ffrdpd->player);
         break;
     case 'A': case 'V':
+        if (!ffrdpd->inited) { ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, NULL, fsize); break; }
         packet = ffrdpd->pktqueue_request_packet(ffrdpd->pktqueue);
         if (packet == NULL) return -1;
         av_new_packet(packet, fsize);

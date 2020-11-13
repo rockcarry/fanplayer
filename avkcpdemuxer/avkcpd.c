@@ -172,6 +172,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         avkcpd->player_send_message(avkcpd->cmnvars->winmsg, MSG_OPEN_DONE, (int64_t)avkcpd->player);
         break;
     case 'A': case 'V':
+        if (!avkcpd->inited) { ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, NULL, fsize); break; }
         packet = avkcpd->pktqueue_request_packet(avkcpd->pktqueue);
         if (packet == NULL) return -1;
         av_new_packet(packet, fsize);
