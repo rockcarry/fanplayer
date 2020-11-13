@@ -380,7 +380,7 @@ void render_video(void *hrender, AVFrame *video)
     do {
         if (video->format == AV_PIX_FMT_DXVA2_VLD) {
             vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, video);
-        } else {
+        } else if (video->width && video->height) {
             AVFrame           picture = {0};
             VDEV_COMMON_CTXT *vdev    = (VDEV_COMMON_CTXT*)render->vdev;
             if (render->sws_src_width != video->width || render->sws_src_height != video->height) {
