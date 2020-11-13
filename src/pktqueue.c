@@ -90,22 +90,19 @@ void pktqueue_destroy(void *ctxt)
 void pktqueue_reset(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
-    AVPacket *pkt = NULL;
+    int       i;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->ancur > 0) {
-        ppq->ancur--;
-        pkt = ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
-        ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
-        av_packet_unref(pkt);
-        ppq->fncur++;
+    for (i=0; i<ppq->fsize; i++) {
+        av_packet_unref(&ppq->bpkts[i]);
+        ppq->fpkts[i] = &ppq->bpkts[i];
+        ppq->apkts[i] = NULL;
+        ppq->vpkts[i] = NULL;
     }
-    while (ppq->vncur > 0) {
-        ppq->vncur--;
-        pkt = ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
-        ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
-        av_packet_unref(pkt);
-        ppq->fncur++;
-    }
+    ppq->fncur = ppq->asize;
+    ppq->ancur = ppq->vncur = 0;
+    ppq->fhead = ppq->ftail = 0;
+    ppq->ahead = ppq->atail = 0;
+    ppq->vhead = ppq->vtail = 0;
     pthread_cond_signal(&ppq->cond);
     pthread_mutex_unlock(&ppq->lock);
 }
