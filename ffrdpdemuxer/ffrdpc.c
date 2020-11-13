@@ -90,7 +90,7 @@ static void* ffrdpc_thread_proc(void *argv)
         }
 
         ffrdp_update(ffrdpc->ffrdp);
-        if ((ffrdpc->status & TS_CONNECTED) && get_tick_count() - tickgetframe > 2000) {
+        if ((ffrdpc->status & TS_CONNECTED) && get_tick_count() - tickgetframe > 3000) {
             printf("server lost !\n");
             ffrdp_free(ffrdpc->ffrdp); ffrdpc->ffrdp = NULL;
             ffrdpc->head = ffrdpc->tail = ffrdpc->size = 0;
