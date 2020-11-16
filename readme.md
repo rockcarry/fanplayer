@@ -32,6 +32,7 @@ features
 16. support auto-reconnect for live stream playing
 17. support avkcp and ffrdp protocol
 18. support overlay for win32 platform
+19. support drag mouse right button to select area zoom
 
 
 testplayer
@@ -54,6 +55,7 @@ ctrl+X    - rotate video (only for d3d rendering mode)
 ctrl+C    - record current playing media to record.mp4 file  
 ctrl+W    - set window size to video size  
 ctrl+D    - display video definition  
+ctrl+0    - restore zoom  
 
 
 want to learn more?
