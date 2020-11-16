@@ -74,7 +74,6 @@ typedef struct
     #define RENDER_SNAPSHOT               (1 << 2)  // take snapshot
     #define RENDER_STEPFORWARD            (1 << 3)  // step forward
     #define RENDER_DEFINITION_EVAL        (1 << 4)
-    #define RENDER_WORKAROUND_MEDIACODEC  (1 << 5)
     int                status;
     float              definitionval;
 
@@ -386,9 +385,7 @@ void render_video(void *hrender, AVFrame *video)
             if (render->sws_src_width != video->width || render->sws_src_height != video->height) {
                 vdev->vw = MAX(video->width, 1); vdev->vh = MAX(video->height, 1);
                 vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
-                render->status &= ~RENDER_WORKAROUND_MEDIACODEC;
             }
-            if (render->status & RENDER_WORKAROUND_MEDIACODEC) video->format = AV_PIX_FMT_NV12;
             vdev_lock(render->vdev, picture.data, picture.linesize, video->pts);
             if (picture.data[0] && video->pts != -1) {
                 if (  render->sws_src_pixfmt != video->format || render->sws_src_width != video->width        || render->sws_src_height != video->height
@@ -403,14 +400,8 @@ void render_video(void *hrender, AVFrame *video)
                     render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
                         render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, SWS_FAST_BILINEAR, 0, 0, 0);
                 }
-                if (render->sws_context && 0 == sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->sws_src_height, picture.data, picture.linesize)) {
-                    //++ on some android device, output of h264 mediacodec decoder is NV12
-                    if (  (render->sws_src_pixfmt == AV_PIX_FMT_YUV420P || render->sws_src_pixfmt == AV_PIX_FMT_YUVJ420P)
-                        && video->data[0] && video->data[1] && !video->data[2]
-                        && video->linesize[0] == video->linesize[1] && video->linesize[2] == 0) {
-                        render->status |= RENDER_WORKAROUND_MEDIACODEC;
-                    }
-                    //-- on some android device, output of h264 mediacodec decoder is NV12
+                if (render->sws_context) {
+                    sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->sws_src_height, picture.data, picture.linesize);
                 }
             }
             vdev_unlock(render->vdev);
@@ -544,6 +535,7 @@ void render_setparam(void *hrender, int id, void *param)
         render->surface = JniRequestWinObj(param);
         vdev_setparam(render->vdev, id, render->surface);
 #endif
+        break;
     }
 }
 
@@ -572,6 +564,7 @@ void render_getparam(void *hrender, int id, void *param)
     case PARAM_VDEV_GET_D3DDEV:
     case PARAM_VDEV_D3D_ROTATE:
     case PARAM_VDEV_GET_OVERLAY_HDC:
+    case PARAM_VDEV_GET_RECTV:
         vdev_getparam(vdev, id, param);
         break;
     case PARAM_ADEV_GET_CONTEXT: *(void**)param = render->adev; break;

@@ -165,14 +165,13 @@ void vdev_getparam(void *ctxt, int id, void *param)
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     if (!ctxt || !param) return;
     switch (id) {
-    case PARAM_VIDEO_MODE      : *(int*)param = c->vm;         break;
-    case PARAM_PLAY_SPEED_VALUE: *(int*)param = c->speed;      break;
-    case PARAM_AVSYNC_TIME_DIFF: *(int*)param = c->tickavdiff; break;
+    case PARAM_VIDEO_MODE          : *(int *)param = c->vm;         break;
+    case PARAM_PLAY_SPEED_VALUE    : *(int *)param = c->speed;      break;
+    case PARAM_AVSYNC_TIME_DIFF    : *(int *)param = c->tickavdiff; break;
 #ifdef WIN32
-    case PARAM_VDEV_GET_OVERLAY_HDC:
-        *(HDC*)param = c->hoverlay;
-        break;
+    case PARAM_VDEV_GET_OVERLAY_HDC: *(HDC*)param = c->hoverlay;    break;
 #endif
+    case PARAM_VDEV_GET_RECTV      : *(RECT*)param = c->rectv;      break;
     }
     if (c->getparam) c->getparam(c, id, param);
 }
