@@ -347,11 +347,7 @@ static int player_prepare(PLAYER *player)
     AVInputFormat *fmt    = NULL;
     //-- for avdevice
 
-    int           arate   = 0;
-    int           aformat = 0;
-    uint64_t      alayout = 0;
     AVRational    vrate   = { 20, 1 };
-    int           vformat = AV_PIX_FMT_YUV420P;
     AVDictionary *opts    = NULL;
     int           ret     = -1;
 
@@ -439,12 +435,9 @@ static int player_prepare(PLAYER *player)
 
     // for audio
     if (player->astream_index != -1) {
-        arate   = player->acodec_context->sample_rate;
-        aformat = player->acodec_context->sample_fmt;
-        alayout = player->acodec_context->channel_layout;
         //++ fix audio channel layout issue
-        if (alayout == 0) {
-            alayout = av_get_default_channel_layout(player->acodec_context->channels);
+        if (player->acodec_context->channel_layout == 0) {
+            player->acodec_context->channel_layout = av_get_default_channel_layout(player->acodec_context->channels);
         }
         //-- fix audio channel layout issue
     }
@@ -453,7 +446,6 @@ static int player_prepare(PLAYER *player)
     if (player->vstream_index != -1) {
         vrate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
         if (vrate.num / vrate.den > 100) { vrate.num = 20; vrate.den = 1; }
-        vformat = player->vcodec_context->pix_fmt;
         player->init_params.video_vwidth = player->init_params.video_owidth  = player->vcodec_context->width;
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
     }
@@ -486,8 +478,8 @@ static int player_prepare(PLAYER *player)
     // for player init params
     player->init_params.video_frame_rate     = vrate.num / vrate.den;
     player->init_params.video_stream_total   = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
-    player->init_params.audio_channels       = av_get_channel_layout_nb_channels(alayout);
-    player->init_params.audio_sample_rate    = arate;
+    player->init_params.audio_channels       = av_get_channel_layout_nb_channels(player->acodec_context->channel_layout);
+    player->init_params.audio_sample_rate    = player->acodec_context->sample_rate;
     player->init_params.audio_stream_total   = get_stream_total(player, AVMEDIA_TYPE_AUDIO);
     player->init_params.subtitle_stream_total= get_stream_total(player, AVMEDIA_TYPE_SUBTITLE);
     player->init_params.video_codecid        = player->avformat_context->video_codec_id;
@@ -1002,8 +994,7 @@ void player_getparam(void *hplayer, int id, void *param)
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer || !param) return;
 
-    switch (id)
-    {
+    switch (id) {
     case PARAM_MEDIA_DURATION:
         *(int64_t*)param = player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1;
         break;

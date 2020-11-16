@@ -502,8 +502,7 @@ void render_setparam(void *hrender, int id, void *param)
 {
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
-    switch (id)
-    {
+    switch (id) {
     case PARAM_AUDIO_VOLUME:
         {
             int vol = *(int*)param;
