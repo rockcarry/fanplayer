@@ -478,8 +478,8 @@ static int player_prepare(PLAYER *player)
     // for player init params
     player->init_params.video_frame_rate     = vrate.num / vrate.den;
     player->init_params.video_stream_total   = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
-    player->init_params.audio_channels       = av_get_channel_layout_nb_channels(player->acodec_context->channel_layout);
-    player->init_params.audio_sample_rate    = player->acodec_context->sample_rate;
+    player->init_params.audio_channels       = player->acodec_context ? av_get_channel_layout_nb_channels(player->acodec_context->channel_layout) : 0;
+    player->init_params.audio_sample_rate    = player->acodec_context ? player->acodec_context->sample_rate : 0;
     player->init_params.audio_stream_total   = get_stream_total(player, AVMEDIA_TYPE_AUDIO);
     player->init_params.subtitle_stream_total= get_stream_total(player, AVMEDIA_TYPE_SUBTITLE);
     player->init_params.video_codecid        = player->avformat_context->video_codec_id;
