@@ -6,6 +6,24 @@
 // 内部常量定义
 #define COMPLETED_COUNTER  10
 
+// 内部函数实现
+static void dev_setup_rectv(VDEV_COMMON_CTXT *vdev)
+{
+    int rw = vdev->rectr.right - vdev->rectr.left, rh = vdev->rectr.bottom - vdev->rectr.top, vw, vh;
+    if (vdev->vm == VIDEO_MODE_LETTERBOX) {
+        if (rw * vdev->vh < rh * vdev->vw) {
+            vw = rw; vh = vw * vdev->vh / vdev->vw;
+        } else {
+            vh = rh; vw = vh * vdev->vw / vdev->vh;
+        }
+    } else { vw = rw; vh = rh; }
+    vdev->rectv.left  = (rw - vw) / 2;
+    vdev->rectv.top   = (rh - vh) / 2;
+    vdev->rectv.right = vdev->rectv.left + vw;
+    vdev->rectv.bottom= vdev->rectv.top  + vh;
+    vdev->status |= VDEV_CLEAR;
+}
+
 // 函数实现
 void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, CMNVARS *cmnvars)
 {
@@ -86,11 +104,13 @@ void vdev_unlock(void *ctxt)
 void vdev_setrect(void *ctxt, int x, int y, int w, int h)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    w = w > 1 ? w : 1;
+    h = h > 1 ? h : 1;
     pthread_mutex_lock(&c->mutex);
     c->rectr.left  = x;     c->rectr.top    = y;
     c->rectr.right = x + w; c->rectr.bottom = y + h;
+    dev_setup_rectv(c);
     pthread_mutex_unlock(&c->mutex);
-    vdev_setparam(c, PARAM_VIDEO_MODE, &c->vm);
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
 
@@ -114,24 +134,10 @@ void vdev_setparam(void *ctxt, int id, void *param)
     if (!ctxt) return;
     switch (id) {
     case PARAM_VIDEO_MODE:
-        {
-            int rw = c->rectr.right - c->rectr.left, rh = c->rectr.bottom - c->rectr.top, vw, vh;
-            if (*(int*)param == VIDEO_MODE_LETTERBOX) {
-                if (rw * c->vh < rh * c->vw) {
-                    vw = rw; vh = vw * c->vh / c->vw;
-                } else {
-                    vh = rh; vw = vh * c->vw / c->vh;
-                }
-            } else { vw = rw; vh = rh; }
-            pthread_mutex_lock(&c->mutex);
-            c->rectv.left  = (rw - vw) / 2;
-            c->rectv.top   = (rh - vh) / 2;
-            c->rectv.right = c->rectv.left + vw;
-            c->rectv.bottom= c->rectv.top  + vh;
-            c->vm      = *(int*)param;
-            c->status |= VDEV_CLEAR;
-            pthread_mutex_unlock(&c->mutex);
-        }
+        pthread_mutex_lock(&c->mutex);
+        c->vm = *(int*)param;
+        dev_setup_rectv(c);
+        pthread_mutex_unlock(&c->mutex);
         break;
     case PARAM_PLAY_SPEED_VALUE:
         if (param) c->speed = *(int*)param;
