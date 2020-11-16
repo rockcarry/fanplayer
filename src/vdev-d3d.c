@@ -139,6 +139,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         if (c->surfw) { IDirect3DSurface9_Release(c->surfw); c->surfw = NULL; }
         IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rectr.right - c->rectr.left, c->rectr.bottom - c->rectr.top,
             c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
+        if (!c->surfw) return;
     }
 
     if (c->rotate && c->surft && c->surfr) {
