@@ -509,7 +509,7 @@ void render_setparam(void *hrender, int id, void *param)
             int vol = *(int*)param;
             vol += render->vol_zerodb;
             vol  = MAX(vol, 0  );
-            vol  = MIN(vol, 255);;
+            vol  = MIN(vol, 255);
             render->vol_curvol = vol;
         }
         break;

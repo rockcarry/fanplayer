@@ -38,8 +38,8 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
     c->surface     = surface;
-    c->vw          = w;
-    c->vh          = h;
+    c->vw          = MAX(w, 1);
+    c->vh          = MAX(h, 1);
     c->rectr.right = MAX(w, 1);
     c->rectr.bottom= MAX(h, 1);
     c->rectv.right = MAX(w, 1);
