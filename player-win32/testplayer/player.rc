@@ -160,6 +160,7 @@ BEGIN
     "V",            ID_VIDEO_STREAM,        VIRTKEY, CONTROL, NOINVERT
     "R",            ID_VRENDER_TYPE,        VIRTKEY, CONTROL, NOINVERT
     "W",            ID_WINFIT_VIDEOSIZE,    VIRTKEY, CONTROL, NOINVERT
+    "0",            ID_ZOOM_RESTORE,        VIRTKEY, CONTROL, NOINVERT
 END
 
 #endif    // Chinese (P.R.C.) resources

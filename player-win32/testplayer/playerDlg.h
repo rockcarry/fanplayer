@@ -40,15 +40,17 @@ private:
     BOOL     m_bResetPlayer;
     BOOL     m_bLiveStream;
     BOOL     m_bIsRecording;
-    BOOL     m_DefinitionEvalEnable;
+    BOOL     m_bDefinitionEn;
     void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
     void PlayerShowText(int time);
     void SetWindowClientSize(int w, int h);
 
 private:
-    BOOL  m_bPlayPause;
-    RECT  m_rtClient;
+    BOOL   m_bPlayPause;
+    RECT   m_rtClient;
+    BOOL   m_bMouseSelFlag;
+    CPoint m_tMouseSelPoint;
 
 public:
     afx_msg void   OnDestroy();
@@ -72,4 +74,6 @@ public:
     afx_msg void   OnRecordVideo();
     afx_msg void   OnDefinitionEval();
     afx_msg void   OnWinfitVideosize();
+    afx_msg void   OnMouseMove(UINT nFlags, CPoint point);
+    afx_msg void   OnZoomRestore();
 };

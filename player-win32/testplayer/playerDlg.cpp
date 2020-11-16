@@ -101,11 +101,12 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     : CDialog(CplayerDlg::IDD, pParent)
 {
     m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-    m_ffPlayer    = NULL;
-    m_bLiveStream = FALSE;
-    m_bResetPlayer= FALSE;
-    m_bIsRecording= FALSE;
-    m_DefinitionEvalEnable = FALSE;
+    m_ffPlayer      = NULL;
+    m_bLiveStream   = FALSE;
+    m_bResetPlayer  = FALSE;
+    m_bIsRecording  = FALSE;
+    m_bDefinitionEn = FALSE;
+    m_bMouseSelFlag = FALSE;
 }
 
 void CplayerDlg::DoDataExchange(CDataExchange* pDX)
@@ -201,6 +202,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
+    ON_WM_MOUSEMOVE()
     ON_COMMAND(ID_OPEN_FILE       , &CplayerDlg::OnOpenFile       )
     ON_COMMAND(ID_VIDEO_MODE      , &CplayerDlg::OnVideoMode      )
     ON_COMMAND(ID_EFFECT_MODE     , &CplayerDlg::OnEffectMode     )
@@ -217,6 +219,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_RECORD_VIDEO    , &CplayerDlg::OnRecordVideo    )
     ON_COMMAND(ID_DEFINITION_EVAL , &CplayerDlg::OnDefinitionEval )
     ON_COMMAND(ID_WINFIT_VIDEOSIZE, &CplayerDlg::OnWinfitVideosize)
+    ON_COMMAND(ID_ZOOM_RESTORE, &CplayerDlg::OnZoomRestore)
 END_MESSAGE_MAP()
 
 
@@ -586,8 +589,8 @@ void CplayerDlg::OnRecordVideo()
 
 void CplayerDlg::OnDefinitionEval()
 {
-    m_DefinitionEvalEnable = !m_DefinitionEvalEnable;
-    if (m_DefinitionEvalEnable) {
+    m_bDefinitionEn = !m_bDefinitionEn;
+    if (m_bDefinitionEn) {
         SetTimer(TIMER_ID_DISP_DEFINITIONVAL, 200, NULL);
     } else {
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
@@ -602,4 +605,48 @@ void CplayerDlg::OnWinfitVideosize()
         player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
         SetWindowClientSize(params.video_owidth, params.video_oheight);
     }
+}
+
+void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+    if (nFlags & MK_RBUTTON) {
+        if (!m_bMouseSelFlag) {
+            m_bMouseSelFlag  = TRUE;
+            m_tMouseSelPoint = point;
+        } else {
+            RECTOVERLAY overlay[2] = {
+                { MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+                  MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+                  OVERLAY_CONST_ALPHA, 128, 0 },
+            };
+            player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, overlay);
+        }
+    } else if (m_bMouseSelFlag) {
+        RECT source_rect, video_rect;
+        int  tx, ty, tw, th;
+        player_getparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &source_rect);
+        player_getparam(m_ffPlayer, PARAM_VDEV_GET_RECTV    , &video_rect );
+        tx   = MIN(m_tMouseSelPoint.x, point.x) - video_rect.left;
+        ty   = MIN(m_tMouseSelPoint.y, point.y) - video_rect.top;
+        tw   = abs(point.x - m_tMouseSelPoint.x);
+        th   = abs(point.y - m_tMouseSelPoint.y);
+        tx   = source_rect.left + tx * (source_rect.right  - source_rect.left) / (video_rect.right  - video_rect.left);
+        ty   = source_rect.top  + ty * (source_rect.bottom - source_rect.top ) / (video_rect.bottom - video_rect.top );
+        tw   = tw * (source_rect.right  - source_rect.left) / (video_rect.right  - video_rect.left);
+        th   = th * (source_rect.bottom - source_rect.top ) / (video_rect.bottom - video_rect.top );
+        source_rect.left  = tx;
+        source_rect.right = tx + tw;
+        source_rect.top   = ty;
+        source_rect.bottom= ty + th;
+        player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT   , &source_rect);
+        player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, NULL        );
+        m_bMouseSelFlag = FALSE;
+    }
+    CDialog::OnMouseMove(nFlags, point);
+}
+
+void CplayerDlg::OnZoomRestore()
+{
+    RECT rect = {0};
+    player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &rect);
 }
