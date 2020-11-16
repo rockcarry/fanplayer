@@ -380,11 +380,11 @@ void render_video(void *hrender, AVFrame *video)
     do {
         if (video->format == AV_PIX_FMT_DXVA2_VLD) {
             vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, video);
-        } else if (video->width && video->height) {
+        } else {
             AVFrame           picture = {0};
             VDEV_COMMON_CTXT *vdev    = (VDEV_COMMON_CTXT*)render->vdev;
             if (render->sws_src_width != video->width || render->sws_src_height != video->height) {
-                vdev->vw = video->width; vdev->vh = video->height;
+                vdev->vw = MAX(video->width, 1); vdev->vh = MAX(video->height, 1);
                 vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
                 render->status &= ~RENDER_WORKAROUND_MEDIACODEC;
             }
