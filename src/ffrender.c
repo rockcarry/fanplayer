@@ -163,7 +163,7 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
     render->frmrate = frate;
     render->cmnvars = cmnvars;
 
-    render->adev_buf_avail = render->adev_buf_size = (int)((double)ADEV_SAMPLE_RATE / 60 + 0.5) * 4;
+    render->adev_buf_avail = render->adev_buf_size = (int)((double)ADEV_SAMPLE_RATE / (h ? 60 : 46) + 0.5) * 4;
     render->adev_buf_cur   = render->adev_buf_data = malloc(render->adev_buf_size);
 
     // init for cmnvars
