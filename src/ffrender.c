@@ -54,13 +54,13 @@ typedef struct
     int                swr_src_samprate;
     int                swr_src_chlayout;
 
+    RECT               sws_src_rect;
     int                sws_src_pixfmt;
     int                sws_src_width;
     int                sws_src_height;
     int                sws_dst_pixfmt;
     int                sws_dst_width;
     int                sws_dst_height;
-    RECT               sws_src_rect;
 
     /* software volume */
     #define SW_VOLUME_MINDB  -30
@@ -605,7 +605,7 @@ void render_getparam(void *hrender, int id, void *param)
     case PARAM_VDEV_GET_D3DDEV:
     case PARAM_VDEV_D3D_ROTATE:
     case PARAM_VDEV_GET_OVERLAY_HDC:
-    case PARAM_VDEV_GET_RECTV:
+    case PARAM_VDEV_GET_VRECT:
         vdev_getparam(vdev, id, param);
         break;
     case PARAM_ADEV_GET_CONTEXT: *(void**)param = render->adev; break;

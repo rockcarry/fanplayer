@@ -130,14 +130,14 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         c->rotw = abs((int)(c->vw  * cos(radian))) + abs((int)(c->vh * sin(radian)));
         c->roth = abs((int)(c->vw  * sin(radian))) + abs((int)(c->vh * cos(radian)));
 
-        d3d_reinit_for_rotate(c, c->rectv.right - c->rectv.left, c->rectv.bottom - c->rectv.top, c->rotate);
+        d3d_reinit_for_rotate(c, c->vrect.right - c->vrect.left, c->vrect.bottom - c->vrect.top, c->rotate);
         if (c->surft && c->surfr) c->status &= ~VDEV_D3D_SET_ROTATE;
     }
 
     if (c->surfw) IDirect3DSurface9_GetDesc(c->surfw, &desc);
-    if (desc.Width != c->rectr.right - c->rectr.left || desc.Height != c->rectr.bottom - c->rectr.top) {
+    if (desc.Width != c->rrect.right - c->rrect.left || desc.Height != c->rrect.bottom - c->rrect.top) {
         if (c->surfw) { IDirect3DSurface9_Release(c->surfw); c->surfw = NULL; }
-        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rectr.right - c->rectr.left, c->rectr.bottom - c->rectr.top,
+        IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rrect.right - c->rrect.left, c->rrect.bottom - c->rrect.top,
             c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
         if (!c->surfw) return;
     }
@@ -156,7 +156,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         }
 
         if (c->vm == VIDEO_MODE_LETTERBOX) {
-            int rw = c->rectr.right - c->rectr.left, rh = c->rectr.bottom - c->rectr.top, vw, vh;
+            int rw = c->rrect.right - c->rrect.left, rh = c->rrect.bottom - c->rrect.top, vw, vh;
             if (rw * c->roth < rh * c->rotw) {
                 vw = rw; vh = vw * c->roth / c->rotw;
             } else {
@@ -166,16 +166,16 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
             c->rotrect.top   = (rh - vh) / 2;
             c->rotrect.right = c->rotrect.left + vw;
             c->rotrect.bottom= c->rotrect.top  + vh;
-        } else c->rotrect = c->rectr;
+        } else c->rotrect = c->rrect;
     }
 
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL     , D3DTEXF_POINT);
-    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, c->rotate ? &c->rotrect : &c->rectv, D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_POINT);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
     vdev_win32_render_overlay   (c, hdc ,     0);
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR);
-    IDirect3DDevice9_Present(c->pD3DDev, NULL, &c->rectr, NULL, NULL);
+    IDirect3DDevice9_Present(c->pD3DDev, NULL, &c->rrect, NULL, NULL);
 }
 
 static void* video_render_thread_proc(void *param)
@@ -215,9 +215,9 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
     if (c->size < c->bufnum) {
         c->ppts[c->tail] = pts;
         if (c->surfs[c->tail]) IDirect3DSurface9_GetDesc(c->surfs[c->tail], &desc);
-        if (desc.Width != c->rectv.right - c->rectv.left || desc.Height != c->rectv.bottom - c->rectv.top) {
+        if (desc.Width != c->vrect.right - c->vrect.left || desc.Height != c->vrect.bottom - c->vrect.top) {
             if (c->surfs[c->tail]) { IDirect3DSurface9_Release(c->surfs[c->tail]); c->surfs[c->tail] = NULL; }
-            IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev, c->rectv.right - c->rectv.left, c->rectv.bottom - c->rectv.top,
+            IDirect3DDevice9_CreateOffscreenPlainSurface(c->pD3DDev, c->vrect.right - c->vrect.left, c->vrect.bottom - c->vrect.top,
                 c->d3dfmt, D3DPOOL_DEFAULT, &c->surfs[c->tail], NULL);
             if (c->surfs[c->tail] == NULL) return;
         }
@@ -226,8 +226,8 @@ static void vdev_d3d_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
         IDirect3DSurface9_LockRect(c->surfs[c->tail], &rect, NULL, D3DLOCK_DISCARD);
         if (buffer  ) buffer[0]   = (uint8_t*)rect.pBits;
         if (linesize) linesize[0] = rect.Pitch;
-        if (linesize) linesize[6] = c->rectv.right  - c->rectv.left;
-        if (linesize) linesize[7] = c->rectv.bottom - c->rectv.top ;
+        if (linesize) linesize[6] = c->vrect.right  - c->vrect.left;
+        if (linesize) linesize[7] = c->vrect.bottom - c->vrect.top ;
     }
 }
 

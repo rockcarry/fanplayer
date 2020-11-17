@@ -625,7 +625,7 @@ void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
         RECT source_rect, video_rect;
         int  tx, ty, tw, th;
         player_getparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &source_rect);
-        player_getparam(m_ffPlayer, PARAM_VDEV_GET_RECTV    , &video_rect );
+        player_getparam(m_ffPlayer, PARAM_VDEV_GET_VRECT    , &video_rect );
         tx   = MIN(m_tMouseSelPoint.x, point.x) - video_rect.left;
         ty   = MIN(m_tMouseSelPoint.y, point.y) - video_rect.top;
         tw   = abs(point.x - m_tMouseSelPoint.x);

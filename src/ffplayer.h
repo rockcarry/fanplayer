@@ -98,7 +98,7 @@ enum {
     PARAM_VDEV_D3D_ROTATE,
     PARAM_VDEV_GET_OVERLAY_HDC,
     PARAM_VDEV_SET_OVERLAY_RECT,
-    PARAM_VDEV_GET_RECTV,
+    PARAM_VDEV_GET_VRECT,
     //-- for vdev
 
     //++ for render

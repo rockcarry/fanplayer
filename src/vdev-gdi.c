@@ -31,7 +31,7 @@ static void* video_render_thread_proc(void *param)
             if (c->ppts[c->head] != -1) {
                 SelectObject(c->hdcsrc, c->hbitmaps[c->head]);
                 vdev_win32_render_overlay(c, c->hdcsrc, 1);
-                BitBlt(c->hdcdst, c->rectr.left, c->rectr.top, c->rectr.right - c->rectr.left, c->rectr.bottom - c->rectr.top, c->hdcsrc, 0, 0, SRCCOPY);
+                BitBlt(c->hdcdst, c->rrect.left, c->rrect.top, c->rrect.right - c->rrect.left, c->rrect.bottom - c->rrect.top, c->hdcsrc, 0, 0, SRCCOPY);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
@@ -65,11 +65,11 @@ static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
             bmph = bitmap.bmHeight;
         }
 
-        if (bmpw != c->rectr.right - c->rectr.left || bmph != c->rectr.bottom - c->rectr.top) {
+        if (bmpw != c->rrect.right - c->rrect.left || bmph != c->rrect.bottom - c->rrect.top) {
             if (c->hbitmaps[c->tail]) DeleteObject(c->hbitmaps[c->tail]);
             bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
-            bmpinfo.bmiHeader.biWidth       =  (c->rectr.right  - c->rectr.left);
-            bmpinfo.bmiHeader.biHeight      = -(c->rectr.bottom - c->rectr.top );
+            bmpinfo.bmiHeader.biWidth       =  (c->rrect.right  - c->rrect.left);
+            bmpinfo.bmiHeader.biHeight      = -(c->rrect.bottom - c->rrect.top );
             bmpinfo.bmiHeader.biPlanes      =  1;
             bmpinfo.bmiHeader.biBitCount    =  32;
             bmpinfo.bmiHeader.biCompression =  BI_RGB;
@@ -84,10 +84,10 @@ static void vdev_gdi_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], int64
             }
         }
 
-        if (buffer  ) buffer  [0] = c->pbmpbufs[c->tail] + c->rectv.top * bitmap.bmWidthBytes + c->rectv.left * sizeof(uint32_t);
+        if (buffer  ) buffer  [0] = c->pbmpbufs[c->tail] + c->vrect.top * bitmap.bmWidthBytes + c->vrect.left * sizeof(uint32_t);
         if (linesize) linesize[0] = bitmap.bmWidthBytes;
-        if (linesize) linesize[6] = c->rectv.right - c->rectv.left;
-        if (linesize) linesize[7] = c->rectv.bottom - c->rectv.top;
+        if (linesize) linesize[6] = c->vrect.right - c->vrect.left;
+        if (linesize) linesize[7] = c->vrect.bottom - c->vrect.top;
         if (!(linesize[6] & 1)) linesize[6] -= 1; // fix swscale right side white line issue.
     }
 }

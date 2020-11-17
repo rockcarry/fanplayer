@@ -7,9 +7,9 @@
 #define COMPLETED_COUNTER  10
 
 // 内部函数实现
-static void dev_setup_rectv(VDEV_COMMON_CTXT *vdev)
+static void dev_setup_vrect(VDEV_COMMON_CTXT *vdev)
 {
-    int rw = vdev->rectr.right - vdev->rectr.left, rh = vdev->rectr.bottom - vdev->rectr.top, vw, vh;
+    int rw = vdev->rrect.right - vdev->rrect.left, rh = vdev->rrect.bottom - vdev->rrect.top, vw, vh;
     if (vdev->vm == VIDEO_MODE_LETTERBOX) {
         if (rw * vdev->vh < rh * vdev->vw) {
             vw = rw; vh = vw * vdev->vh / vdev->vw;
@@ -17,10 +17,10 @@ static void dev_setup_rectv(VDEV_COMMON_CTXT *vdev)
             vh = rh; vw = vh * vdev->vw / vdev->vh;
         }
     } else { vw = rw; vh = rh; }
-    vdev->rectv.left  = (rw - vw) / 2;
-    vdev->rectv.top   = (rh - vh) / 2;
-    vdev->rectv.right = vdev->rectv.left + vw;
-    vdev->rectv.bottom= vdev->rectv.top  + vh;
+    vdev->vrect.left  = (rw - vw) / 2;
+    vdev->vrect.top   = (rh - vh) / 2;
+    vdev->vrect.right = vdev->vrect.left + vw;
+    vdev->vrect.bottom= vdev->vrect.top  + vh;
     vdev->status |= VDEV_CLEAR;
 }
 
@@ -58,10 +58,10 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->surface     = surface;
     c->vw          = MAX(w, 1);
     c->vh          = MAX(h, 1);
-    c->rectr.right = MAX(w, 1);
-    c->rectr.bottom= MAX(h, 1);
-    c->rectv.right = MAX(w, 1);
-    c->rectv.bottom= MAX(h, 1);
+    c->rrect.right = MAX(w, 1);
+    c->rrect.bottom= MAX(h, 1);
+    c->vrect.right = MAX(w, 1);
+    c->vrect.bottom= MAX(h, 1);
     c->tickframe   = ftime;
     c->ticksleep   = ftime;
     c->cmnvars     = cmnvars;
@@ -107,9 +107,9 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     w = w > 1 ? w : 1;
     h = h > 1 ? h : 1;
     pthread_mutex_lock(&c->mutex);
-    c->rectr.left  = x;     c->rectr.top    = y;
-    c->rectr.right = x + w; c->rectr.bottom = y + h;
-    dev_setup_rectv(c);
+    c->rrect.left  = x;     c->rrect.top    = y;
+    c->rrect.right = x + w; c->rrect.bottom = y + h;
+    dev_setup_vrect(c);
     pthread_mutex_unlock(&c->mutex);
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
@@ -136,7 +136,7 @@ void vdev_setparam(void *ctxt, int id, void *param)
     case PARAM_VIDEO_MODE:
         pthread_mutex_lock(&c->mutex);
         c->vm = *(int*)param;
-        dev_setup_rectv(c);
+        dev_setup_vrect(c);
         pthread_mutex_unlock(&c->mutex);
         break;
     case PARAM_PLAY_SPEED_VALUE:
@@ -171,7 +171,7 @@ void vdev_getparam(void *ctxt, int id, void *param)
 #ifdef WIN32
     case PARAM_VDEV_GET_OVERLAY_HDC: *(HDC*)param = c->hoverlay;    break;
 #endif
-    case PARAM_VDEV_GET_RECTV      : *(RECT*)param = c->rectv;      break;
+    case PARAM_VDEV_GET_VRECT      : *(RECT*)param = c->vrect;      break;
     }
     if (c->getparam) c->getparam(c, id, param);
 }
@@ -241,32 +241,32 @@ void vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase)
             int oright = c->overlay_rects[i].dstx + c->overlay_rects[i].dstw;
             int otop   = c->overlay_rects[i].dsty;
             int obottom= c->overlay_rects[i].dsty + c->overlay_rects[i].dsth;
-            if (c->rectv.top > otop) {
+            if (c->vrect.top > otop) {
                 rect.left   = oleft;
                 rect.right  = oright;
                 rect.top    = otop;
-                rect.bottom = MIN(obottom, c->rectv.top);
+                rect.bottom = MIN(obottom, c->vrect.top);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.bottom < obottom) {
+            if (c->vrect.bottom < obottom) {
                 rect.left   = oleft;
                 rect.right  = oright;
-                rect.top    = MAX(otop, c->rectv.bottom);
+                rect.top    = MAX(otop, c->vrect.bottom);
                 rect.bottom = obottom;
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.left > oleft) {
+            if (c->vrect.left > oleft) {
                 rect.left   = oleft;
-                rect.right  = MIN(oright , c->rectv.left  );
-                rect.top    = MAX(otop   , c->rectv.top   );
-                rect.bottom = MIN(obottom, c->rectv.bottom);
+                rect.right  = MIN(oright , c->vrect.left  );
+                rect.top    = MAX(otop   , c->vrect.top   );
+                rect.bottom = MIN(obottom, c->vrect.bottom);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
-            if (c->rectv.right < oright) {
-                rect.left   = MAX(oleft  , c->rectv.right );
+            if (c->vrect.right < oright) {
+                rect.left   = MAX(oleft  , c->vrect.right );
                 rect.right  = oright;
-                rect.top    = MAX(otop   , c->rectv.top   );
-                rect.bottom = MIN(obottom, c->rectv.bottom);
+                rect.top    = MAX(otop   , c->vrect.top   );
+                rect.bottom = MIN(obottom, c->vrect.bottom);
                 FillRect(hdc, &rect, GetStockObject(BLACK_BRUSH));
             }
         }

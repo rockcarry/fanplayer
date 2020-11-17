@@ -21,8 +21,8 @@ extern "C" {
     int         bufnum;            \
     int         pixfmt;            \
     int         vw, vh, vm;        \
-    RECT        rectr;             \
-    RECT        rectv;             \
+    RECT        rrect;             \
+    RECT        vrect;             \
                                    \
     void       *surface;           \
     int64_t    *ppts;              \
