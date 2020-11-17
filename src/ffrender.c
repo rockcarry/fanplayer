@@ -54,13 +54,15 @@ typedef struct
     int                swr_src_samprate;
     int                swr_src_chlayout;
 
-    RECT               sws_src_rect;
     int                sws_src_pixfmt;
     int                sws_src_width;
     int                sws_src_height;
     int                sws_dst_pixfmt;
     int                sws_dst_width;
     int                sws_dst_height;
+
+    RECT               cur_src_rect;
+    RECT               new_src_rect;
 
     /* software volume */
     #define SW_VOLUME_MINDB  -30
@@ -368,37 +370,29 @@ static float definition_evaluation(uint8_t *img, int w, int h, int stride)
 
 static void render_setup_srcrect(RENDER *render, AVFrame *video, AVFrame *srcpic)
 {
-    srcpic->pts      = video->pts;
-    srcpic->format   = video->format;
-    srcpic->width    = video->width;
-    srcpic->height   = video->height;
+    srcpic->pts    = video->pts;
+    srcpic->format = video->format;
+    srcpic->width  = render->cur_src_rect.right  - render->cur_src_rect.left;
+    srcpic->height = render->cur_src_rect.bottom - render->cur_src_rect.top;
     memcpy(srcpic->data    , video->data    , sizeof(srcpic->data    ));
     memcpy(srcpic->linesize, video->linesize, sizeof(srcpic->linesize));
-    if (render->sws_src_rect.left || render->sws_src_rect.right || render->sws_src_rect.top || render->sws_src_rect.bottom) {
-        render->sws_src_rect.left  = MIN(render->sws_src_rect.left  , video->width  - 1);
-        render->sws_src_rect.top   = MIN(render->sws_src_rect.top   , video->height - 1);
-        render->sws_src_rect.right = MIN(render->sws_src_rect.right , video->width  - 0);
-        render->sws_src_rect.bottom= MIN(render->sws_src_rect.bottom, video->height - 0);
-        srcpic->width  = render->sws_src_rect.right  - render->sws_src_rect.left;
-        srcpic->height = render->sws_src_rect.bottom - render->sws_src_rect.top;
-        switch (video->format) {
-        case AV_PIX_FMT_YUV420P:
-            srcpic->data[0] += render->sws_src_rect.top * video->linesize[0] + render->sws_src_rect.left;
-            srcpic->data[1] +=(render->sws_src_rect.top / 2) * video->linesize[1] + (render->sws_src_rect.left / 2);
-            srcpic->data[2] +=(render->sws_src_rect.top / 2) * video->linesize[2] + (render->sws_src_rect.left / 2);
-            break;
-        case AV_PIX_FMT_NV21:
-        case AV_PIX_FMT_NV12:
-            srcpic->data[0] += render->sws_src_rect.top * video->linesize[0] + render->sws_src_rect.left;
-            srcpic->data[1] += (render->sws_src_rect.top / 2) * video->linesize[1] + (render->sws_src_rect.left / 2) * 2;
-            break;
-        case AV_PIX_FMT_ARGB:
-        case AV_PIX_FMT_RGBA:
-        case AV_PIX_FMT_ABGR:
-        case AV_PIX_FMT_BGRA:
-            srcpic->data[0] += render->sws_src_rect.top * video->linesize[0] + render->sws_src_rect.left * sizeof(uint32_t);
-            break;
-        }
+    switch (video->format) {
+    case AV_PIX_FMT_YUV420P:
+        srcpic->data[0] += render->cur_src_rect.top * video->linesize[0] + render->cur_src_rect.left;
+        srcpic->data[1] +=(render->cur_src_rect.top / 2) * video->linesize[1] + (render->cur_src_rect.left / 2);
+        srcpic->data[2] +=(render->cur_src_rect.top / 2) * video->linesize[2] + (render->cur_src_rect.left / 2);
+        break;
+    case AV_PIX_FMT_NV21:
+    case AV_PIX_FMT_NV12:
+        srcpic->data[0] += render->cur_src_rect.top * video->linesize[0] + render->cur_src_rect.left;
+        srcpic->data[1] += (render->cur_src_rect.top / 2) * video->linesize[1] + (render->cur_src_rect.left / 2) * 2;
+        break;
+    case AV_PIX_FMT_ARGB:
+    case AV_PIX_FMT_RGBA:
+    case AV_PIX_FMT_ABGR:
+    case AV_PIX_FMT_BGRA:
+        srcpic->data[0] += render->cur_src_rect.top * video->linesize[0] + render->cur_src_rect.left * sizeof(uint32_t);
+        break;
     }
 }
 
@@ -414,16 +408,25 @@ void render_video(void *hrender, AVFrame *video)
 
     if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
     do {
+        VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
+        if (render->new_src_rect.left == 0 && render->new_src_rect.right == 0 && render->new_src_rect.top == 0 && render->new_src_rect.bottom == 0) {
+            render->new_src_rect.right = video->width; render->new_src_rect.bottom = video->height;
+        }
+        if (memcmp(&render->cur_src_rect, &render->new_src_rect, sizeof(RECT)) != 0) {
+            render->cur_src_rect.left  = MIN(render->new_src_rect.left  , video->width  - 1);
+            render->cur_src_rect.top   = MIN(render->new_src_rect.top   , video->height - 1);
+            render->cur_src_rect.right = MIN(render->new_src_rect.right , video->width  - 0);
+            render->cur_src_rect.bottom= MIN(render->new_src_rect.bottom, video->height - 0);
+            render->new_src_rect       = render->cur_src_rect;
+            vdev->vw = MAX(render->cur_src_rect.right - render->cur_src_rect.left, 1); vdev->vh = MAX(render->cur_src_rect.bottom - render->cur_src_rect.top, 1);
+            vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
+        }
         if (video->format == AV_PIX_FMT_DXVA2_VLD) {
-            vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, video);
+            void **params[2] = { (void*)video, (void*)&render->cur_src_rect };
+            vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, params);
         } else {
-            VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
             AVFrame srcpic, dstpic = {0};
-            render_setup_srcrect(render, video, &srcpic); // setup swscale source rect
-            if (render->sws_src_width != srcpic.width || render->sws_src_height != srcpic.height) {
-                vdev->vw = MAX(srcpic.width, 1); vdev->vh = MAX(srcpic.height, 1);
-                vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
-            }
+            render_setup_srcrect(render, video, &srcpic);
             vdev_lock(render->vdev, dstpic.data, dstpic.linesize, srcpic.pts);
             if (dstpic.data[0] && srcpic.pts != -1) {
                 if (  render->sws_src_pixfmt != srcpic.format || render->sws_src_width != srcpic.width       || render->sws_src_height != srcpic.height
@@ -438,9 +441,7 @@ void render_video(void *hrender, AVFrame *video)
                     render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
                         render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, SWS_FAST_BILINEAR, 0, 0, 0);
                 }
-                if (render->sws_context) {
-                    sws_scale(render->sws_context, (const uint8_t**)srcpic.data, srcpic.linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
-                }
+                if (render->sws_context) sws_scale(render->sws_context, (const uint8_t**)srcpic.data, srcpic.linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
             }
             vdev_unlock(render->vdev);
         }
@@ -575,7 +576,7 @@ void render_setparam(void *hrender, int id, void *param)
 #endif
         break;
     case PARAM_RENDER_SOURCE_RECT:
-        if (param) render->sws_src_rect = *(RECT*)param;
+        if (param) render->new_src_rect = *(RECT*)param;
         break;
     }
 }
@@ -615,14 +616,7 @@ void render_getparam(void *hrender, int id, void *param)
         render->status |= RENDER_DEFINITION_EVAL;
         break;
     case PARAM_RENDER_SOURCE_RECT:
-        if (  render->sws_src_rect.left == 0 && render->sws_src_rect.top == 0
-           && render->sws_src_rect.right== 0 && render->sws_src_rect.bottom == 0)
-        {
-            ((RECT*)param)->left   = 0;
-            ((RECT*)param)->top    = 0;
-            ((RECT*)param)->right  = render->sws_src_width;
-            ((RECT*)param)->bottom = render->sws_src_height;
-        } else *(RECT*)param = render->sws_src_rect;
+        *(RECT*)param = render->cur_src_rect;
         break;
     }
 }

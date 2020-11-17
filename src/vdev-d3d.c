@@ -119,7 +119,7 @@ static void d3d_release_for_rotate(VDEVD3DCTXT *c)
     }
 }
 
-static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
+static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf, RECT *srcrect)
 {
     D3DSURFACE_DESC desc = {0};
     D3DLOCKED_RECT  rect = {0};
@@ -143,7 +143,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     }
 
     if (c->rotate && c->surft && c->surfr) {
-        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_POINT);
+        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, srcrect, c->surft, NULL, D3DTEXF_POINT);
         if (SUCCEEDED(IDirect3DDevice9_BeginScene(c->pD3DDev))) {
             IDirect3DDevice9_SetRenderTarget(c->pD3DDev, 0, c->surfr);
             IDirect3DDevice9_Clear(c->pD3DDev, 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
@@ -169,8 +169,8 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
         } else c->rotrect = c->rrect;
     }
 
-    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL     , D3DTEXF_POINT);
-    IDirect3DDevice9_StretchRect(c->pD3DDev, surf    , NULL, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL, D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, surf, c->rotate ? NULL : srcrect, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_POINT);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
     vdev_win32_render_overlay   (c, hdc ,     0);
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
@@ -188,7 +188,7 @@ static void* video_render_thread_proc(void *param)
         if (c->size > 0) {
             c->size--;
             if (c->ppts[c->head] != -1) {
-                d3d_draw_surf(c, c->surfs[c->head]);
+                d3d_draw_surf(c, c->surfs[c->head], NULL);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
@@ -245,12 +245,15 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
     if (!ctxt || !param) return;
     switch (id) {
-    case PARAM_VDEV_POST_SURFACE:
-        if (((AVFrame*)param)->pts != -1) {
-            d3d_draw_surf(c, (LPDIRECT3DSURFACE9)((AVFrame*)param)->data[3]);
-            c->cmnvars->vpts = ((AVFrame*)param)->pts;
+    case PARAM_VDEV_POST_SURFACE: {
+            AVFrame *frame = ((void**)param)[0];
+            RECT    *rect  = ((void**)param)[1];
+            if (frame->pts != -1) {
+                d3d_draw_surf(c, (LPDIRECT3DSURFACE9)frame->data[3], rect);
+                c->cmnvars->vpts = frame->pts;
+            }
+            vdev_avsync_and_complete(c);
         }
-        vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:
         if (c->rotate != *(int*)param) {
