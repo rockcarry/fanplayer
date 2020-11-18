@@ -27,6 +27,8 @@ typedef struct {
     LPDIRECT3DSURFACE9      surfb;     // black color surface
     LPDIRECT3DSURFACE9     *surfs;     // offset screen surfaces
     LPDIRECT3DSURFACE9      surfw;     // surface keeps same size as render window
+    LPDIRECT3DSURFACE9      surfh1;    // surface1 used for dxva2 hardware accel
+    LPDIRECT3DSURFACE9      surfh2;    // surface2 used for dxva2 hardware accel
     LPDIRECT3DSURFACE9      bkbuf;     // back buffer surface
     D3DPRESENT_PARAMETERS   d3dpp;
     D3DFORMAT               d3dfmt;
@@ -119,7 +121,7 @@ static void d3d_release_for_rotate(VDEVD3DCTXT *c)
     }
 }
 
-static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf, RECT *srcrect)
+static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
 {
     D3DSURFACE_DESC desc = {0};
     D3DLOCKED_RECT  rect = {0};
@@ -143,7 +145,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf, RECT *srcrect
     }
 
     if (c->rotate && c->surft && c->surfr) {
-        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, srcrect, c->surft, NULL, D3DTEXF_POINT);
+        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_POINT);
         if (SUCCEEDED(IDirect3DDevice9_BeginScene(c->pD3DDev))) {
             IDirect3DDevice9_SetRenderTarget(c->pD3DDev, 0, c->surfr);
             IDirect3DDevice9_Clear(c->pD3DDev, 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
@@ -170,7 +172,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf, RECT *srcrect
     }
 
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL, D3DTEXF_POINT);
-    IDirect3DDevice9_StretchRect(c->pD3DDev, surf, c->rotate ? NULL : srcrect, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_POINT);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_LINEAR);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
     vdev_win32_render_overlay   (c, hdc ,     0);
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
@@ -188,7 +190,7 @@ static void* video_render_thread_proc(void *param)
         if (c->size > 0) {
             c->size--;
             if (c->ppts[c->head] != -1) {
-                d3d_draw_surf(c, c->surfs[c->head], NULL);
+                d3d_draw_surf(c, c->surfs[c->head]);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
@@ -246,10 +248,29 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     if (!ctxt || !param) return;
     switch (id) {
     case PARAM_VDEV_POST_SURFACE: {
+            D3DSURFACE_DESC desc1 = {0};
+            D3DSURFACE_DESC desc2 = {0};
             AVFrame *frame = ((void**)param)[0];
             RECT    *rect  = ((void**)param)[1];
+            if (c->surfh1) IDirect3DSurface9_GetDesc(c->surfh1, &desc1);
+            if (desc1.Width != frame->width || desc1.Height != frame->height) {
+                if (c->surfh1) { IDirect3DSurface9_Release(c->surfh1); c->surfh1 = NULL; }
+                IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, frame->width, frame->height,
+                    c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh1, NULL);
+                if (c->surfh1 == NULL) break;;
+            }
+
+            if (c->surfh2) IDirect3DSurface9_GetDesc(c->surfh2, &desc2);
+            if (desc2.Width != c->vw || desc2.Height != c->vh) {
+                if (c->surfh2) { IDirect3DSurface9_Release(c->surfh2); c->surfh2 = NULL; }
+                IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->vw, c->vh,
+                    c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh2, NULL);
+                if (c->surfh2 == NULL) break;;
+            }
             if (frame->pts != -1) {
-                d3d_draw_surf(c, (LPDIRECT3DSURFACE9)frame->data[3], rect);
+                IDirect3DDevice9_StretchRect(c->pD3DDev, (LPDIRECT3DSURFACE9)frame->data[3], NULL, c->surfh1, NULL, D3DTEXF_POINT);
+                IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfh1, rect, c->surfh2, NULL, D3DTEXF_POINT);
+                d3d_draw_surf(c, c->surfh2);
                 c->cmnvars->vpts = frame->pts;
             }
             vdev_avsync_and_complete(c);
@@ -294,6 +315,8 @@ static void vdev_d3d_destroy(void *ctxt)
 
     if (c->surfb  ) IDirect3DSurface9_Release(c->surfb  );
     if (c->surfw  ) IDirect3DSurface9_Release(c->surfw  );
+    if (c->surfh1 ) IDirect3DSurface9_Release(c->surfh1 );
+    if (c->surfh2 ) IDirect3DSurface9_Release(c->surfh2 );
     if (c->bkbuf  ) IDirect3DSurface9_Release(c->bkbuf  );
     if (c->pD3DDev) IDirect3DDevice9_Release (c->pD3DDev);
     if (c->pD3D9  ) IDirect3D9_Release(c->pD3D9);
