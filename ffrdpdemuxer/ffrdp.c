@@ -440,14 +440,14 @@ void ffrdp_update(void *ctxt)
             if (ffrdp_send_data_frame(ffrdp, p, dstaddr) != 0) break;
             if (!(p->flags & FLAG_FAST_RESEND)) {
                 if (ffrdp->rto == FFRDP_MAX_RTO) {
-                    p->flags &= FLAG_TIMEOUT_RESEND;
+                    p->flags &= ~FLAG_TIMEOUT_RESEND;
                     ffrdp->counter_reach_maxrto ++;
                 } else p->flags |= FLAG_TIMEOUT_RESEND;
                 ffrdp->rto += ffrdp->rto / 2;
                 ffrdp->rto  = MIN(ffrdp->rto, FFRDP_MAX_RTO);
                 ffrdp->counter_resend_rto++;
             } else {
-                p->flags &=~FLAG_FAST_RESEND;
+                p->flags &= ~FLAG_FAST_RESEND;
                 ffrdp->counter_resend_fast++;
             }
             p->tick_timeout+= ffrdp->rto;
