@@ -428,7 +428,7 @@ void render_video(void *hrender, AVFrame *video)
             AVFrame srcpic, dstpic = {0};
             render_setup_srcrect(render, video, &srcpic);
             vdev_lock(render->vdev, dstpic.data, dstpic.linesize, srcpic.pts);
-            if (dstpic.data[0] && srcpic.pts != -1) {
+            if (dstpic.data[0] && srcpic.format != -1 && srcpic.pts != -1) {
                 if (  render->sws_src_pixfmt != srcpic.format || render->sws_src_width != srcpic.width       || render->sws_src_height != srcpic.height
                    || render->sws_dst_pixfmt != vdev ->pixfmt || render->sws_dst_width != dstpic.linesize[6] || render->sws_dst_height != dstpic.linesize[7]) {
                     render->sws_src_pixfmt = srcpic.format;
