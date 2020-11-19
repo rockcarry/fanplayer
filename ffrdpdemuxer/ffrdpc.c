@@ -58,7 +58,7 @@ static void* ffrdpc_thread_proc(void *argv)
         if (!(ffrdpc->status & TS_START)) { usleep(100*1000); continue; }
 
         if (!ffrdpc->ffrdp) {
-            ffrdpc->ffrdp = ffrdp_init(ffrdpc->ipaddr, ffrdpc->port, 0);
+            ffrdpc->ffrdp = ffrdp_init(ffrdpc->ipaddr, ffrdpc->port, 0, 0);
             if (!ffrdpc->ffrdp) { usleep(100 * 1000); continue; }
         }
 
