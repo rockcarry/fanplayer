@@ -2,8 +2,10 @@ package com.rockcarry.fanplayer;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -27,6 +29,9 @@ import android.util.Log;
 
 public class MainActivity extends Activity {
     private static final String PLAYER_INIT_PARAMS = "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;audio_bufpktn=5;video_bufpktn=5;rtsp_transport=2;";
+    private static final String PLAYER_SHARED_PREFS= "fanplayer_shared_prefs";
+    private static final String KEY_PLAYER_OPEN_URL= "key_player_open_url";
+    private static final String DEF_PLAYER_OPEN_URL= "rtsp://192.168.0.148/video0";
     private MediaPlayer  mPlayer    = null;
     private playerView   mRoot      = null;
     private SurfaceView  mVideo     = null;
@@ -35,16 +40,18 @@ public class MainActivity extends Activity {
     private ImageView    mPause     = null;
     private boolean      mIsPlaying = false;
     private boolean      mIsLive    = false;
-    private String       mURL       = "rtsp://192.168.0.88/video0";
+    private String       mURL       = "";
     private Surface      mVideoSurface;
     private int          mVideoViewW;
     private int          mVideoViewH;
+    SharedPreferences    mSharedPrefs;
 
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
+        mSharedPrefs = getSharedPreferences(PLAYER_SHARED_PREFS, Context.MODE_PRIVATE);
 
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -68,6 +75,7 @@ public class MainActivity extends Activity {
             mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://") || mURL.startsWith("ffrdp://");
             mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
         } else {
+            mURL = readPlayerOpenURL();
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("open url:");
             final EditText edt = new EditText(this);
@@ -85,6 +93,7 @@ public class MainActivity extends Activity {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     mURL = edt.getText().toString();
+                    savePlayerOpenURL(mURL);
                     mIsLive = mURL.startsWith("http://") && mURL.endsWith(".m3u8") || mURL.startsWith("rtmp://") || mURL.startsWith("rtsp://") || mURL.startsWith("avkcp://") || mURL.startsWith("ffrdp://");
                     mPlayer = new MediaPlayer(mURL, mHandler, PLAYER_INIT_PARAMS);
                     mPlayer.setDisplaySurface(mVideoSurface);
@@ -272,5 +281,15 @@ public class MainActivity extends Activity {
             }
         }
     };
+
+    private String readPlayerOpenURL() {
+        return mSharedPrefs.getString(KEY_PLAYER_OPEN_URL, DEF_PLAYER_OPEN_URL);
+    }
+
+    private void savePlayerOpenURL(String url) {
+        SharedPreferences.Editor editor = mSharedPrefs.edit();
+        editor.putString(KEY_PLAYER_OPEN_URL, url);
+        editor.commit();
+    }
 }
 
