@@ -347,9 +347,8 @@ void ffrdp_free(void *ctxt)
 
 int ffrdp_send(void *ctxt, char *buf, int len)
 {
-    FFRDPCONTEXT     *ffrdp = (FFRDPCONTEXT*)ctxt;
-    FFRDP_FRAME_NODE *node  = NULL;
-    int               n = len, size;
+    FFRDPCONTEXT *ffrdp = (FFRDPCONTEXT*)ctxt;
+    int           n = len, size;
     if (  !ffrdp || ((ffrdp->flags & FLAG_SERVER) && (ffrdp->flags & FLAG_CONNECTED) == 0)
        || ((len + FFRDP_MTU_SIZE - 1) / FFRDP_MTU_SIZE + ffrdp->wait_snd > FFRDP_MAX_WAITSND)) {
         if (ffrdp) ffrdp->counter_send_failed++;
@@ -367,16 +366,16 @@ int ffrdp_send(void *ctxt, char *buf, int len)
         }
     }
     while (n > 0) {
+        if (!(ffrdp->pending_node = frame_node_new(ffrdp->fec_redundancy, FFRDP_MTU_SIZE))) break;
+        SET_FRAME_SEQ(ffrdp->pending_node, ffrdp->send_seq);
         size = MIN(FFRDP_MTU_SIZE, n);
-        if (!(node = frame_node_new(ffrdp->fec_redundancy, FFRDP_MTU_SIZE))) break;
-        SET_FRAME_SEQ(node, ffrdp->send_seq);
-        memcpy(node->data + 4, buf, size);
+        memcpy(ffrdp->pending_node->data + 4, buf, size);
         buf += size; n -= size;
         if (size == FFRDP_MTU_SIZE) {
-            list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, node);
+            list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
             ffrdp->send_seq++; ffrdp->wait_snd++;
+            ffrdp->pending_node = NULL;
         } else {
-            ffrdp->pending_node = node;
             ffrdp->pending_size = size;
             ffrdp->pending_tick = get_tick_count();
         }
