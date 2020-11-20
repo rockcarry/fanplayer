@@ -445,7 +445,8 @@ void ffrdp_update(void *ctxt)
     recv_una = ffrdp->recv_seq;
 
     if (ffrdp->pending_node && ((int32_t)get_tick_count() - (int32_t)ffrdp->pending_tick > FFRDP_FLUSH_TIMEOUT || ffrdp->flags & FLAG_FLUSH)) {
-        ffrdp->pending_node->size = 4 + ffrdp->pending_size;
+        ffrdp->pending_node->data[0] = FFRDP_FRAME_TYPE_FEC0;
+        ffrdp->pending_node->size    = 4 + ffrdp->pending_size;
         list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
         ffrdp->send_seq++; ffrdp->wait_snd++;
         ffrdp->pending_node = NULL;
