@@ -437,6 +437,7 @@ void ffrdp_update(void *ctxt)
         list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
         ffrdp->send_seq++; ffrdp->wait_snd++;
         ffrdp->pending_node = NULL;
+        ffrdp->pending_size = 0;
     }
 
     for (i=0,p=ffrdp->send_list_head; i<FFRDP_DATFRM_FLOWCTL&&p; i++,p=p->next) {
