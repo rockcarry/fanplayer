@@ -354,31 +354,19 @@ int ffrdp_send(void *ctxt, char *buf, int len)
         if (ffrdp) ffrdp->counter_send_failed++;
         return -1;
     }
-    if (ffrdp->pending_node) {
+    while (n > 0) {
+        if (!ffrdp->pending_node) ffrdp->pending_node = frame_node_new(ffrdp->fec_redundancy, FFRDP_MTU_SIZE);
+        if (!ffrdp->pending_node) break;
+        else SET_FRAME_SEQ(ffrdp->pending_node, ffrdp->send_seq);
         size = MIN(n, (FFRDP_MTU_SIZE - (int)ffrdp->pending_size));
         memcpy(ffrdp->pending_node->data + 4 + ffrdp->pending_size, buf, size);
-        ffrdp->pending_size += size;
-        buf += size; n -= size;
+        ffrdp->pending_size += size; buf += size; n -= size;
         if (ffrdp->pending_size == FFRDP_MTU_SIZE) {
             list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
             ffrdp->send_seq++; ffrdp->wait_snd++;
             ffrdp->pending_node = NULL;
-        }
-    }
-    while (n > 0) {
-        if (!(ffrdp->pending_node = frame_node_new(ffrdp->fec_redundancy, FFRDP_MTU_SIZE))) break;
-        SET_FRAME_SEQ(ffrdp->pending_node, ffrdp->send_seq);
-        size = MIN(FFRDP_MTU_SIZE, n);
-        memcpy(ffrdp->pending_node->data + 4, buf, size);
-        buf += size; n -= size;
-        if (size == FFRDP_MTU_SIZE) {
-            list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
-            ffrdp->send_seq++; ffrdp->wait_snd++;
-            ffrdp->pending_node = NULL;
-        } else {
-            ffrdp->pending_size = size;
-            ffrdp->pending_tick = get_tick_count();
-        }
+            ffrdp->pending_size = 0;
+        } else ffrdp->pending_tick = get_tick_count();
     }
     return len - n;
 }
