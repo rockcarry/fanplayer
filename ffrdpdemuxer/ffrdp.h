@@ -7,6 +7,7 @@ int   ffrdp_send  (void *ctxt, char *buf, int len);
 int   ffrdp_recv  (void *ctxt, char *buf, int len);
 int   ffrdp_isdead(void *ctxt);
 void  ffrdp_update(void *ctxt);
+void  ffrdp_flush (void *ctxt);
 
 #endif
 

@@ -36,11 +36,12 @@ static uint32_t get_tick_count()
 #endif
 
 #define FFRDP_RECVBUF_SIZE  (64 * 1024 - 4) // should < 64KB
-#define FFRDP_MTU_SIZE       1024 // should align to 4 bytes
+#define FFRDP_MTU_SIZE      (1500 - 8) // should align to 4 bytes
 #define FFRDP_MIN_RTO        100
 #define FFRDP_MAX_RTO        2000
 #define FFRDP_MAX_WAITSND    256
-#define FFRDP_POLL_CYCLE     100
+#define FFRDP_POLL_CYCLE     500
+#define FFRDP_FLUSH_TIMEOUT  500
 #define FFRDP_DEAD_TIMEOUT   5000
 #define FFRDP_DATFRM_FLOWCTL 32
 #define FFRDP_UDPRBUF_SIZE  (128 * FFRDP_MTU_SIZE)
@@ -79,6 +80,7 @@ typedef struct {
     int32_t  recv_size, recv_head, recv_tail;
     #define FLAG_SERVER    (1 << 0)
     #define FLAG_CONNECTED (1 << 1)
+    #define FLAG_FLUSH     (1 << 2)
     uint32_t flags;
     SOCKET   udp_fd;
     struct   sockaddr_in server_addr;
@@ -88,6 +90,9 @@ typedef struct {
     FFRDP_FRAME_NODE *send_list_tail;
     FFRDP_FRAME_NODE *recv_list_head;
     FFRDP_FRAME_NODE *recv_list_tail;
+    FFRDP_FRAME_NODE *pending_node;
+    uint32_t          pending_size;
+    uint32_t          pending_tick;
     uint32_t send_seq; // send seq
     uint32_t recv_seq; // send seq
     uint32_t recv_win; // remote receive window
@@ -330,6 +335,7 @@ void ffrdp_free(void *ctxt)
     FFRDPCONTEXT *ffrdp = (FFRDPCONTEXT*)ctxt;
     if (!ctxt) return;
     if (ffrdp->udp_fd > 0) closesocket(ffrdp->udp_fd);
+    if (ffrdp->pending_node) free(ffrdp->pending_node);
     list_free(&ffrdp->send_list_head, &ffrdp->send_list_tail);
     list_free(&ffrdp->recv_list_head, &ffrdp->recv_list_tail);
     free(ffrdp);
@@ -343,21 +349,37 @@ int ffrdp_send(void *ctxt, char *buf, int len)
 {
     FFRDPCONTEXT     *ffrdp = (FFRDPCONTEXT*)ctxt;
     FFRDP_FRAME_NODE *node  = NULL;
-    int               n = len, type, size;
+    int               n = len, size;
     if (  !ffrdp || ((ffrdp->flags & FLAG_SERVER) && (ffrdp->flags & FLAG_CONNECTED) == 0)
        || ((len + FFRDP_MTU_SIZE - 1) / FFRDP_MTU_SIZE + ffrdp->wait_snd > FFRDP_MAX_WAITSND)) {
         if (ffrdp) ffrdp->counter_send_failed++;
         return -1;
     }
+    if (ffrdp->pending_node) {
+        size = MIN(n, (FFRDP_MTU_SIZE - (int)ffrdp->pending_size));
+        memcpy(ffrdp->pending_node->data + 4 + ffrdp->pending_size, buf, size);
+        ffrdp->pending_size += size;
+        buf += size; n -= size;
+        if (ffrdp->pending_size == FFRDP_MTU_SIZE) {
+            list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
+            ffrdp->send_seq++; ffrdp->wait_snd++;
+            ffrdp->pending_node = NULL;
+        }
+    }
     while (n > 0) {
         size = MIN(FFRDP_MTU_SIZE, n);
-        type = ffrdp->fec_redundancy == 0 ? 0 : size != FFRDP_MTU_SIZE ? 0 : ffrdp->fec_redundancy;
-        if (!(node = frame_node_new(type, size))) break;
+        if (!(node = frame_node_new(ffrdp->fec_redundancy, FFRDP_MTU_SIZE))) break;
         SET_FRAME_SEQ(node, ffrdp->send_seq);
         memcpy(node->data + 4, buf, size);
-        list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, node);
-        ffrdp->send_seq++; ffrdp->wait_snd++;
         buf += size; n -= size;
+        if (size == FFRDP_MTU_SIZE) {
+            list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, node);
+            ffrdp->send_seq++; ffrdp->wait_snd++;
+        } else {
+            ffrdp->pending_node = node;
+            ffrdp->pending_size = size;
+            ffrdp->pending_tick = get_tick_count();
+        }
     }
     return len - n;
 }
@@ -422,6 +444,13 @@ void ffrdp_update(void *ctxt)
     send_una = ffrdp->send_list_head ? GET_FRAME_SEQ(ffrdp->send_list_head) : 0;
     recv_una = ffrdp->recv_seq;
 
+    if (ffrdp->pending_node && ((int32_t)get_tick_count() - (int32_t)ffrdp->pending_tick > FFRDP_FLUSH_TIMEOUT || ffrdp->flags & FLAG_FLUSH)) {
+        ffrdp->pending_node->size = 4 + ffrdp->pending_size;
+        list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->pending_node);
+        ffrdp->send_seq++; ffrdp->wait_snd++;
+        ffrdp->pending_node = NULL;
+    }
+
     for (i=0,p=ffrdp->send_list_head; i<FFRDP_DATFRM_FLOWCTL&&p; i++,p=p->next) {
         if (!(p->flags & FLAG_FIRST_SEND)) { // first send
             if ((size = frame_payload_size(p)) <= (int)ffrdp->recv_win) {
@@ -441,7 +470,7 @@ void ffrdp_update(void *ctxt)
             if (!(p->flags & FLAG_FAST_RESEND)) {
                 if (ffrdp->rto == FFRDP_MAX_RTO) {
                     p->flags &= ~FLAG_TIMEOUT_RESEND;
-                    ffrdp->counter_reach_maxrto ++;
+                    ffrdp->counter_reach_maxrto++;
                 } else p->flags |= FLAG_TIMEOUT_RESEND;
                 ffrdp->rto += ffrdp->rto / 2;
                 ffrdp->rto  = MIN(ffrdp->rto, FFRDP_MAX_RTO);
