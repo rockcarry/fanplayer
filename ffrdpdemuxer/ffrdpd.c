@@ -99,7 +99,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
     AVCodec         *hwdec  = NULL;
     AVCodecContext  *hwctxt = NULL;
     struct AVRational vrate;
-    char avinfo[256], temp[256];
+    char avinfo[512], temp[256];
     int  ret = -1;
 
     switch (type) {

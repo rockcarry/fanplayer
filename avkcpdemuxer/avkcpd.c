@@ -98,7 +98,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
     AVCodec         *hwdec  = NULL;
     AVCodecContext  *hwctxt = NULL;
     struct AVRational vrate;
-    char avinfo[256], temp[256];
+    char avinfo[512], temp[256];
     int  ret = -1;
 
     switch (type) {
@@ -146,11 +146,11 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
             }
             if (hwdec) {
                 hwctxt = avcodec_alloc_context3(hwdec);
-                hwctxt->width          = ffrdpd->vwidth;
-                hwctxt->height         = ffrdpd->vheight;
+                hwctxt->width          = avkcpd->vwidth;
+                hwctxt->height         = avkcpd->vheight;
                 hwctxt->framerate      = vrate;
-                hwctxt->extradata_size = ffrdpd->spsppsvpslen;
-                hwctxt->extradata      = ffrdpd->spsppsvpsbuf;
+                hwctxt->extradata_size = avkcpd->spsppsvpslen;
+                hwctxt->extradata      = avkcpd->spsppsvpsbuf;
                 if (hwdec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                     hwctxt->flags |= AV_CODEC_FLAG_TRUNCATED;
                 }
