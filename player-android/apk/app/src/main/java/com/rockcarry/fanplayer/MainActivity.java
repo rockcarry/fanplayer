@@ -28,7 +28,7 @@ import android.widget.Toast;
 import android.util.Log;
 
 public class MainActivity extends Activity {
-    private static final String PLAYER_INIT_PARAMS = "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;audio_bufpktn=5;video_bufpktn=5;rtsp_transport=2;";
+    private static final String PLAYER_INIT_PARAMS = "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;audio_bufpktn=4;video_bufpktn=256;rtsp_transport=2;";
     private static final String PLAYER_SHARED_PREFS= "fanplayer_shared_prefs";
     private static final String KEY_PLAYER_OPEN_URL= "key_player_open_url";
     private static final String DEF_PLAYER_OPEN_URL= "rtsp://192.168.0.148/video0";
