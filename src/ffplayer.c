@@ -1058,7 +1058,7 @@ static char* parse_params(const char *str, const char *key, char *val, int len)
         }
         val[i] = *p++;
     }
-    val[i] = val[len-1] = '\0';
+    val[i < len ? i : len - 1] = '\0';
     return val;
 }
 

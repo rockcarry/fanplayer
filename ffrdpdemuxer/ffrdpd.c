@@ -72,7 +72,7 @@ static char* parse_params(const char *str, const char *key, char *val, int len)
         }
         val[i] = *p++;
     }
-    val[i] = val[len-1] = '\0';
+    val[i < len ? i : len - 1] = '\0';
     return val;
 }
 
@@ -158,6 +158,8 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 if (avcodec_open2(hwctxt, hwdec, NULL) == 0) {
                    *ffrdpd->vcodec_context = hwctxt;
                 } else {
+                    hwctxt->extradata_size = 0;
+                    hwctxt->extradata      = NULL;
                     ffrdpd->cmnvars->init_params->video_hwaccel = 0;
                     avcodec_close(hwctxt);
                     avcodec_free_context(&hwctxt);
@@ -261,6 +263,8 @@ void ffrdpdemuxer_exit(void *ctxt)
 {
     FFRDPDEMUXER *ffrdpd = (FFRDPDEMUXER*)ctxt;
     if (ffrdpd) {
+        (*ffrdpd->vcodec_context)->extradata_size = 0;
+        (*ffrdpd->vcodec_context)->extradata      = NULL;
         avcodec_close(*ffrdpd->acodec_context);
         avcodec_close(*ffrdpd->vcodec_context);
         avcodec_free_context(ffrdpd->acodec_context);
