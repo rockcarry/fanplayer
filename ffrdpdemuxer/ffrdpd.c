@@ -263,8 +263,10 @@ void ffrdpdemuxer_exit(void *ctxt)
 {
     FFRDPDEMUXER *ffrdpd = (FFRDPDEMUXER*)ctxt;
     if (ffrdpd) {
-        (*ffrdpd->vcodec_context)->extradata_size = 0;
-        (*ffrdpd->vcodec_context)->extradata      = NULL;
+        if (*ffrdpd->vcodec_context) {
+            (*ffrdpd->vcodec_context)->extradata_size = 0;
+            (*ffrdpd->vcodec_context)->extradata      = NULL;
+        }
         avcodec_close(*ffrdpd->acodec_context);
         avcodec_close(*ffrdpd->vcodec_context);
         avcodec_free_context(ffrdpd->acodec_context);

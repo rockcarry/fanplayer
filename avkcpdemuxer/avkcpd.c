@@ -262,8 +262,10 @@ void avkcpdemuxer_exit(void *ctxt)
 {
     AVKCPDEMUXER *avkcpd = (AVKCPDEMUXER*)ctxt;
     if (avkcpd) {
-        (*avkcpd->vcodec_context)->extradata_size = 0;
-        (*avkcpd->vcodec_context)->extradata      = NULL;
+        if (*avkcpd->vcodec_context) {
+            (*avkcpd->vcodec_context)->extradata_size = 0;
+            (*avkcpd->vcodec_context)->extradata      = NULL;
+        }
         avcodec_close(*avkcpd->acodec_context);
         avcodec_close(*avkcpd->vcodec_context);
         avcodec_free_context(avkcpd->acodec_context);
