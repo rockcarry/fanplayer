@@ -229,22 +229,22 @@ static int ffrdp_send_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame, s
 {
     if (frame->size != 4 + FFRDP_MTU_SIZE + 2) { // short frame
         ffrdp->counter_fec_tx_short++;
-        return sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)) == frame->size ? 0 : -1;
+        sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in));
     } else { // full frame
         uint32_t *psrc = (uint32_t*)frame->data, *pdst = (uint32_t*)ffrdp->fec_txbuf, i;
         *(uint16_t*)(frame->data + 4 + FFRDP_MTU_SIZE) = (uint16_t)ffrdp->fec_txseq;
-        if (sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)) != frame->size) return -1;
-        else ffrdp->fec_txseq++;
+        sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in));
+        ffrdp->counter_fec_tx_full++;
         for (i=0; i<(4+FFRDP_MTU_SIZE)/sizeof(uint32_t); i++) *pdst++ ^= *psrc++; // make xor fec frame
         if (ffrdp->fec_txseq % ffrdp->fec_redundancy == ffrdp->fec_redundancy - 1) {
             *(uint16_t*)(ffrdp->fec_txbuf + 4 + FFRDP_MTU_SIZE) = ffrdp->fec_txseq++;
             ffrdp->fec_txbuf[0] = ffrdp->fec_redundancy;
             sendto(ffrdp->udp_fd, ffrdp->fec_txbuf, sizeof(ffrdp->fec_txbuf), 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)); // send fec frame
+            ffrdp->counter_fec_tx_full++;
             memset(ffrdp->fec_txbuf, 0, sizeof(ffrdp->fec_txbuf)); // clear tx_fecbuf
         }
-        ffrdp->counter_fec_tx_full++;
-        return 0;
     }
+    return 0;
 }
 
 static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
@@ -253,6 +253,7 @@ static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
     if (frame->size != 4 + FFRDP_MTU_SIZE + 2) { // short frame
         ffrdp->counter_fec_rx_short++; return 0;
     } else {
+        ffrdp->counter_fec_rx_full++;
         fecseq = *(uint16_t*)(frame->data + 4 + FFRDP_MTU_SIZE); // full frame
         fecrdc = frame->data[0];
     }
@@ -262,7 +263,6 @@ static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
         return fecseq % fecrdc != fecrdc - 1 ? 0 : -1;
     } else ffrdp->fec_rxseq = fecseq; // group not changed
     if (fecseq % fecrdc == fecrdc - 1) { // it's redundance frame
-        if (ffrdp->fec_rxcnt == fecrdc - 1) { return -1; }
         if (ffrdp->fec_rxcnt != fecrdc - 2) { ffrdp->counter_fec_failed++; return -1; }
         type = frame->data[0];
         psrc = (uint32_t*)ffrdp->fec_rxbuf; pdst = (uint32_t*)frame->data;
@@ -274,7 +274,6 @@ static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
         for (i=0; i<(4+FFRDP_MTU_SIZE)/sizeof(uint32_t); i++) *pdst++ ^= *psrc++;
         ffrdp->fec_rxmask |= 1 << (fecseq % fecrdc); ffrdp->fec_rxcnt++;
     }
-    ffrdp->counter_fec_rx_full++;
     return 0;
 }
 
@@ -565,5 +564,11 @@ void ffrdp_update(void *ctxt)
             p = p->next;
         }
     }
+}
+
+void ffrdp_flush(void *ctxt)
+{
+    FFRDPCONTEXT *ffrdp = (FFRDPCONTEXT*)ctxt;
+    if (ffrdp) ffrdp->flags |= FLAG_FLUSH;
 }
 
