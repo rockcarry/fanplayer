@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avcodec.lib"
+				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avutil.lib avcodec.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="..\pthreads\lib;..\ffmpeg\bin"
 				ModuleDefinitionFile="ffrdpdemuxer.def"
@@ -138,7 +138,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avcodec.lib"
+				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avutil.lib avcodec.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="..\pthreads\lib;..\ffmpeg\bin"
 				ModuleDefinitionFile="ffrdpdemuxer.def"
