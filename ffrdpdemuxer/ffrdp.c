@@ -47,7 +47,7 @@ static uint32_t get_tick_count()
 #define FFRDP_DEF_CWND_SIZE  32
 #define FFRDP_MAX_CWND_SIZE  64
 #define FFRDP_RECVBUF_SIZE  (128 * (FFRDP_MSS_SIZE + 0))
-#define FFRDP_UDPSBUF_SIZE  (1   * (FFRDP_MSS_SIZE + 6))
+#define FFRDP_UDPSBUF_SIZE  (64  * (FFRDP_MSS_SIZE + 6))
 #define FFRDP_UDPRBUF_SIZE  (128 * (FFRDP_MSS_SIZE + 6))
 #define FFRDP_SELECT_SLEEP   1
 #define FFRDP_SELECT_TIMEOUT 10000
@@ -603,7 +603,7 @@ void ffrdp_dump(void *ctxt, int clearhistory)
     av_log(NULL, AV_LOG_WARNING, "counter_send_query  : %u\n"  , ffrdp->counter_send_query  );
     av_log(NULL, AV_LOG_WARNING, "counter_resend_rto  : %u\n"  , ffrdp->counter_resend_rto  );
     av_log(NULL, AV_LOG_WARNING, "counter_resend_fast : %u\n"  , ffrdp->counter_resend_fast );
-    av_log(NULL, AV_LOG_WARNING, "counter_resend_ratio: %.2f%%\n", 100.0 * (ffrdp->counter_resend_rto + ffrdp->counter_resend_fast) / ffrdp->counter_send_1sttime);
+    av_log(NULL, AV_LOG_WARNING, "counter_resend_ratio: %.2f%%\n", 100.0 * (ffrdp->counter_resend_rto + ffrdp->counter_resend_fast) / MAX(ffrdp->counter_send_1sttime, 1));
     av_log(NULL, AV_LOG_WARNING, "counter_reach_maxrto: %u\n"  , ffrdp->counter_reach_maxrto);
     av_log(NULL, AV_LOG_WARNING, "fec_txseq           : %d\n"  , ffrdp->fec_txseq           );
     av_log(NULL, AV_LOG_WARNING, "fec_rxseq           : %d\n"  , ffrdp->fec_rxseq           );
