@@ -71,9 +71,10 @@ void* pktqueue_create(int size, CMNVARS *cmnvars)
 void pktqueue_destroy(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
+    int       i;
 
-    // reset to unref packets
-    pktqueue_reset(ctxt);
+    // unref all packets
+    for (i=0; i<ppq->fsize; i++) av_packet_unref(&ppq->bpkts[i]);
 
     // close
     pthread_mutex_destroy(&ppq->lock);
@@ -93,7 +94,6 @@ void pktqueue_reset(void *ctxt)
     int       i;
     pthread_mutex_lock(&ppq->lock);
     for (i=0; i<ppq->fsize; i++) {
-        av_packet_unref(&ppq->bpkts[i]);
         ppq->fpkts[i] = &ppq->bpkts[i];
         ppq->apkts[i] = NULL;
         ppq->vpkts[i] = NULL;
@@ -118,8 +118,8 @@ AVPacket* pktqueue_request_packet(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->fncur <= 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
-    if (ppq->fncur > 0) {
+    while (ppq->fncur == 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
+    if (ppq->fncur != 0) {
         ppq->fncur--;
         pkt = ppq->fpkts[ppq->fhead++ & (ppq->fsize - 1)];
         pthread_cond_signal(&ppq->cond);
@@ -138,10 +138,9 @@ void pktqueue_release_packet(void *ctxt, AVPacket *pkt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->fncur >= ppq->fsize && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
-    if (ppq->fncur < ppq->fsize) {
+    while (ppq->fncur == ppq->fsize && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
+    if (ppq->fncur != ppq->fsize) {
         ppq->fncur++;
-        av_packet_unref(pkt);
         ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
         pthread_cond_signal(&ppq->cond);
     }
@@ -152,8 +151,8 @@ void pktqueue_audio_enqueue(void *ctxt, AVPacket *pkt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->ancur >= ppq->asize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
-    if (ppq->ancur < ppq->asize) {
+    while (ppq->ancur == ppq->asize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
+    if (ppq->ancur != ppq->asize) {
         ppq->ancur++;
         ppq->apkts[ppq->atail++ & (ppq->asize - 1)] = pkt;
         pthread_cond_signal(&ppq->cond);
@@ -174,8 +173,8 @@ AVPacket* pktqueue_audio_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->ancur <= 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
-    if (ppq->ancur > 0) {
+    while (ppq->ancur == 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
+    if (ppq->ancur != 0) {
         ppq->ancur--;
         pkt = ppq->apkts[ppq->ahead++ & (ppq->asize - 1)];
         pthread_cond_signal(&ppq->cond);
@@ -190,8 +189,8 @@ void pktqueue_video_enqueue(void *ctxt, AVPacket *pkt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->vncur >= ppq->vsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
-    if (ppq->vncur < ppq->vsize) {
+    while (ppq->vncur == ppq->vsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
+    if (ppq->vncur != ppq->vsize) {
         ppq->vncur++;
         ppq->vpkts[ppq->vtail++ & (ppq->vsize - 1)] = pkt;
         pthread_cond_signal(&ppq->cond);
@@ -212,8 +211,8 @@ AVPacket* pktqueue_video_dequeue(void *ctxt)
     ts.tv_sec  += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
     pthread_mutex_lock(&ppq->lock);
-    while (ppq->vncur <= 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
-    if (ppq->vncur > 0) {
+    while (ppq->vncur == 0 && (ppq->status & TS_STOP) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&ppq->cond, &ppq->lock, &ts);
+    if (ppq->vncur != 0) {
         ppq->vncur--;
         pkt = ppq->vpkts[ppq->vhead++ & (ppq->vsize - 1)];
         pthread_cond_signal(&ppq->cond);
