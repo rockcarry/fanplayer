@@ -234,6 +234,7 @@ void vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase)
     RECT              rect= {0};
     int               i;
 
+    if (hdc == NULL) return;
     if (c->overlay_rects[0].type == 0) { c->status |= VDEV_CLEAR; return; }
     for (i=0; i<sizeof(c->overlay_rects)/sizeof(c->overlay_rects[0]) && c->overlay_rects[i].type != 0; i++) {
         if (erase) {
