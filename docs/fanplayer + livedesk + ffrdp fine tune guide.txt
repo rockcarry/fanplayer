@@ -1,0 +1,174 @@
+﻿+------------------------------------------+
+ fanplayer + livedesk + ffrdp 参数调优指南
++------------------------------------------+
+
+fanplayer
+---------
+
+avts_syncmode:
+音视频同步模式，目前提供以下 4 种模式：
+0 - 自动，1 - 文件播放模式，2 - 直播模式，做音视频同步，3 - 直播模式，放弃音视频同步
+
+模式 1 - 文件播放模式，对 demux 出的音视频 packet 不做任何丢弃，回放时做音视频同步
+
+模式 2 - 直播模式，做音视频同步。对 demux 出的音视频 packet 会做丢弃，最终保留的 packet 数量由 video_bufpktn
+和 audio_bufpktn 两个参数决定，回放时做音视频同步
+
+模式 3 - 直播模式，放弃音视频同步。对 demux 出的音视频 packet 会做丢弃，最终保留的 packet 数量由 video_bufpktn
+和 audio_bufpktn 两个参数决定，不做音视频同步，音频渲染会保证连续性，视频渲染时不做任何延时
+
+自动模式，fanplayer 会根据播放的 url 自动选择合适的模式，播放文件会采用模式 1；播放直播码流，比如
+rtsp:// rtmp:// dshow:// 会采用模式 2 或 3；具体请查看实际代码确认。
+
+比较特殊的：ffrdp:// 和  avkcp:// 两种直播流默认都采用了 3。如果需要改为模式 2，请自行修改相关代码
+
+
+init_timeout 和 auto_reconnect:
+这两个参数用于播放器的自动重连，比如打开 rtsp rtmp dshow。以毫秒 ms 为单位，一般配置为 5 - 10s 就比较合适了
+
+rtsp_transport:
+用于配置 rtsp 播放时使用的传输协议，0 为自动，由 ffmpeg 内部自动决定，1 为 udp，2 为 tcp
+
+vdev_render_type:
+windows 平台上，0 - gdi，1 - d3d
+
+video_hwaccel:
+配置为 1 可开启对应平台的硬件加速（如果可能），windows 平台目前支持 dxva2，android 平台支持 mediacodec
+要注意的是，windows 平台上如果开启 dxva2 硬件加速，需要将 vdev_render_type 配置为 1
+
+
+
+livedesk
+--------
+
+-aac 或 -alaw
+选择使用 aac 或者 pcm alaw 音频编码方式
+
+-channels=
+音频采集通道数，可配置为 1 - 单声道，2 - 立体声
+
+-samplerate=
+音频采样率，可配置为 8000, 16000, 32000, 44100, 48000
+要注意的是，如果选用 pcm alaw 编码，采样率会默认使用 8000
+
+-abitrate=
+这个参数仅对 aac 编码方式有效，一般配置为 32000 到 128000
+
+-vwidth= 和 -vheight=
+用于指定视频采集并缩放后的图像分辨率大小。
+
+-framerate=
+用于指定帧率
+
+-vbitrate=
+用于指定视频编码的码率。目前的代码默认使用了 x264 的 ABR 码率控制
+这个 -vbitrate 的配置对应的是 ABR 的平均码率，上限码率为该值的两倍
+具体请查看相关代码，如果有特殊需求，也请自行修改相关代码
+
+ffrdp 协议支持 auto 自动码率模式，会根据实时的网络情况，自动调整编码码率，
+也被称为自适应码率。配置为 auto 模式后，需要配置一张自适应码率表：
+
+参考 main.c 中的相关代码：
+
++----------------------------------------------------------------------------------------+
+if (rectype == 4 && ffrdpauto) { // setup adaptive bitrate list
+    int blist[16] = { 250000, 500000, 1000000, 1200000, 1400000, 1600000,
+        1800000, 2000000, 2100000, 2200000, 2300000, 2400000, 2500000, 2600000, 2700000 };
+    ffrdps_adaptive_bitrate_setup (live->ffrdps, blist, 15);
+    ffrdps_adaptive_bitrate_enable(live->ffrdps, 1);
+}
++----------------------------------------------------------------------------------------+
+这个表中，低码率段，码率增长（相邻元素的差）可以配置得相对较大，到了高码率段，码率增长尽量小。
+根据实际的码率带宽需求，并按照这个原则进行细调，可获得较好的自适应码率效果。
+
+
+-rtsp= -rtmp= -mp4= -avkcps= -ffrdps=
+指定录制方式（或者叫协议模式），分别对应 rtsp rtmp mp4 avkcp ffrdps
+使用 -mp4 录制到文件，还需要指定 -duration= 视频分段时长，毫秒为单位
+
+
+
+ffrdp
+-----
+
+FFRDP_MSS_SIZE
+一帧数据最大可以发送的字节数，一般是在 UDP 协议 MTU 的基础上减 8 （ffrdp 协议有 4 字节头和 2 字节 fec 的尾），并且要求对齐到 4 字节
+在不同的网络环境下这个参数可能会影响到传输效果，建议从最大值往下调，然后记录测试效果，选取一个最优值
+
+FFRDP_MIN_RTO 和 FFRDP_MAX_RTO
+发送一个数据帧后等待 ACK 应答的超时时间称为 RTO，RTO 在一定程度上代表和衡量了网络的延迟和拥堵情况。
+FFRDP_MIN_RTO 和 FFRDP_MAX_RTO 限定了 ffrdp 协议中的 RTO 的范围。
+在实时音视频传输中为了减少延时，可以将 FFRDP_MAX_RTO 适当调小，从 1000ms 逐步调整至 100ms，然后测试效果，选取一个最优值。
+FFRDP_MAX_RTO 的值设置比较小的话，会导致超时重发的频率上升，设置比较大的话，延迟会上升
+FFRDP_MIN_RTO 的值一般设置为 20 - 100 即可，设置过大，会导致延迟上升
+这两个值是影响延时的关键参数，需要根据实际情况调优，调试的时候要同时关注 ffrdp_dump 中的 counter_resend_ratio 是否会上升
+还有 ffrdp_dump 中的 rto 值是否稳定（避免反复抖动）
+
+FFRDP_MAX_WAITSND
+等待发送的数据帧最大个数，如果 wait_snd 大于这个值，调用 ffrdp_send 接口函数就会返回失败
+这个值以 FFRDP_MSS_SIZE 为单位，一般配置为 256 - 4096 都可以，比如配置为 256 就意味着 ffrdp 内部会有差不多
+256 * (1500 - 8) = 381952, 380KB 左右的数据缓存。如果 ffrdp_send 调用一次发送的数据比较大就要对应的去加大 FFRDP_MAX_WAITSND
+另外还要同时考虑系统可分配的内存空间，在 PC 或者 android 上，这个值可以设置的比较大，因为内存足够
+在一些嵌入式 linux 系统上，为节省内存会尽量配置得比较小。
+例如传输 1080p h264/h265 编码，如果关键帧最大为 key_frame_size，可以考虑把 FFRDP_MAX_WAITSND 配置为
+key_frame_size * N / FFRDP_MSS_SIZE，N 可以为 2, 3, 4, 5 ... 即关键帧大小的 N 倍
+
+FFRDP_QUERY_CYCLE
+发送窗口用完后（即接收方没有及时收下数据），ffrdp 会定期的去查询接收方的窗口大小等信息（发送 query 帧），这个参数对应了查询的超时，
+以毫秒为单位。
+
+FFRDP_FLUSH_TIMEOUT
+ffrdp 内部会尽量将待发送的数据，拼装为一个完整（full）的数据帧，即 FFRDP_MSS_SIZE 的大小，这样可以提升发送效率。
+FFRDP_FLUSH_TIMEOUT 对应等待拼装的超时时间，如果待发送的数据无法拼装为 full 帧，那么超过这个时间后，也只能将 short 帧送出
+适当调整这个值可以减少延迟，但是在某些网络环境中，如果 short 帧太多，会导致发送效率急剧下降，丢包率上升。所以不能调得太小
+实际调优时在 500ms 左右调整，根据测试结果记录最优值，同时要关注 rto 和 counter_resend_ratio 的变化
+
+FFRDP_DEAD_TIMEOUT
+网络 dead link（断连）检测超时，ffrdp_isdead 接口函数会根据发送和 ACK 情况和这个超时时间，综合判断网络是否断开。
+一般设置为 5s 左右就可以了
+
+FFRDP_MIN_CWND_SIZE, FFRDP_DEF_CWND_SIZE, FFRDP_MAX_CWND_SIZE
+拥塞窗口配置，下限、默认、上限。ffrdp 中支持了拥塞控制算法，基本上跟 tcp 的算法一致。
+在局域网环境中，FFRDP_MIN_CWND_SIZE 一般配置为 16 - 32，FFRDP_MAX_CWND_SIZE 配置为 32 - 64，FFRDP_DEF_CWND_SIZE 取中间值
+调大 cwnd 的值也许可以降低延迟和提升吞吐量，但是如果设置过大，导致大量发送数据包，使网络拥堵反而会适得其反。
+建议在 16 - 64 的范围内调优，根据实测选取最优值，调试是要同时关注 rto 和 counter_resend_ratio 的变化
+
+FFRDP_RECVBUF_SIZE
+接收缓冲大小，一般情况下，只要接收端（播放器端）能及时取走数据，这个值不用设置太大，64KB - 256KB 即可。
+发送端的话，可以设置得更小 1KB - 8KB 即可，可节省内存
+
+FFRDP_UDPSBUF_SIZE, FFRDP_UDPRBUF_SIZE
+对应底层 udp 协议的发送缓冲大小和接收缓冲大小。
+作为接收端 FFRDP_UDPRBUF_SIZE（接收缓冲大小）可以设置较大，跟 FFRDP_RECVBUF_SIZE 保持一致即可，FFRDP_UDPSBUF_SIZE 可以适当
+调小，比如 2 - 8 个 (FFRDP_MSS_SIZE + 6)，可节省内存
+作为发送端 FFRDP_UDPSBUF_SIZE（发送缓冲大小）要设置尽量跟 FFRDP_MAX_CWND_SIZE 的个数一致，FFRDP_UDPRBUF_SIZE 可以适当调小
+这两个参数的配置可能也会影响到 counter_resend_ratio，请根据实测情况调优
+
+FFRDP_SELECT_SLEEP
+ffrdp_update 的延时模式，配置为 0 采用固定延时，延时时间由 FFRDP_USLEEP_TIMEOUT 指定
+配置为 1 采用 select 驱动的延时，为非固定延时，最大超时由 FFRDP_SELECT_TIMEOUT 指定
+使用 select 驱动模式，可以有更大的吞吐量和较少的 cpu 占用
+
+FEC 开启方法
+ffrdp_init 函数的最后一个参数，是指定 fec 的等级，如果设定为 8，则发送 7 个实际数据帧后，发送 1 个 fec 数据帧（12.5% 的比率）
+开启 fec 后可以有效降低 counter_resend_ratio（超时重发比率）。关闭 fec 把最后一个参数配置为 0 即可。
+实际的 wifi 弱网环境，可能会有较大的随机丢包率，可以考虑采用 5 - 10 级别的 fec 进行纠错，同时关注 counter_resend_ratio
+是否下降，关注 counter_fec_ok 和 counter_fec_failed 的变化
+fec 的等级在发送端可以随意配置，接收端可兼容任意的 fec 等级配置。
+
+
+ffrdp 的全部参数调试过程中，一定要多看 ffrdp_dump 出来的数据，来确定当前参数是否合理，重点关注 rto, counter_resend_ratio, wait_snd 等
+
+
+
+
+2020-12-1
+rockcarry
+
+
+
+
+
+
+
+
