@@ -122,6 +122,7 @@ AVPacket* pktqueue_request_packet(void *ctxt)
     if (ppq->fncur != 0) {
         ppq->fncur--;
         pkt = ppq->fpkts[ppq->fhead++ & (ppq->fsize - 1)];
+        av_packet_unref(pkt);
         pthread_cond_signal(&ppq->cond);
     }
     pthread_mutex_unlock(&ppq->lock);
