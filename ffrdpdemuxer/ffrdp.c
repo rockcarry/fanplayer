@@ -464,7 +464,7 @@ void ffrdp_update(void *ctxt)
     FFRDPCONTEXT       *ffrdp   = (FFRDPCONTEXT*)ctxt;
     FFRDP_FRAME_NODE   *node    = NULL, *p = NULL, *t = NULL;
     struct sockaddr_in *dstaddr = NULL, srcaddr;
-    uint32_t addrlen = sizeof(srcaddr);
+    int32_t  addrlen = sizeof(srcaddr);
     int32_t  una, mack, ret, got_data = 0, got_query = 0, send_una, send_mack = 0, recv_una, dist, maxack, i;
     uint8_t  data[8];
 
