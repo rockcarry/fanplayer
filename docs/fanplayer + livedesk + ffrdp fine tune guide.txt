@@ -91,9 +91,10 @@ if (rectype == 4 && ffrdpauto) { // setup adaptive bitrate list
 ffrdp
 -----
 
-FFRDP_MSS_SIZE
-一帧数据最大可以发送的字节数，一般是在 UDP 协议 MTU 的基础上减 8 （ffrdp 协议有 4 字节头和 2 字节 fec 的尾），并且要求对齐到 4 字节
-在不同的网络环境下这个参数可能会影响到传输效果，建议从最大值往下调，然后记录测试效果，选取一个最优值
+FFRDP_MAX_MSS
+最大的 mss 值，一般设置为 1500 - 8，1500 为 UDP 协议的 MTU 的大小，ffrdp 协议有 4 字节头和 2 字节 fec 的尾，并且要求对齐到 4 字节
+这个值不建议修改，如果要使用更小的 mss 分片大小，只需要在 ffrdp_init 第 4 个参数，传入所需要的 smss 值即可
+在不同的网络环境下，smss 参数可能会影响到传输效果，建议从最大值往下调，然后记录测试效果，选取一个最优值
 
 FFRDP_MIN_RTO 和 FFRDP_MAX_RTO
 发送一个数据帧后等待 ACK 应答的超时时间称为 RTO，RTO 在一定程度上代表和衡量了网络的延迟和拥堵情况。
