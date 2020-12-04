@@ -43,7 +43,7 @@ static uint32_t get_tick_count()
 #define FFRDP_QUERY_CYCLE    500
 #define FFRDP_FLUSH_TIMEOUT  500
 #define FFRDP_DEAD_TIMEOUT   5000
-#define FFRDP_MIN_CWND_SIZE  16
+#define FFRDP_MIN_CWND_SIZE  1
 #define FFRDP_DEF_CWND_SIZE  32
 #define FFRDP_MAX_CWND_SIZE  64
 #define FFRDP_RECVBUF_SIZE  (128 * (FFRDP_MAX_MSS + 0))
