@@ -630,7 +630,7 @@ void ffrdp_dump(void *ctxt, int clearhistory)
     av_log(NULL, AV_LOG_WARNING, "counter_fec_failed  : %u\n\n", ffrdp->counter_fec_failed  );
     if (secs > 1 && clearhistory) {
         ffrdp->tick_ffrdp_dump = get_tick_count();
-        memset(&ffrdp->counter_send_bytes, 0, &ffrdp->reserved - &ffrdp->counter_send_bytes);
+        memset(&ffrdp->counter_send_bytes, 0, (uint8_t*)&ffrdp->reserved - (uint8_t*)&ffrdp->counter_send_bytes);
     }
 }
 
