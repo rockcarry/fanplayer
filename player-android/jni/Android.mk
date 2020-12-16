@@ -26,6 +26,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/ndk-build-files/include \
+    $(LOCAL_PATH)/../openssl/include \
     $(LOCAL_PATH)/../ffmpeg/include \
     $(LOCAL_PATH)/../soundtouch/include \
     $(LOCAL_PATH)/../../src \
@@ -36,11 +37,24 @@ LOCAL_CFLAGS   += -DANDROID -DNDEBUG -D__STDC_CONSTANT_MACROS -DENABLE_AVKCP_SUP
 LOCAL_CXXFLAGS += -DHAVE_PTHREADS
 LOCAL_LDLIBS   += -lz -llog -landroid
 
-LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libsoundtouch
+LOCAL_STATIC_LIBRARIES += libavformat libavcodec libavdevice libavfilter libswresample libswscale libavutil libsoundtouch libssl libcrypto
 
 LOCAL_MULTILIB := 32
 
 include $(BUILD_SHARED_LIBRARY)
+
+
+#++ openssl prebuilt static libraries
+include $(CLEAR_VARS)
+LOCAL_MODULE := libcrypto
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../openssl/lib/libcrypto.a
+include $(PREBUILT_STATIC_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libssl
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../openssl/lib/libssl.a
+include $(PREBUILT_STATIC_LIBRARY)
+#++ openssl prebuilt static libraries
 
 
 #++ ffmpeg prebuilt static libraries

@@ -2,7 +2,7 @@
 set -e
 
 PREFIX_DIR=$PWD/ffmpeg-android-sdk
-SYSROOT=$NDK_HOME/platforms/android-19/arch-x86/
+SYSROOT=$NDK_HOME/platforms/android-21/arch-x86/
 CROSS_COMPILE=$NDK_HOME/toolchains/x86-4.9/prebuilt/windows/bin/i686-linux-android-
 EXTRA_CFLAGS="-I$PREFIX_DIR/include -DANDROID -DNDEBUG -Os -ffast-math"
 EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"

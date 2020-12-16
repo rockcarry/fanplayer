@@ -2,7 +2,7 @@
 set -e
 
 PREFIX_DIR=$PWD/ffmpeg-android-sdk
-SYSROOT=$NDK_HOME/platforms/android-19/arch-arm/
+SYSROOT=$NDK_HOME/platforms/android-21/arch-arm/
 CROSS_COMPILE=$NDK_HOME/toolchains/arm-linux-androideabi-4.9/prebuilt/windows/bin/arm-linux-androideabi-
 EXTRA_CFLAGS="-I$PREFIX_DIR/include -DANDROID -DNDEBUG -Os -ffast-math -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"
