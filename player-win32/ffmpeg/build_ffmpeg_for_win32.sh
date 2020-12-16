@@ -41,7 +41,8 @@ cd ffmpeg
 --enable-version3 \
 --enable-nonfree \
 --enable-dxva2 \
---enable-d3d11va
+--enable-d3d11va \
+--enable-openssl
 make -j8 && make install
 cd -
 #++ build ffmpeg ++#
