@@ -1,7 +1,7 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 #include "ffrdp.h"
 #include "libavutil/log.h"
 
@@ -9,15 +9,9 @@
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
 #define get_tick_count GetTickCount
-typedef   signed char    int8_t;
-typedef unsigned char   uint8_t;
-typedef   signed short  int16_t;
-typedef unsigned short uint16_t;
-typedef unsigned int   uint32_t;
-typedef   signed int    int32_t;
 #pragma warning(disable:4996) // disable warnings
 #else
-#include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
