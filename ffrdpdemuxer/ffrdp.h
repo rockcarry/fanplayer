@@ -1,7 +1,7 @@
 #ifndef __FFRDP_H__
 #define __FFRDP_H__
 
-void* ffrdp_init  (char *ip, int port, int server, int smss, int sfec);
+void* ffrdp_init  (char *ip, int port, char *txkey, char *rxkey, int server, int smss, int sfec);
 void  ffrdp_free  (void *ctxt);
 int   ffrdp_send  (void *ctxt, char *buf, int len);
 int   ffrdp_recv  (void *ctxt, char *buf, int len);

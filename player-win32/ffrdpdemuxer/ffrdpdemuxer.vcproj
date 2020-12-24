@@ -40,8 +40,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\pthreads\include;..\ffmpeg\include;..\..\src"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;FFRDPDEMUXER_EXPORTS;inline=_inline"
+				AdditionalIncludeDirectories="..\pthreads\include;..\openssl\include;..\ffmpeg\include;..\..\src"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;FFRDPDEMUXER_EXPORTS;inline=_inline;CONFIG_ENABLE_AES256"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -61,9 +61,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avutil.lib avcodec.lib"
+				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib libcrypto.lib avutil.lib avcodec.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="..\pthreads\lib;..\ffmpeg\bin"
+				AdditionalLibraryDirectories="..\pthreads\lib;..\openssl\lib;..\ffmpeg\bin"
 				ModuleDefinitionFile="ffrdpdemuxer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -119,8 +119,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\pthreads\include;..\ffmpeg\include;..\..\src"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;FFRDPDEMUXER_EXPORTS;inline=_inline"
+				AdditionalIncludeDirectories="..\pthreads\include;..\openssl\include;..\ffmpeg\include;..\..\src"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;FFRDPDEMUXER_EXPORTS;inline=_inline;CONFIG_ENABLE_AES256"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -138,9 +138,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib avutil.lib avcodec.lib"
+				AdditionalDependencies="winmm.lib ws2_32.lib pthread.lib libcrypto.lib avutil.lib avcodec.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\pthreads\lib;..\ffmpeg\bin"
+				AdditionalLibraryDirectories="..\pthreads\lib;..\openssl\lib;..\ffmpeg\bin"
 				ModuleDefinitionFile="ffrdpdemuxer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"

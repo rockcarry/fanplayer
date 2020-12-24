@@ -1082,5 +1082,7 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->rtsp_transport      = atoi(parse_params(str, "rtsp_transport"     , value, sizeof(value)) ? value : "0");
     params->avts_syncmode       = atoi(parse_params(str, "avts_syncmode"      , value, sizeof(value)) ? value : "0");
     parse_params(str, "filter_string", params->filter_string, sizeof(params->filter_string));
+    parse_params(str, "ffrdp_tx_key" , params->ffrdp_tx_key , sizeof(params->ffrdp_tx_key ));
+    parse_params(str, "ffrdp_rx_key" , params->ffrdp_rx_key , sizeof(params->ffrdp_rx_key ));
 }
 //-- load player init params from string

@@ -156,6 +156,8 @@ typedef struct {
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
     int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 文件播放模式，2 - 直播模式，做音视频同步，3 - 直播模式，放弃音视频同步
     char filter_string[256];       // w  自定义的 video filter string
+    char ffrdp_tx_key[32];         // w  ffrdp 协议发送数据用到的 aes256 加密 key
+    char ffrdp_rx_key[32];         // w  ffrdp 协议接收数据用到的 aes256 解密 key
 } PLAYER_INIT_PARAMS;
 // video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
 // 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1

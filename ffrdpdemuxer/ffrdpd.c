@@ -231,7 +231,7 @@ void* ffrdpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     str = strstr(ipaddr, ":");
     if (str) *str = '\0';
  
-    ffrdpd->ffrdpc = ffrdpc_init(ipaddr, port, ffrdpc_callback, ffrdpd);
+    ffrdpd->ffrdpc = ffrdpc_init(ipaddr, port, cmnvars->init_params->ffrdp_tx_key, cmnvars->init_params->ffrdp_rx_key, ffrdpc_callback, ffrdpd);
     if (!ffrdpd->ffrdpc) { free(ffrdpd); return NULL; }
 
     astream_timebase->num  = 1;

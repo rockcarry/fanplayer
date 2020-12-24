@@ -5,6 +5,10 @@
 #include "ffrdp.h"
 #include "libavutil/log.h"
 
+#ifdef CONFIG_ENABLE_AES256
+#include <openssl/aes.h>
+#endif
+
 #ifdef WIN32
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
@@ -81,6 +85,8 @@ typedef struct {
     #define FLAG_SERVER    (1 << 0)
     #define FLAG_CONNECTED (1 << 1)
     #define FLAG_FLUSH     (1 << 2)
+    #define FLAG_TX_AES256 (1 << 3)
+    #define FLAG_RX_AES256 (1 << 4)
     uint32_t flags;
     SOCKET   udp_fd;
     struct   sockaddr_in server_addr;
@@ -109,6 +115,11 @@ typedef struct {
     uint16_t fec_rxseq;
     uint16_t fec_rxcnt;
     uint32_t fec_rxmask;
+
+#ifdef CONFIG_ENABLE_AES256
+    AES_KEY  aes_encrypt_key;
+    AES_KEY  aes_decrypt_key;
+#endif
 
     uint32_t counter_send_bytes;
     uint32_t counter_recv_bytes;
@@ -167,6 +178,17 @@ static FFRDP_FRAME_NODE* frame_node_new(int type, int size) // create a new fram
     node->data[0] = type;
     return node;
 }
+
+#ifdef CONFIG_ENABLE_AES256
+static void frame_node_encrypt(FFRDP_FRAME_NODE *node, AES_KEY *key, int enc)
+{
+    uint8_t *pdata = node->data + 4, *pend = node->data + node->size - (node->data[0] <= FFRDP_FRAME_TYPE_SHORT ? 0 : 2);
+    while (pdata < pend) {
+        AES_ecb_encrypt(pdata, pdata, key, enc);
+        pdata += AES_BLOCK_SIZE;
+    }
+}
+#endif
 
 static int frame_payload_size(FFRDP_FRAME_NODE *node) {
     return  node->size - 4 - (node->data[0] <= FFRDP_FRAME_TYPE_SHORT ? 0 : 2);
@@ -281,7 +303,7 @@ static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
     return 0;
 }
 
-void* ffrdp_init(char *ip, int port, int server, int smss, int sfec)
+void* ffrdp_init(char *ip, int port, char *txkey, char *rxkey, int server, int smss, int sfec)
 {
 #ifdef WIN32
     WSADATA wsaData;
@@ -333,6 +355,19 @@ void* ffrdp_init(char *ip, int port, int server, int smss, int sfec)
             goto failed;
         }
     }
+
+    if (txkey) {
+#ifdef CONFIG_ENABLE_AES256
+        ffrdp->flags |= FLAG_TX_AES256;
+        AES_set_encrypt_key((uint8_t*)txkey, 256, &ffrdp->aes_encrypt_key);
+#endif
+    }
+    if (rxkey) {
+#ifdef CONFIG_ENABLE_AES256
+        ffrdp->flags |= FLAG_RX_AES256;
+        AES_set_decrypt_key((uint8_t*)rxkey, 256, &ffrdp->aes_decrypt_key);
+#endif
+    }
     return ffrdp;
 
 failed:
@@ -373,6 +408,9 @@ int ffrdp_send(void *ctxt, char *buf, int len)
         memcpy(ffrdp->cur_new_node->data + 4 + ffrdp->cur_new_size, buf, size);
         ffrdp->cur_new_size += size; buf += size; n -= size;
         if (ffrdp->cur_new_size == ffrdp->smss) {
+#ifdef CONFIG_ENABLE_AES256
+            if ((ffrdp->flags & FLAG_TX_AES256)) frame_node_encrypt(ffrdp->cur_new_node, &ffrdp->aes_encrypt_key, AES_ENCRYPT);
+#endif
             list_enqueue(&ffrdp->send_list_head, &ffrdp->send_list_tail, ffrdp->cur_new_node);
             ffrdp->send_seq++; ffrdp->wait_snd++;
             ffrdp->cur_new_node = NULL;
@@ -415,6 +453,9 @@ static void ffrdp_recvdata_and_sendack(FFRDPCONTEXT *ffrdp, struct sockaddr_in *
     while (ffrdp->recv_list_head) {
         dist = seq_distance(GET_FRAME_SEQ(ffrdp->recv_list_head), ffrdp->recv_seq);
         if (dist == 0 && (size = frame_payload_size(ffrdp->recv_list_head)) <= (int)(sizeof(ffrdp->recv_buff) - ffrdp->recv_size)) {
+#ifdef CONFIG_ENABLE_AES256
+            if ((ffrdp->flags & FLAG_RX_AES256)) frame_node_encrypt(ffrdp->recv_list_head, &ffrdp->aes_decrypt_key, AES_DECRYPT);
+#endif
             ffrdp->recv_tail = ringbuf_write(ffrdp->recv_buff, sizeof(ffrdp->recv_buff), ffrdp->recv_tail, ffrdp->recv_list_head->data + 4, size);
             ffrdp->recv_size+= size;
             ffrdp->recv_seq++; ffrdp->recv_seq &= 0xFFFFFF;

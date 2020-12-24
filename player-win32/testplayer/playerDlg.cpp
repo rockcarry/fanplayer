@@ -53,31 +53,6 @@ static void load_fanplayer_params(PLAYER_INIT_PARAMS *params)
     }
 }
 
-static void save_fanplayer_params(PLAYER_INIT_PARAMS *params)
-{
-    char  file[MAX_PATH];
-    FILE *fp = NULL;
-
-    // open params file
-    get_app_dir(file, MAX_PATH);
-    strcat(file, "\\fanplayer.ini");
-    fp = fopen(file, "wb");
-
-    if (fp) {
-        fprintf(fp, "video_stream_cur   = %d;\r\n", params->video_stream_cur   );
-        fprintf(fp, "video_thread_count = %d;\r\n", params->video_thread_count );
-        fprintf(fp, "video_hwaccel      = %d;\r\n", params->video_hwaccel      );
-        fprintf(fp, "video_deinterlace  = %d;\r\n", params->video_deinterlace  );
-        fprintf(fp, "video_rotate       = %d;\r\n", params->video_rotate       );
-        fprintf(fp, "audio_stream_cur   = %d;\r\n", params->audio_stream_cur   );
-        fprintf(fp, "subtitle_stream_cur= %d;\r\n", params->subtitle_stream_cur);
-        fprintf(fp, "vdev_render_type   = %d;\r\n", params->vdev_render_type   );
-        fprintf(fp, "adev_render_type   = %d;\r\n", params->adev_render_type   );
-        fprintf(fp, "init_timeout       = %d;\r\n", params->init_timeout       );
-        fclose(fp);
-    }
-}
-
 static void player_textout(void *player, HFONT hfont, int x, int y, int color, TCHAR *text)
 {
     RECTOVERLAY overlay[2] = { { 0, 0, 360, 50, 10, 10, 360, 50, OVERLAY_CONST_ALPHA, 200, 0 } };
@@ -307,13 +282,6 @@ HCURSOR CplayerDlg::OnQueryDragIcon()
 void CplayerDlg::OnDestroy()
 {
     CDialog::OnDestroy();
-
-#if 0
-    // save fanplayer init params
-    PLAYER_INIT_PARAMS params;
-    player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
-    save_fanplayer_params(&params);
-#endif
 
     // close player
     player_close(m_ffPlayer);

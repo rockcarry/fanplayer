@@ -41,7 +41,18 @@ typedef struct {
     int       size;
     uint8_t   buff[2 * 1024 * 1024];
     char      ipaddr[32];
+    char      txkey [32];
+    char      rxkey [32];
 } FFRDPC;
+
+static int is_null_key(char key[32])
+{
+    int  i;
+    for (i=0; i<32; i++) {
+        if (key[i]) return 0;
+    }
+    return 1;
+}
 
 static void* ffrdpc_thread_proc(void *argv)
 {
@@ -58,7 +69,10 @@ static void* ffrdpc_thread_proc(void *argv)
         if (!(ffrdpc->status & TS_START)) { usleep(100*1000); continue; }
 
         if (!ffrdpc->ffrdp) {
-            ffrdpc->ffrdp = ffrdp_init(ffrdpc->ipaddr, ffrdpc->port, 0, 1024, 0);
+            ffrdpc->ffrdp = ffrdp_init(ffrdpc->ipaddr, ffrdpc->port,
+                is_null_key(ffrdpc->txkey) ? NULL : ffrdpc->txkey,
+                is_null_key(ffrdpc->rxkey) ? NULL : ffrdpc->rxkey,
+                0, 1024, 0);
             if (!ffrdpc->ffrdp) { usleep(100 * 1000); continue; }
         }
 
@@ -110,7 +124,7 @@ static void* ffrdpc_thread_proc(void *argv)
     return NULL;
 }
 
-void* ffrdpc_init(char *ip, int port, PFN_FFRDPC_CB callback, void *cbctxt)
+void* ffrdpc_init(char *ip, int port, char *txkey, char *rxkey, PFN_FFRDPC_CB callback, void *cbctxt)
 {
     FFRDPC *ffrdpc = calloc(1, sizeof(FFRDPC));
     if (!ffrdpc) {
@@ -122,6 +136,8 @@ void* ffrdpc_init(char *ip, int port, PFN_FFRDPC_CB callback, void *cbctxt)
     ffrdpc->callback = callback;
     ffrdpc->cbctxt   = cbctxt;
     strncpy(ffrdpc->ipaddr, ip, sizeof(ffrdpc->ipaddr));
+    strncpy(ffrdpc->txkey, txkey, sizeof(ffrdpc->txkey));
+    strncpy(ffrdpc->rxkey, rxkey, sizeof(ffrdpc->rxkey));
 
     // create client thread
     pthread_create(&ffrdpc->pthread, NULL, ffrdpc_thread_proc, ffrdpc);
