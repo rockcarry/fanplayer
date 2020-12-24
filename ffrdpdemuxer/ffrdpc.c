@@ -136,8 +136,8 @@ void* ffrdpc_init(char *ip, int port, char *txkey, char *rxkey, PFN_FFRDPC_CB ca
     ffrdpc->callback = callback;
     ffrdpc->cbctxt   = cbctxt;
     strncpy(ffrdpc->ipaddr, ip, sizeof(ffrdpc->ipaddr));
-    strncpy(ffrdpc->txkey, txkey, sizeof(ffrdpc->txkey));
-    strncpy(ffrdpc->rxkey, rxkey, sizeof(ffrdpc->rxkey));
+    if (txkey) strncpy(ffrdpc->txkey, txkey, sizeof(ffrdpc->txkey));
+    if (rxkey) strncpy(ffrdpc->rxkey, rxkey, sizeof(ffrdpc->rxkey));
 
     // create client thread
     pthread_create(&ffrdpc->pthread, NULL, ffrdpc_thread_proc, ffrdpc);

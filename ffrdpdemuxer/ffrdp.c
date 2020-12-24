@@ -182,8 +182,8 @@ static FFRDP_FRAME_NODE* frame_node_new(int type, int size) // create a new fram
 #ifdef CONFIG_ENABLE_AES256
 static void frame_node_encrypt(FFRDP_FRAME_NODE *node, AES_KEY *key, int enc)
 {
-    uint8_t *pdata = node->data + 4, *pend = node->data + node->size - (node->data[0] <= FFRDP_FRAME_TYPE_SHORT ? 0 : 2);
-    while (pdata < pend) {
+    uint8_t *pdata = node->data + 4, *pend = node->data + node->size - (node->data[0] <= FFRDP_FRAME_TYPE_SHORT ? 0 : 2) - AES_BLOCK_SIZE;
+    while (pdata <= pend) {
         AES_ecb_encrypt(pdata, pdata, key, enc);
         pdata += AES_BLOCK_SIZE;
     }
