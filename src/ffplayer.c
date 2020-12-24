@@ -1053,7 +1053,7 @@ static char* parse_params(const char *str, const char *key, char *val, int len)
     for (i=0; i<len; i++) {
         if (*p == '\\') {
             p++;
-        } else if (*p == ';' || *p == '\n' || *p == '\0') {
+        } else if (*p == ';' || *p == '\r' || *p == '\n' || *p == '\0') {
             break;
         }
         val[i] = *p++;
