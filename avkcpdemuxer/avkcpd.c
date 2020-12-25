@@ -44,6 +44,7 @@ typedef struct {
     int            (*dxva2hwa_init          )(AVCodecContext*, void*);
     int             *playerstatus;
     int              inited;
+    uint32_t         curtimestamp;
     int              spsppsvpslen;
     uint8_t          spsppsvpsbuf[256];
     uint8_t          buffer[1024*1024];
@@ -101,7 +102,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
     char avinfo[512], temp[256];
     int  ret = -1;
 
-    switch (type) {
+    switch ((char)type) {
     case 'I':
         ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, (uint8_t*)avinfo, fsize);
         if (avkcpd->inited) break;
@@ -190,7 +191,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
             }
         }
 #endif
-        avkcpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
+        if (avkcpd->cmnvars->init_params->avts_syncmode == 0) avkcpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
         avkcpd->cmnvars->init_params->video_vwidth  = avkcpd->cmnvars->init_params->video_owidth  = avkcpd->vwidth ;
         avkcpd->cmnvars->init_params->video_vheight = avkcpd->cmnvars->init_params->video_oheight = avkcpd->vheight;
        *avkcpd->playerstatus = 0;
@@ -202,10 +203,14 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         packet = avkcpd->pktqueue_request_packet(avkcpd->pktqueue);
         if (packet == NULL) return -1;
         av_new_packet(packet, fsize);
-        packet->pts = packet->dts = get_tick_count();
+        packet->pts = packet->dts = avkcpd->curtimestamp ? avkcpd->curtimestamp : get_tick_count();
         ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, packet->data, fsize);
-        if (type == 'A') avkcpd->pktqueue_audio_enqueue(avkcpd->pktqueue, packet);
-        else             avkcpd->pktqueue_video_enqueue(avkcpd->pktqueue, packet);
+        if ((char)type == 'A') avkcpd->pktqueue_audio_enqueue(avkcpd->pktqueue, packet);
+        else                   avkcpd->pktqueue_video_enqueue(avkcpd->pktqueue, packet);
+        break;
+    case 'T':
+        avkcpd->curtimestamp = (uint32_t)type >> 8;
+        ret = rbhead;
         break;
     }
     return ret;

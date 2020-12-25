@@ -45,6 +45,7 @@ typedef struct {
     int            (*dxva2hwa_init          )(AVCodecContext*, void*);
     int             *playerstatus;
     int              inited;
+    uint32_t         curtimestamp;
     int              spsppsvpslen;
     uint8_t          spsppsvpsbuf[256];
     uint8_t          buffer[1024*1024];
@@ -102,7 +103,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
     char avinfo[512], temp[256];
     int  ret = -1;
 
-    switch (type) {
+    switch ((char)type) {
     case 'I':
         ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, (uint8_t*)avinfo, fsize);
         if (ffrdpd->inited) break;
@@ -191,7 +192,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
             }
         }
 #endif
-        ffrdpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
+        if (ffrdpd->cmnvars->init_params->avts_syncmode == 0) ffrdpd->cmnvars->init_params->avts_syncmode = AVSYNC_MODE_LIVE_SYNC0;
         ffrdpd->cmnvars->init_params->video_vwidth  = ffrdpd->cmnvars->init_params->video_owidth  = ffrdpd->vwidth ;
         ffrdpd->cmnvars->init_params->video_vheight = ffrdpd->cmnvars->init_params->video_oheight = ffrdpd->vheight;
        *ffrdpd->playerstatus = 0;
@@ -203,10 +204,14 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         packet = ffrdpd->pktqueue_request_packet(ffrdpd->pktqueue);
         if (packet == NULL) return -1;
         av_new_packet(packet, fsize);
-        packet->pts = packet->dts = get_tick_count();
+        packet->pts = packet->dts = ffrdpd->curtimestamp ? ffrdpd->curtimestamp : get_tick_count();
         ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, packet->data, fsize);
-        if (type == 'A') ffrdpd->pktqueue_audio_enqueue(ffrdpd->pktqueue, packet);
-        else             ffrdpd->pktqueue_video_enqueue(ffrdpd->pktqueue, packet);
+        if ((char)type == 'A') ffrdpd->pktqueue_audio_enqueue(ffrdpd->pktqueue, packet);
+        else                   ffrdpd->pktqueue_video_enqueue(ffrdpd->pktqueue, packet);
+        break;
+    case 'T':
+        ffrdpd->curtimestamp = (uint32_t)type >> 8;
+        ret = rbhead;
         break;
     }
     return ret;

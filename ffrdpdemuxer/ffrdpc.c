@@ -99,11 +99,11 @@ static void* ffrdpc_thread_proc(void *argv)
         while (ffrdpc->size > sizeof(uint32_t)) {
             uint32_t typelen, head;
             head = ringbuf_read(ffrdpc->buff, sizeof(ffrdpc->buff), ffrdpc->head, (uint8_t*)&typelen, sizeof(typelen));
-            if ((int)((typelen >> 8) + sizeof(typelen)) > ffrdpc->size) break;
-            ret = ffrdpc->callback(ffrdpc->cbctxt, typelen & 0xFF, (char*)ffrdpc->buff, sizeof(ffrdpc->buff), head, (typelen >> 8));
+            if ((char)typelen != 'T' && (int)((typelen >> 8) + sizeof(typelen)) > ffrdpc->size) break;
+            ret = ffrdpc->callback(ffrdpc->cbctxt, typelen, (char*)ffrdpc->buff, sizeof(ffrdpc->buff), head, (typelen >> 8));
             if (ret >= 0) {
                 ffrdpc->head = ret;
-                ffrdpc->size-= sizeof(typelen) + (typelen >> 8);
+                ffrdpc->size-=(char)typelen == 'T' ? sizeof(typelen) : sizeof(typelen) + (typelen >> 8);
                 tickgetframe = get_tick_count();
             } else break;
         }

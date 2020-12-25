@@ -137,11 +137,11 @@ static void* avkcpc_thread_proc(void *argv)
         while (avkcpc->size > sizeof(uint32_t)) {
             uint32_t typelen, head;
             head = ringbuf_read(avkcpc->buff, sizeof(avkcpc->buff), avkcpc->head, (uint8_t*)&typelen, sizeof(typelen));
-            if ((int)((typelen >> 8) + sizeof(typelen)) > avkcpc->size) break;
-            ret = avkcpc->callback(avkcpc->cbctxt, typelen & 0xFF, (char*)avkcpc->buff, sizeof(avkcpc->buff), head, (typelen >> 8));
+            if ((char)typelen != 'T' && (int)((typelen >> 8) + sizeof(typelen)) > avkcpc->size) break;
+            ret = avkcpc->callback(avkcpc->cbctxt, typelen, (char*)avkcpc->buff, sizeof(avkcpc->buff), head, (typelen >> 8));
             if (ret >= 0) {
                 avkcpc->head = ret;
-                avkcpc->size-= sizeof(typelen) + (typelen >> 8);
+                avkcpc->size-=(char)typelen == 'T' ? sizeof(typelen) : sizeof(typelen) + (typelen >> 8);
                 tickgetframe = get_tick_count();
             }
         }
