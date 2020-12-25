@@ -61,6 +61,8 @@ typedef struct
     int                sws_dst_width;
     int                sws_dst_height;
 
+    int                cur_video_w;
+    int                cur_video_h;
     RECT               cur_src_rect;
     RECT               new_src_rect;
 
@@ -409,8 +411,9 @@ void render_video(void *hrender, AVFrame *video)
     if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
-        if (render->new_src_rect.left == 0 && render->new_src_rect.right == 0 && render->new_src_rect.top == 0 && render->new_src_rect.bottom == 0) {
-            render->new_src_rect.right = video->width; render->new_src_rect.bottom = video->height;
+        if (render->cur_video_w != video->width || render->cur_video_h != video->height) {
+            render->cur_video_w = render->new_src_rect.right  = video->width ;
+            render->cur_video_h = render->new_src_rect.bottom = video->height;
         }
         if (memcmp(&render->cur_src_rect, &render->new_src_rect, sizeof(RECT)) != 0) {
             render->cur_src_rect.left  = MIN(render->new_src_rect.left  , video->width  - 1);
