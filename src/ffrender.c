@@ -596,7 +596,7 @@ void render_getparam(void *hrender, int id, void *param)
     {
     case PARAM_MEDIA_POSITION:
         if (vdev && vdev->status & VDEV_COMPLETED) {
-            *(int64_t*)param  = -1; // means completed
+            *(int64_t*)param = -1; // means completed
         } else {
             *(int64_t*)param = MAX(render->cmnvars->apts, render->cmnvars->vpts);
         }
