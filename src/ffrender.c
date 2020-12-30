@@ -580,6 +580,9 @@ void render_setparam(void *hrender, int id, void *param)
         break;
     case PARAM_RENDER_SOURCE_RECT:
         if (param) render->new_src_rect = *(RECT*)param;
+        if (render->new_src_rect.right == 0 && render->new_src_rect.bottom == 0) {
+            render->cur_video_w = render->cur_video_h = 0;
+        }
         break;
     }
 }
