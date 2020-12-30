@@ -74,6 +74,8 @@ public:
     afx_msg void   OnRecordVideo();
     afx_msg void   OnDefinitionEval();
     afx_msg void   OnWinfitVideosize();
+    afx_msg void   OnRButtonDown(UINT nFlags, CPoint point);
+    afx_msg void   OnRButtonUp(UINT nFlags, CPoint point);
     afx_msg void   OnMouseMove(UINT nFlags, CPoint point);
     afx_msg void   OnZoomRestore();
 };

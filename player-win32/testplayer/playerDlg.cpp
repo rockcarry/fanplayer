@@ -177,6 +177,8 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
+    ON_WM_RBUTTONDOWN()
+    ON_WM_RBUTTONUP()
     ON_WM_MOUSEMOVE()
     ON_COMMAND(ID_OPEN_FILE       , &CplayerDlg::OnOpenFile       )
     ON_COMMAND(ID_VIDEO_MODE      , &CplayerDlg::OnVideoMode      )
@@ -575,21 +577,18 @@ void CplayerDlg::OnWinfitVideosize()
     }
 }
 
-void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
+void CplayerDlg::OnRButtonDown(UINT nFlags, CPoint point)
 {
-    if (nFlags & MK_RBUTTON) {
-        if (!m_bMouseSelFlag) {
-            m_bMouseSelFlag  = TRUE;
-            m_tMouseSelPoint = point;
-        } else {
-            RECTOVERLAY overlay[2] = {
-                { MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
-                  MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
-                  OVERLAY_CONST_ALPHA, 128, 0 },
-            };
-            player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, overlay);
-        }
-    } else if (m_bMouseSelFlag) {
+    if (m_bMouseSelFlag == FALSE) {
+        m_bMouseSelFlag  = TRUE;
+        m_tMouseSelPoint = point;
+    }
+    CDialog::OnRButtonDown(nFlags, point);
+}
+
+void CplayerDlg::OnRButtonUp(UINT nFlags, CPoint point)
+{
+    if (m_bMouseSelFlag == TRUE) {
         RECT source_rect, video_rect;
         int  tx, ty, tw, th;
         player_getparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &source_rect);
@@ -606,9 +605,22 @@ void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
         source_rect.right = tx + tw;
         source_rect.top   = ty;
         source_rect.bottom= ty + th;
-        player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT   , &source_rect);
-        player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, NULL        );
+        if (tw >= 16 && th >= 16) player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &source_rect);
+        player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, NULL);
         m_bMouseSelFlag = FALSE;
+    }
+    CDialog::OnRButtonUp(nFlags, point);
+}
+
+void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+    if (m_bMouseSelFlag) {
+        RECTOVERLAY overlay[2] = {
+            { MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+              MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+              OVERLAY_CONST_ALPHA, 128, 0 },
+        };
+        player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, overlay);
     }
     CDialog::OnMouseMove(nFlags, point);
 }
@@ -618,3 +630,5 @@ void CplayerDlg::OnZoomRestore()
     RECT rect = {0};
     player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &rect);
 }
+
+
