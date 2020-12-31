@@ -416,10 +416,10 @@ void render_video(void *hrender, AVFrame *video)
             render->cur_video_h = render->new_src_rect.bottom = video->height;
         }
         if (memcmp(&render->cur_src_rect, &render->new_src_rect, sizeof(RECT)) != 0) {
-            render->cur_src_rect.left  = MIN(render->new_src_rect.left  , video->width  - 1);
-            render->cur_src_rect.top   = MIN(render->new_src_rect.top   , video->height - 1);
-            render->cur_src_rect.right = MIN(render->new_src_rect.right , video->width  - 0);
-            render->cur_src_rect.bottom= MIN(render->new_src_rect.bottom, video->height - 0);
+            render->cur_src_rect.left  = MIN(render->new_src_rect.left  , video->width );
+            render->cur_src_rect.top   = MIN(render->new_src_rect.top   , video->height);
+            render->cur_src_rect.right = MIN(render->new_src_rect.right , video->width );
+            render->cur_src_rect.bottom= MIN(render->new_src_rect.bottom, video->height);
             render->new_src_rect       = render->cur_src_rect;
             vdev->vw = MAX(render->cur_src_rect.right - render->cur_src_rect.left, 1); vdev->vh = MAX(render->cur_src_rect.bottom - render->cur_src_rect.top, 1);
             vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
