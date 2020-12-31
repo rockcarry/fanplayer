@@ -239,6 +239,7 @@ static void list_free(FFRDP_FRAME_NODE **head, FFRDP_FRAME_NODE **tail)
 
 static int ffrdp_sleep(FFRDPCONTEXT *ffrdp, int flag)
 {
+    if (ffrdp->flags & FLAG_FLUSH) { ffrdp->flags &= ~FLAG_FLUSH; return 0; }
     if (flag) {
         struct timeval tv;
         fd_set  rs;
