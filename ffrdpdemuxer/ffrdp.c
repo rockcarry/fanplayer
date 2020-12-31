@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 #include "ffrdp.h"
 #include "libavutil/log.h"
 
@@ -91,6 +92,7 @@ typedef struct {
     SOCKET   udp_fd;
     struct   sockaddr_in server_addr;
     struct   sockaddr_in client_addr;
+    pthread_mutex_t lock;
 
     FFRDP_FRAME_NODE *send_list_head;
     FFRDP_FRAME_NODE *send_list_tail;
@@ -321,6 +323,7 @@ void* ffrdp_init(char *ip, int port, char *txkey, char *rxkey, int server, int s
     }
 #endif
 
+    pthread_mutex_init(&ffrdp->lock, NULL);
     ffrdp->swnd     = FFRDP_DEF_CWND_SIZE;
     ffrdp->cwnd     = FFRDP_DEF_CWND_SIZE;
     ffrdp->ssthresh = FFRDP_DEF_CWND_SIZE;
@@ -385,6 +388,7 @@ void ffrdp_free(void *ctxt)
     if (ffrdp->cur_new_node) free(ffrdp->cur_new_node);
     list_free(&ffrdp->send_list_head, &ffrdp->send_list_tail);
     list_free(&ffrdp->recv_list_head, &ffrdp->recv_list_tail);
+    pthread_mutex_destroy(&ffrdp->lock);
     free(ffrdp);
 #ifdef WIN32
     WSACleanup();
@@ -401,6 +405,7 @@ int ffrdp_send(void *ctxt, char *buf, int len)
         if (ffrdp) ffrdp->counter_send_failed++;
         return -1;
     }
+    pthread_mutex_lock(&ffrdp->lock);
     while (n > 0) {
         if (!ffrdp->cur_new_node) ffrdp->cur_new_node = frame_node_new(ffrdp->fec_txredundancy, ffrdp->smss);
         if (!ffrdp->cur_new_node) break;
@@ -418,6 +423,7 @@ int ffrdp_send(void *ctxt, char *buf, int len)
             ffrdp->cur_new_size = 0;
         } else ffrdp->cur_new_tick = get_tick_count();
     }
+    pthread_mutex_unlock(&ffrdp->lock);
     return len - n;
 }
 
@@ -426,11 +432,13 @@ int ffrdp_recv(void *ctxt, char *buf, int len)
     FFRDPCONTEXT *ffrdp = (FFRDPCONTEXT*)ctxt;
     int           ret;
     if (!ctxt) return -1;
+    pthread_mutex_lock(&ffrdp->lock);
     ret = MIN(len, ffrdp->recv_size);
     if (ret > 0) {
         ffrdp->recv_head = ringbuf_read(ffrdp->recv_buff, sizeof(ffrdp->recv_buff), ffrdp->recv_head, (uint8_t*)buf, ret);
         ffrdp->recv_size-= ret; ffrdp->counter_recv_bytes += ret;
     }
+    pthread_mutex_unlock(&ffrdp->lock);
     return ret;
 }
 
@@ -451,6 +459,7 @@ static void ffrdp_recvdata_and_sendack(FFRDPCONTEXT *ffrdp, struct sockaddr_in *
     FFRDP_FRAME_NODE *p;
     int32_t dist, recv_mack, recv_wnd, size, i;
     uint8_t data[8];
+    pthread_mutex_lock(&ffrdp->lock);
     while (ffrdp->recv_list_head) {
         dist = seq_distance(GET_FRAME_SEQ(ffrdp->recv_list_head), ffrdp->recv_seq);
         if (dist == 0 && (size = frame_payload_size(ffrdp->recv_list_head)) <= (int)(sizeof(ffrdp->recv_buff) - ffrdp->recv_size)) {
@@ -472,6 +481,7 @@ static void ffrdp_recvdata_and_sendack(FFRDPCONTEXT *ffrdp, struct sockaddr_in *
     *(uint32_t*)(data + 0) = (FFRDP_FRAME_TYPE_ACK << 0) | (ffrdp->recv_seq << 8);
     *(uint32_t*)(data + 4) = (recv_mack <<  0);
     *(uint32_t*)(data + 4)|= (recv_wnd  << 24);
+    pthread_mutex_unlock(&ffrdp->lock);
     sendto(ffrdp->udp_fd, data, sizeof(data), 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)); // send ack frame
 }
 
@@ -511,6 +521,7 @@ void ffrdp_update(void *ctxt)
     send_una = ffrdp->send_list_head ? GET_FRAME_SEQ(ffrdp->send_list_head) : 0;
     recv_una = ffrdp->recv_seq;
 
+    pthread_mutex_lock(&ffrdp->lock);
     if (ffrdp->cur_new_node && ((int32_t)get_tick_count() - (int32_t)ffrdp->cur_new_tick > FFRDP_FLUSH_TIMEOUT || ffrdp->flags & FLAG_FLUSH)) {
         ffrdp->cur_new_node->data[0] = FFRDP_FRAME_TYPE_SHORT;
         ffrdp->cur_new_node->size    = 4 + ffrdp->cur_new_size;
@@ -519,6 +530,7 @@ void ffrdp_update(void *ctxt)
         ffrdp->cur_new_node = NULL;
         ffrdp->cur_new_size = 0;
     }
+    pthread_mutex_unlock(&ffrdp->lock);
 
     for (i=0,p=ffrdp->send_list_head; i<(int32_t)ffrdp->cwnd&&p; i++,p=p->next) {
         if (!(p->flags & FLAG_FIRST_SEND)) { // first send
@@ -612,7 +624,10 @@ void ffrdp_update(void *ctxt)
                     ffrdp->rto = MAX(FFRDP_MIN_RTO, ffrdp->rto);
                     ffrdp->rto = MIN(FFRDP_MAX_RTO, ffrdp->rto);
                 }
-                t = p; p = p->next; list_remove(&ffrdp->send_list_head, &ffrdp->send_list_tail, t); continue;
+                pthread_mutex_lock(&ffrdp->lock);
+                t = p; p = p->next; list_remove(&ffrdp->send_list_head, &ffrdp->send_list_tail, t);
+                pthread_mutex_unlock(&ffrdp->lock);
+                continue;
             } else if (seq_distance(maxack, GET_FRAME_SEQ(p)) > 0) {
                 ffrdp_congestion_control(ffrdp, CEVENT_FAST_RESEND);
                 p->flags |= FLAG_FAST_RESEND;
