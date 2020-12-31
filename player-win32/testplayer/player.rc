@@ -161,6 +161,7 @@ BEGIN
     "R",            ID_VRENDER_TYPE,        VIRTKEY, CONTROL, NOINVERT
     "W",            ID_WINFIT_VIDEOSIZE,    VIRTKEY, CONTROL, NOINVERT
     "0",            ID_ZOOM_RESTORE,        VIRTKEY, CONTROL, NOINVERT
+    "L",            ID_LIVEDESK_MODE,       VIRTKEY, CONTROL, NOINVERT
 END
 
 #endif    // Chinese (P.R.C.) resources

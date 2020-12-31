@@ -43,6 +43,12 @@ typedef struct {
     char      ipaddr[32];
     char      txkey [32];
     char      rxkey [32];
+
+    pthread_mutex_t lock;
+    uint8_t   sendbuff[256];
+    int       sendhead;
+    int       sendtail;
+    int       sendsize;
 } FFRDPC;
 
 static int is_null_key(char key[32])
@@ -86,6 +92,16 @@ static void* ffrdpc_thread_proc(void *argv)
 //              ffrdp_dump(ffrdpc->ffrdp, 0);
                 tickdump = get_tick_count();
             }
+
+            pthread_mutex_lock(&ffrdpc->lock);
+            if (ffrdpc->sendsize > 0) {
+                int n = ffrdpc->sendsize < sizeof(buffer) ? ffrdpc->sendsize : sizeof(buffer);
+                ffrdpc->sendhead = ringbuf_read(ffrdpc->sendbuff, sizeof(ffrdpc->sendbuff), ffrdpc->sendhead, buffer, n);
+                ffrdpc->sendsize-= n;
+                ffrdp_send (ffrdpc->ffrdp, buffer, n);
+                ffrdp_flush(ffrdpc->ffrdp);
+            }
+            pthread_mutex_unlock(&ffrdpc->lock);
         }
 
         while (1) {
@@ -140,6 +156,7 @@ void* ffrdpc_init(char *ip, int port, char *txkey, char *rxkey, PFN_FFRDPC_CB ca
     if (rxkey) strncpy(ffrdpc->rxkey, rxkey, sizeof(ffrdpc->rxkey));
 
     // create client thread
+    pthread_mutex_init(&ffrdpc->lock, NULL);
     pthread_create(&ffrdpc->pthread, NULL, ffrdpc_thread_proc, ffrdpc);
     ffrdpc_start(ffrdpc, 1);
     return ffrdpc;
@@ -151,6 +168,7 @@ void ffrdpc_exit(void *ctxt)
     if (!ctxt) return;
     ffrdpc->status |= TS_EXIT;
     pthread_join(ffrdpc->pthread, NULL);
+    pthread_mutex_destroy(&ffrdpc->lock);
     free(ctxt);
 }
 
@@ -163,4 +181,16 @@ void ffrdpc_start(void *ctxt, int start)
     } else {
         ffrdpc->status &=~TS_START;
     }
+}
+
+void ffrdpc_send(void *ctxt, char *data, int size)
+{
+    FFRDPC *ffrdpc = ctxt;
+    if (!ctxt) return;
+    pthread_mutex_lock(&ffrdpc->lock);
+    if (size <= (int)sizeof(ffrdpc->sendbuff) - ffrdpc->sendsize) {
+        ffrdpc->sendtail = ringbuf_write(ffrdpc->sendbuff, sizeof(ffrdpc->sendbuff), ffrdpc->sendtail, data, size);
+        ffrdpc->sendsize+= size;
+    }
+    pthread_mutex_unlock(&ffrdpc->lock);
 }

@@ -107,6 +107,10 @@ enum {
     PARAM_RENDER_VDEV_WIN,
     PARAM_RENDER_SOURCE_RECT,
     //-- for render
+
+    //++ for ffrdp
+    PARAM_FFRDP_SENDDATA = 0x5000,
+    //-- for ffrdp
 };
 
 enum {

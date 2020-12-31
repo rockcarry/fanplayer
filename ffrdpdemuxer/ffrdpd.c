@@ -280,3 +280,9 @@ void ffrdpdemuxer_exit(void *ctxt)
         free(ffrdpd);
     }
 }
+
+void ffrdpdemuxer_senddata(void *ctxt, char *data, int size)
+{
+    FFRDPDEMUXER *ffrdpd = (FFRDPDEMUXER*)ctxt;
+    if (ctxt) ffrdpc_send(ffrdpd->ffrdpc, data, size);
+}

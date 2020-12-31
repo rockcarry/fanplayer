@@ -14,6 +14,9 @@
 #define TIMER_ID_PROGRESS           2
 #define TIMER_ID_HIDE_TEXT          3
 #define TIMER_ID_DISP_DEFINITIONVAL 4
+#define TIMER_ID_LIVEDESK           5
+static const int SCREEN_WIDTH  = GetSystemMetrics(SM_CXSCREEN);
+static const int SCREEN_HEIGHT = GetSystemMetrics(SM_CYSCREEN);
 
 static void get_app_dir(char *path, int size)
 {
@@ -53,9 +56,9 @@ static void load_fanplayer_params(PLAYER_INIT_PARAMS *params)
     }
 }
 
-static void player_textout(void *player, HFONT hfont, int x, int y, int color, TCHAR *text)
+static void player_textout(void *player, HFONT hfont, int x, int y, int w, int h, int color, int alpha, TCHAR *text)
 {
-    RECTOVERLAY overlay[2] = { { 0, 0, 360, 50, 10, 10, 360, 50, OVERLAY_CONST_ALPHA, 200, 0 } };
+    RECTOVERLAY overlay[2] = { { 0, 0, w, h, x, y, w, h, OVERLAY_CONST_ALPHA, alpha, 0 } };
     HDC         hdc        = NULL;
     player_getparam(player, PARAM_VDEV_GET_OVERLAY_HDC, &hdc);
     if (hdc && text) {
@@ -71,6 +74,26 @@ static void player_textout(void *player, HFONT hfont, int x, int y, int color, T
     player_setparam(player, PARAM_VDEV_SET_OVERLAY_RECT, overlay + !text);
 }
 
+static void ffrdp_send_mouse_event(void *player, char dx, char dy, char btns, char wheel)
+{
+    char  data[4 + 4];
+    struct {
+        void  *data;
+        DWORD  size;
+    } param;
+    data[0] = 'M';
+    data[1] = 'E';
+    data[2] = 'V';
+    data[3] = 'T';
+    data[4] = dx;
+    data[5] = dy;
+    data[6] = btns;
+    data[7] = wheel;
+    param.data = data;
+    param.size = sizeof(data);
+    player_setparam(player, PARAM_FFRDP_SENDDATA, &param);
+}
+
 // CplayerDlg dialog
 CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     : CDialog(CplayerDlg::IDD, pParent)
@@ -81,7 +104,9 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_bResetPlayer  = FALSE;
     m_bIsRecording  = FALSE;
     m_bDefinitionEn = FALSE;
+    m_bLiveDeskMode = FALSE;
     m_bMouseSelFlag = FALSE;
+    m_nCurMouseBtns = 0;
 }
 
 void CplayerDlg::DoDataExchange(CDataExchange* pDX)
@@ -144,6 +169,11 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
         m_bLiveStream = FALSE;
     }
 
+    KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
+    KillTimer(TIMER_ID_LIVEDESK);
+    m_bDefinitionEn = FALSE;
+    m_bLiveDeskMode = FALSE;
+
     PLAYER_INIT_PARAMS params;
     load_fanplayer_params(&params); // load fanplayer init params
     PlayerReset(&params); // reset player
@@ -151,7 +181,7 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
 
 void CplayerDlg::PlayerShowText(int time)
 {
-    player_textout(m_ffPlayer, m_hFont, 20, 20, RGB(0, 255, 0), m_strTxt);
+    player_textout(m_ffPlayer, m_hFont, 20, 20, 360, 50, RGB(0, 255, 0), 200, m_strTxt);
     SetTimer(TIMER_ID_HIDE_TEXT, time, NULL);
 }
 
@@ -162,8 +192,8 @@ void CplayerDlg::SetWindowClientSize(int w, int h)
     GetClientRect(&rect2);
     w+= (rect1.right  - rect1.left) - rect2.right;
     h+= (rect1.bottom - rect1.top ) - rect2.bottom;
-    int x = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
-    int y = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+    int x = (SCREEN_WIDTH  - w) / 2;
+    int y = (SCREEN_HEIGHT - h) / 2;
     x = x > 0 ? x : 0;
     y = y > 0 ? y : 0;
     MoveWindow(x, y, w, h, TRUE);
@@ -174,12 +204,14 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_QUERYDRAGICON()
     ON_WM_DESTROY()
     ON_WM_TIMER()
-    ON_WM_LBUTTONDOWN()
     ON_WM_CTLCOLOR()
     ON_WM_SIZE()
+    ON_WM_LBUTTONDOWN()
+    ON_WM_LBUTTONUP()
     ON_WM_RBUTTONDOWN()
     ON_WM_RBUTTONUP()
     ON_WM_MOUSEMOVE()
+    ON_WM_ACTIVATE()
     ON_COMMAND(ID_OPEN_FILE       , &CplayerDlg::OnOpenFile       )
     ON_COMMAND(ID_VIDEO_MODE      , &CplayerDlg::OnVideoMode      )
     ON_COMMAND(ID_EFFECT_MODE     , &CplayerDlg::OnEffectMode     )
@@ -196,7 +228,8 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_RECORD_VIDEO    , &CplayerDlg::OnRecordVideo    )
     ON_COMMAND(ID_DEFINITION_EVAL , &CplayerDlg::OnDefinitionEval )
     ON_COMMAND(ID_WINFIT_VIDEOSIZE, &CplayerDlg::OnWinfitVideosize)
-    ON_COMMAND(ID_ZOOM_RESTORE, &CplayerDlg::OnZoomRestore)
+    ON_COMMAND(ID_ZOOM_RESTORE    , &CplayerDlg::OnZoomRestore    )
+    ON_COMMAND(ID_LIVEDESK_MODE   , &CplayerDlg::OnLivedeskMode   )
 END_MESSAGE_MAP()
 
 
@@ -318,7 +351,7 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
 
     case TIMER_ID_HIDE_TEXT:
         KillTimer(TIMER_ID_HIDE_TEXT);
-        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, NULL);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, 0, 0, 0, NULL);
         m_strTxt[0] = '\0';
         break;
 
@@ -326,33 +359,27 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
             float val;
             player_getparam(m_ffPlayer, PARAM_DEFINITION_VALUE, &val);
             _stprintf(m_strTxt, TEXT("ÇåÎú¶È %3.1f"), val);
-            player_textout(m_ffPlayer, m_hFont, 20, 20, RGB(0, 255, 0), m_strTxt);
+            player_textout(m_ffPlayer, m_hFont, 20, 20, 360, 50, RGB(0, 255, 0), 200, m_strTxt);
         }
         break;
-
+    case TIMER_ID_LIVEDESK: {
+            POINT point;
+            int   dx, dy;
+            GetCursorPos(&point);
+            SetCursorPos(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+            dx = (point.x - SCREEN_WIDTH  / 2) / 1;
+            dy = (point.y - SCREEN_HEIGHT / 2) / 1;
+            if      (dx < -127) dx = -127;
+            else if (dx >  127) dx =  127;
+            if      (dy < -127) dy = -127;
+            else if (dy >  127) dy =  127;
+            if (dx || dy) ffrdp_send_mouse_event(m_ffPlayer, (char)dx, (char)dy, m_nCurMouseBtns, 0);
+        }
+        break;
     default:
         CDialog::OnTimer(nIDEvent);
         break;
     }
-}
-
-void CplayerDlg::OnLButtonDown(UINT nFlags, CPoint point)
-{
-    if (!m_bLiveStream) {
-        if (point.y > m_rtClient.bottom - 8) {
-            LONGLONG total = 1;
-            player_getparam(m_ffPlayer, PARAM_MEDIA_DURATION, &total);
-            KillTimer(TIMER_ID_PROGRESS);
-            player_seek(m_ffPlayer, total * point.x / m_rtClient.right, 0);
-            SetTimer (TIMER_ID_PROGRESS, 100, NULL);
-        } else {
-            if (!m_bPlayPause) player_pause(m_ffPlayer);
-            else player_play(m_ffPlayer);
-            m_bPlayPause = !m_bPlayPause;
-        }
-    }
-
-    CDialog::OnLButtonDown(nFlags, point);
 }
 
 HBRUSH CplayerDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
@@ -564,7 +591,7 @@ void CplayerDlg::OnDefinitionEval()
         SetTimer(TIMER_ID_DISP_DEFINITIONVAL, 200, NULL);
     } else {
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
-        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, NULL);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, 0, 0, 0, NULL);
     }
 }
 
@@ -577,9 +604,42 @@ void CplayerDlg::OnWinfitVideosize()
     }
 }
 
+void CplayerDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+    if (m_bLiveDeskMode) {
+        m_nCurMouseBtns |= (1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+    } else if (!m_bLiveStream) {
+        if (point.y > m_rtClient.bottom - 8) {
+            LONGLONG total = 1;
+            player_getparam(m_ffPlayer, PARAM_MEDIA_DURATION, &total);
+            KillTimer(TIMER_ID_PROGRESS);
+            player_seek(m_ffPlayer, total * point.x / m_rtClient.right, 0);
+            SetTimer (TIMER_ID_PROGRESS, 100, NULL);
+        } else {
+            if (!m_bPlayPause) player_pause(m_ffPlayer);
+            else player_play(m_ffPlayer);
+            m_bPlayPause = !m_bPlayPause;
+        }
+    }
+    CDialog::OnLButtonDown(nFlags, point);
+}
+
+void CplayerDlg::OnLButtonUp(UINT nFlags, CPoint point)
+{
+    if (m_bLiveDeskMode) {
+        m_nCurMouseBtns &= ~(1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+    }
+    CDialog::OnLButtonUp(nFlags, point);
+}
+
 void CplayerDlg::OnRButtonDown(UINT nFlags, CPoint point)
 {
-    if (m_bMouseSelFlag == FALSE) {
+    if (m_bLiveDeskMode) {
+        m_nCurMouseBtns |= (1 << 1);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+    } else if (m_bMouseSelFlag == FALSE) {
         m_bMouseSelFlag  = TRUE;
         m_tMouseSelPoint = point;
     }
@@ -588,7 +648,10 @@ void CplayerDlg::OnRButtonDown(UINT nFlags, CPoint point)
 
 void CplayerDlg::OnRButtonUp(UINT nFlags, CPoint point)
 {
-    if (m_bMouseSelFlag == TRUE) {
+    if (m_bLiveDeskMode) {
+        m_nCurMouseBtns &= ~(1 << 1);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+    } else if (m_bMouseSelFlag == TRUE) {
         RECT source_rect, video_rect;
         int  tx, ty, tw, th;
         player_getparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &source_rect);
@@ -614,13 +677,15 @@ void CplayerDlg::OnRButtonUp(UINT nFlags, CPoint point)
 
 void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
 {
-    if (m_bMouseSelFlag) {
-        RECTOVERLAY overlay[2] = {
-            { MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
-              MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
-              OVERLAY_CONST_ALPHA, 128, 0 },
-        };
-        player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, overlay);
+    if (!m_bLiveDeskMode) {
+        if (m_bMouseSelFlag) {
+            RECTOVERLAY overlay[2] = {
+                { MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+                  MIN(m_tMouseSelPoint.x, point.x), MIN(m_tMouseSelPoint.y, point.y), abs(point.x - m_tMouseSelPoint.x), abs(point.y - m_tMouseSelPoint.y),
+                  OVERLAY_CONST_ALPHA, 128, 0 },
+            };
+            player_setparam(m_ffPlayer, PARAM_VDEV_SET_OVERLAY_RECT, overlay);
+        }
     }
     CDialog::OnMouseMove(nFlags, point);
 }
@@ -631,4 +696,36 @@ void CplayerDlg::OnZoomRestore()
     player_setparam(m_ffPlayer, PARAM_RENDER_SOURCE_RECT, &rect);
 }
 
+void CplayerDlg::OnLivedeskMode()
+{
+    m_bLiveDeskMode = !m_bLiveDeskMode;
+    ShowCursor(!m_bLiveDeskMode);
+    if (m_bLiveDeskMode) {
+        KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
+        SetTimer (TIMER_ID_LIVEDESK, 20, NULL);
+        SetCursorPos(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+        m_bDefinitionEn = FALSE;
+        _stprintf(m_strTxt, TEXT("livedesk"));
+        player_textout(m_ffPlayer, m_hFont, 0, 00, 160, 36, RGB(0, 255, 0), 128, m_strTxt);
+    } else {
+        KillTimer(TIMER_ID_LIVEDESK);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, 0, 0, 0, NULL);
+    }
+}
+
+void CplayerDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+{
+    CDialog::OnActivate(nState, pWndOther, bMinimized);
+    if (m_bLiveDeskMode) {
+        switch (nState) {
+        case WA_INACTIVE:
+            KillTimer(TIMER_ID_LIVEDESK);
+            break;
+        case WA_ACTIVE:
+        case WA_CLICKACTIVE:
+            SetTimer (TIMER_ID_LIVEDESK, 10, NULL);
+            break;
+        }
+    }
+}
 

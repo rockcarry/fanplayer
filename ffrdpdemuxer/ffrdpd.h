@@ -10,5 +10,6 @@ void* ffrdpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
                         AVRational *astream_timebase, AVRational *vstream_timebase, void **render, int adevtype, int vdevtype, CMNVARS *cmnvars,
                         void *pfnrenderopen, void *pfnrendergetparam, void *pfnpktqrequest, void *pfnpktqaenqueue, void *pfnpktqvenqueue, void *pfnplayermsg, void *pfndxva2hwinit);
 void  ffrdpdemuxer_exit(void *ctxt);
+void  ffrdpdemuxer_senddata(void *ctxt, char *data, int size);
 
 #endif

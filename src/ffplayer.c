@@ -985,6 +985,16 @@ void player_setparam(void *hplayer, int id, void *param)
     if (!hplayer) return;
 
     switch (id) {
+#ifdef ENABLE_FFRDP_SUPPORT
+    case PARAM_FFRDP_SENDDATA: {
+            struct {
+                void    *data;
+                uint32_t size;
+            } *data = param;
+            ffrdpdemuxer_senddata(player->ffrdpd, data->data, data->size);
+        }
+        break;
+#endif
     default: render_setparam(player->render, id, param); break;
     }
 }
