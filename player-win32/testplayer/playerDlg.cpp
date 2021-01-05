@@ -211,6 +211,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_RBUTTONDOWN()
     ON_WM_RBUTTONUP()
     ON_WM_MOUSEMOVE()
+    ON_WM_MOUSEWHEEL()
     ON_WM_ACTIVATE()
     ON_COMMAND(ID_OPEN_FILE       , &CplayerDlg::OnOpenFile       )
     ON_COMMAND(ID_VIDEO_MODE      , &CplayerDlg::OnVideoMode      )
@@ -688,6 +689,17 @@ void CplayerDlg::OnMouseMove(UINT nFlags, CPoint point)
         }
     }
     CDialog::OnMouseMove(nFlags, point);
+}
+
+BOOL CplayerDlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
+{
+    if (m_bLiveDeskMode) {
+        short wheel = zDelta / 120;
+        if      (wheel < -127) wheel = -127;
+        else if (wheel >  127) wheel =  127;
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, (char)wheel);
+    }
+    return CDialog::OnMouseWheel(nFlags, zDelta, pt);
 }
 
 void CplayerDlg::OnZoomRestore()
