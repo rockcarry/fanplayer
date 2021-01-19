@@ -107,7 +107,7 @@ typedef struct
 // 内部函数实现
 
 // 函数实现
-int swvol_scaler_init(int *scaler, int mindb, int maxdb)
+static int swvol_scaler_init(int *scaler, int mindb, int maxdb)
 {
     double tabdb[256];
     double tabf [256];
@@ -127,7 +127,7 @@ int swvol_scaler_init(int *scaler, int mindb, int maxdb)
     return z;
 }
 
-void swvol_scaler_run(int16_t *buf, int n, int multiplier)
+static void swvol_scaler_run(int16_t *buf, int n, int multiplier)
 {
     if (multiplier > (1 << 14)) {
         int64_t v;
