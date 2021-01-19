@@ -130,7 +130,7 @@ static int swvol_scaler_init(int *scaler, int mindb, int maxdb)
 static void swvol_scaler_run(int16_t *buf, int n, int multiplier)
 {
     if (multiplier > (1 << 14)) {
-        int64_t v;
+        int32_t v;
         while (n--) {
             v = ((int32_t)*buf * multiplier) >> 14;
             v = MAX(v,-0x7fff);
