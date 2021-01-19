@@ -45,8 +45,8 @@ typedef struct {
     int             *playerstatus;
     int              inited;
     uint32_t         curtimestamp;
-    int              spsppsvpslen;
-    uint8_t          spsppsvpsbuf[256];
+    int              vpsspsppslen;
+    uint8_t          vpsspsppsbuf[256];
     uint8_t          buffer[1024*1024];
 } AVKCPDEMUXER;
 
@@ -113,9 +113,9 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         parse_params(avinfo, "width"   , temp, sizeof(temp)); avkcpd->vwidth   = atoi(temp);
         parse_params(avinfo, "height"  , temp, sizeof(temp)); avkcpd->vheight  = atoi(temp);
         parse_params(avinfo, "frate"   , temp, sizeof(temp)); avkcpd->frate    = atoi(temp);
-        parse_params(avinfo, "sps"     , temp, sizeof(temp)); avkcpd->spsppsvpslen  = hexstr2buf(avkcpd->spsppsvpsbuf, sizeof(avkcpd->spsppsvpsbuf), temp);
-        parse_params(avinfo, "pps"     , temp, sizeof(temp)); avkcpd->spsppsvpslen += hexstr2buf(avkcpd->spsppsvpsbuf + avkcpd->spsppsvpslen, sizeof(avkcpd->spsppsvpsbuf) - avkcpd->spsppsvpslen, temp);
-        parse_params(avinfo, "vps"     , temp, sizeof(temp)); avkcpd->spsppsvpslen += hexstr2buf(avkcpd->spsppsvpsbuf + avkcpd->spsppsvpslen, sizeof(avkcpd->spsppsvpsbuf) - avkcpd->spsppsvpslen, temp);
+        parse_params(avinfo, "vps"     , temp, sizeof(temp)); avkcpd->vpsspsppslen  = hexstr2buf(avkcpd->vpsspsppsbuf, sizeof(avkcpd->vpsspsppsbuf), temp);
+        parse_params(avinfo, "sps"     , temp, sizeof(temp)); avkcpd->vpsspsppslen += hexstr2buf(avkcpd->vpsspsppsbuf + avkcpd->vpsspsppslen, sizeof(avkcpd->vpsspsppsbuf) - avkcpd->vpsspsppslen, temp);
+        parse_params(avinfo, "pps"     , temp, sizeof(temp)); avkcpd->vpsspsppslen += hexstr2buf(avkcpd->vpsspsppsbuf + avkcpd->vpsspsppslen, sizeof(avkcpd->vpsspsppsbuf) - avkcpd->vpsspsppslen, temp);
         if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) { avkcpd->channels = 1; avkcpd->samprate = 8000; }
         if (strstr(avkcpd->aenctype, "aac" ) == avkcpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_AAC     );
         if (strstr(avkcpd->aenctype, "alaw") == avkcpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
@@ -150,8 +150,8 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 hwctxt->width          = avkcpd->vwidth;
                 hwctxt->height         = avkcpd->vheight;
                 hwctxt->framerate      = vrate;
-                hwctxt->extradata_size = avkcpd->spsppsvpslen;
-                hwctxt->extradata      = avkcpd->spsppsvpsbuf;
+                hwctxt->extradata_size = avkcpd->vpsspsppslen;
+                hwctxt->extradata      = avkcpd->vpsspsppsbuf;
                 if (hwdec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                     hwctxt->flags |= AV_CODEC_FLAG_TRUNCATED;
                 }
