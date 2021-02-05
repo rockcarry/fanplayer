@@ -579,7 +579,10 @@ void CplayerDlg::OnVdevD3dRotate()
 
 void CplayerDlg::OnRecordVideo()
 {
-    player_record(m_ffPlayer, m_bIsRecording ? NULL : "record.mp4");
+    char path[MAX_PATH];
+    get_app_dir(path, sizeof(path));
+    strncat(path, "\\record.mp4", sizeof(path));
+    player_record(m_ffPlayer, m_bIsRecording ? NULL : path);
     m_bIsRecording = !m_bIsRecording;
     _stprintf(m_strTxt, TEXT("recording %s"), m_bIsRecording ? TEXT("started") : TEXT("stoped"));
     PlayerShowText(2000);
