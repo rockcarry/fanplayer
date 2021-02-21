@@ -7,7 +7,7 @@
 #define COMPLETED_COUNTER  10
 
 // 内部函数实现
-static void dev_setup_vrect(VDEV_COMMON_CTXT *vdev)
+static void vdev_setup_vrect(VDEV_COMMON_CTXT *vdev)
 {
     int rw = vdev->rrect.right - vdev->rrect.left, rh = vdev->rrect.bottom - vdev->rrect.top, vw, vh;
     if (vdev->vm == VIDEO_MODE_LETTERBOX) {
@@ -109,7 +109,7 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     pthread_mutex_lock(&c->mutex);
     c->rrect.left  = x;     c->rrect.top    = y;
     c->rrect.right = x + w; c->rrect.bottom = y + h;
-    dev_setup_vrect(c);
+    vdev_setup_vrect(c);
     pthread_mutex_unlock(&c->mutex);
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
@@ -136,7 +136,7 @@ void vdev_setparam(void *ctxt, int id, void *param)
     case PARAM_VIDEO_MODE:
         pthread_mutex_lock(&c->mutex);
         c->vm = *(int*)param;
-        dev_setup_vrect(c);
+        vdev_setup_vrect(c);
         pthread_mutex_unlock(&c->mutex);
         break;
     case PARAM_PLAY_SPEED_VALUE:
