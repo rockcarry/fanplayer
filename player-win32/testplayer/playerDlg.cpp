@@ -208,6 +208,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_SIZE()
     ON_WM_LBUTTONDOWN()
     ON_WM_LBUTTONUP()
+    ON_WM_LBUTTONDBLCLK()
     ON_WM_RBUTTONDOWN()
     ON_WM_RBUTTONUP()
     ON_WM_MOUSEMOVE()
@@ -636,6 +637,21 @@ void CplayerDlg::OnLButtonUp(UINT nFlags, CPoint point)
         ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
     }
     CDialog::OnLButtonUp(nFlags, point);
+}
+
+void CplayerDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
+{
+    if (m_bLiveDeskMode) {
+        m_nCurMouseBtns |= (1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+        m_nCurMouseBtns &=~(1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+        m_nCurMouseBtns |= (1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+        m_nCurMouseBtns &=~(1 << 0);
+        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
+    }
+    CDialog::OnLButtonDblClk(nFlags, point);
 }
 
 void CplayerDlg::OnRButtonDown(UINT nFlags, CPoint point)
