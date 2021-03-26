@@ -176,8 +176,8 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
     vdev_win32_render_overlay   (c, hdc ,     0);
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
-    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, NULL, D3DTEXF_LINEAR);
-    IDirect3DDevice9_Present(c->pD3DDev, NULL, &c->rrect, NULL, NULL);
+    IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, &c->rrect, D3DTEXF_LINEAR);
+    IDirect3DDevice9_Present(c->pD3DDev, &c->rrect, &c->rrect, NULL, NULL);
 }
 
 static void* video_render_thread_proc(void *param)
