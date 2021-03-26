@@ -191,7 +191,7 @@ void CplayerDlg::SetWindowClientSize(int w, int h)
     GetWindowRect(&rect1);
     GetClientRect(&rect2);
     w+= (rect1.right  - rect1.left) - rect2.right;
-    h+= (rect1.bottom - rect1.top ) - rect2.bottom;
+    h+= (rect1.bottom - rect1.top ) - rect2.bottom + 2; // at bottom of testplayer 2 pixels used for progress bar
     int x = (SCREEN_WIDTH  - w) / 2;
     int y = (SCREEN_HEIGHT - h) / 2;
     x = x > 0 ? x : 0;
