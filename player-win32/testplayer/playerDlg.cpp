@@ -208,7 +208,6 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_WM_SIZE()
     ON_WM_LBUTTONDOWN()
     ON_WM_LBUTTONUP()
-    ON_WM_LBUTTONDBLCLK()
     ON_WM_RBUTTONDOWN()
     ON_WM_RBUTTONUP()
     ON_WM_MOUSEMOVE()
@@ -257,12 +256,16 @@ BOOL CplayerDlg::OnInitDialog()
     logfont.lfHeight = 32;
     m_hFont = CreateFontIndirect(&logfont);
 
-    // TODO: Add extra initialization here
+    // disable CS_DBLCLKS
+    LONG lStyle = GetClassLong(GetSafeHwnd(), GCL_STYLE);
+    lStyle &= ~CS_DBLCLKS;
+    SetClassLong(GetSafeHwnd(), GCL_STYLE, lStyle);
+
+    // setup window size
     MoveWindow(0, 0, 800, 480);
 
     // setup init timer
     SetTimer(TIMER_ID_FIRST_DIALOG, 100, NULL);
-
     return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -637,21 +640,6 @@ void CplayerDlg::OnLButtonUp(UINT nFlags, CPoint point)
         ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
     }
     CDialog::OnLButtonUp(nFlags, point);
-}
-
-void CplayerDlg::OnLButtonDblClk(UINT nFlags, CPoint point)
-{
-    if (m_bLiveDeskMode) {
-        m_nCurMouseBtns |= (1 << 0);
-        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
-        m_nCurMouseBtns &=~(1 << 0);
-        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
-        m_nCurMouseBtns |= (1 << 0);
-        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
-        m_nCurMouseBtns &=~(1 << 0);
-        ffrdp_send_mouse_event(m_ffPlayer, 0, 0, m_nCurMouseBtns, 0);
-    }
-    CDialog::OnLButtonDblClk(nFlags, point);
 }
 
 void CplayerDlg::OnRButtonDown(UINT nFlags, CPoint point)
