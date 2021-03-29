@@ -173,7 +173,7 @@ done:
 
 static void split_progress_callback(__int64 cur, __int64 total)
 {
-    printf("\rsplit progress: %3d%", 100 * cur / total);
+    printf("\rsplit progress: %3d%%", (int)(100 * cur / total));
 }
 
 static BOOL console_ctrl_handler(DWORD type)
