@@ -512,8 +512,11 @@ void CplayerDlg::OnVRenderType()
 
 void CplayerDlg::OnTakeSnapshot()
 {
-    player_snapshot(m_ffPlayer, "snapshot.jpg", 0, 0, 1000);
-    _tcscpy(m_strTxt, TEXT("take snapshot to snapshot.jpg"));
+    char path[MAX_PATH];
+    get_app_dir(path, sizeof(path));
+    strncat(path, "\\snapshot.jpg", sizeof(path));
+    player_snapshot(m_ffPlayer, path, 0, 0, 1000);
+    _tcscpy(m_strTxt, TEXT("take snapshot"));
     PlayerShowText(2000);
 }
 
