@@ -1081,6 +1081,8 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->video_deinterlace   = atoi(parse_params(str, "video_deinterlace"  , value, sizeof(value)) ? value : "0");
     params->video_rotate        = atoi(parse_params(str, "video_rotate"       , value, sizeof(value)) ? value : "0");
     params->video_bufpktn       = atoi(parse_params(str, "video_bufpktn"      , value, sizeof(value)) ? value : "0");
+    params->video_vwidth        = atoi(parse_params(str, "video_vwidth"       , value, sizeof(value)) ? value : "0");
+    params->video_vheight       = atoi(parse_params(str, "video_vheight"      , value, sizeof(value)) ? value : "0");
     params->audio_stream_cur    = atoi(parse_params(str, "audio_stream_cur"   , value, sizeof(value)) ? value : "0");
     params->audio_bufpktn       = atoi(parse_params(str, "audio_bufpktn"      , value, sizeof(value)) ? value : "0");
     params->subtitle_stream_cur = atoi(parse_params(str, "subtitle_stream_cur", value, sizeof(value)) ? value : "0");
