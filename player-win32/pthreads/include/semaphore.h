@@ -59,7 +59,7 @@ int WINPTHREAD_SEMA_API sem_trywait(sem_t *sem);
 
 int WINPTHREAD_SEMA_API sem_wait(sem_t *sem);
 
-int WINPTHREAD_SEMA_API sem_timedwait(sem_t * sem, const struct timespec *t);
+int WINPTHREAD_SEMA_API sem_timedwait(sem_t * sem, const struct timespec32 *t);
 
 int WINPTHREAD_SEMA_API sem_post(sem_t *sem);
 

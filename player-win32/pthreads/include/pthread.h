@@ -158,7 +158,7 @@ extern "C" {
 #define PTHREAD_MUTEX_RECURSIVE_NP	PTHREAD_MUTEX_RECURSIVE
 
 void * WINPTHREAD_API pthread_timechange_handler_np(void * dummy);
-int    WINPTHREAD_API pthread_delay_np (const struct timespec *interval);
+int    WINPTHREAD_API pthread_delay_np (const struct timespec32 *interval);
 int    WINPTHREAD_API pthread_num_processors_np(void);
 int    WINPTHREAD_API pthread_set_num_processors_np(int n);
 
@@ -214,23 +214,10 @@ struct _pthread_cleanup
 #define pthread_cleanup_pop(E)\
     (*pthread_getclean() = _pthread_cup.next, (E?_pthread_cup.func((pthread_once_t *)_pthread_cup.arg):0));}
 
-/* Windows doesn't have this, so declare it ourselves. */
-#ifndef _TIMESPEC_DEFINED
-#define _TIMESPEC_DEFINED
-struct timespec {
-#if 0
-  time_t  tv_sec;   /* Seconds */
-#else
-  long    tv_sec;
-#endif
-  long    tv_nsec;  /* Nanoseconds */
+struct timespec32 {
+    long tv_sec;
+    long tv_nsec;  /* Nanoseconds */
 };
-
-struct itimerspec {
-  struct timespec  it_interval;  /* Timer period */
-  struct timespec  it_value;     /* Timer expiration */
-};
-#endif
 
 #ifndef SCHED_OTHER
 /* Some POSIX realtime extensions, mostly stubbed */
@@ -324,9 +311,9 @@ int       WINPTHREAD_API pthread_getname_np(pthread_t thread, char *name, size_t
 
 int WINPTHREAD_API pthread_rwlock_init(pthread_rwlock_t *rwlock_, const pthread_rwlockattr_t *attr);
 int WINPTHREAD_API pthread_rwlock_wrlock(pthread_rwlock_t *l);
-int WINPTHREAD_API pthread_rwlock_timedwrlock(pthread_rwlock_t *rwlock, const struct timespec *ts);
+int WINPTHREAD_API pthread_rwlock_timedwrlock(pthread_rwlock_t *rwlock, const struct timespec32 *ts);
 int WINPTHREAD_API pthread_rwlock_rdlock(pthread_rwlock_t *l);
-int WINPTHREAD_API pthread_rwlock_timedrdlock(pthread_rwlock_t *l, const struct timespec *ts);
+int WINPTHREAD_API pthread_rwlock_timedrdlock(pthread_rwlock_t *l, const struct timespec32 *ts);
 int WINPTHREAD_API pthread_rwlock_unlock(pthread_rwlock_t *l);
 int WINPTHREAD_API pthread_rwlock_tryrdlock(pthread_rwlock_t *l);
 int WINPTHREAD_API pthread_rwlock_trywrlock(pthread_rwlock_t *l);
@@ -337,11 +324,11 @@ int WINPTHREAD_API pthread_cond_destroy(pthread_cond_t *cv);
 int WINPTHREAD_API pthread_cond_signal (pthread_cond_t *cv);
 int WINPTHREAD_API pthread_cond_broadcast (pthread_cond_t *cv);
 int WINPTHREAD_API pthread_cond_wait (pthread_cond_t *cv, pthread_mutex_t *external_mutex);
-int WINPTHREAD_API pthread_cond_timedwait(pthread_cond_t *cv, pthread_mutex_t *external_mutex, const struct timespec *t);
-int WINPTHREAD_API pthread_cond_timedwait_relative_np(pthread_cond_t *cv, pthread_mutex_t *external_mutex, const struct timespec *t);
+int WINPTHREAD_API pthread_cond_timedwait(pthread_cond_t *cv, pthread_mutex_t *external_mutex, const struct timespec32 *t);
+int WINPTHREAD_API pthread_cond_timedwait_relative_np(pthread_cond_t *cv, pthread_mutex_t *external_mutex, const struct timespec32 *t);
 
 int WINPTHREAD_API pthread_mutex_lock(pthread_mutex_t *m);
-int WINPTHREAD_API pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec *ts);
+int WINPTHREAD_API pthread_mutex_timedlock(pthread_mutex_t *m, const struct timespec32 *ts);
 int WINPTHREAD_API pthread_mutex_unlock(pthread_mutex_t *m);
 int WINPTHREAD_API pthread_mutex_trylock(pthread_mutex_t *m);
 int WINPTHREAD_API pthread_mutex_init(pthread_mutex_t *m, const pthread_mutexattr_t *a);
@@ -398,7 +385,7 @@ int WINPTHREAD_API pthread_condattr_getclock (const pthread_condattr_t *attr,
        clockid_t *clock_id);
 int WINPTHREAD_API pthread_condattr_setclock(pthread_condattr_t *attr,
        clockid_t clock_id);
-int WINPTHREAD_API __pthread_clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *rqtp, struct timespec *rmtp);
+int WINPTHREAD_API __pthread_clock_nanosleep(clockid_t clock_id, int flags, const struct timespec32 *rqtp, struct timespec32 *rmtp);
 
 int WINPTHREAD_API pthread_barrierattr_init(void **attr);
 int WINPTHREAD_API pthread_barrierattr_destroy(void **attr);
@@ -410,9 +397,9 @@ struct _pthread_cleanup ** WINPTHREAD_API pthread_getclean (void);
 void *                     WINPTHREAD_API pthread_gethandle (pthread_t t);
 void *                     WINPTHREAD_API pthread_getevent ();
 
-unsigned long long         WINPTHREAD_API _pthread_rel_time_in_ms(const struct timespec *ts);
+unsigned long long         WINPTHREAD_API _pthread_rel_time_in_ms(const struct timespec32 *ts);
 unsigned long long         WINPTHREAD_API _pthread_time_in_ms(void);
-unsigned long long         WINPTHREAD_API _pthread_time_in_ms_from_timespec(const struct timespec *ts);
+unsigned long long         WINPTHREAD_API _pthread_time_in_ms_from_timespec(const struct timespec32 *ts);
 int                        WINPTHREAD_API _pthread_tryjoin (pthread_t t, void **res);
 int                        WINPTHREAD_API pthread_rwlockattr_destroy(pthread_rwlockattr_t *a);
 int                        WINPTHREAD_API pthread_rwlockattr_getpshared(pthread_rwlockattr_t *a, int *s);

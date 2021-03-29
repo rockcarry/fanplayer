@@ -81,12 +81,12 @@ extern "C" {
 #endif
 
 /* These should really be dllimport'ed if using winpthread dll */
-int __cdecl WINPTHREAD_API nanosleep(const struct timespec *request, struct timespec *remain);
+int __cdecl WINPTHREAD_API nanosleep(const struct timespec32 *request, struct timespec32 *remain);
 
-int __cdecl WINPTHREAD_API clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *request, struct timespec *remain);
-int __cdecl WINPTHREAD_API clock_getres(clockid_t clock_id, struct timespec *res);
-int __cdecl WINPTHREAD_API clock_gettime(clockid_t clock_id, struct timespec *tp);
-int __cdecl WINPTHREAD_API clock_settime(clockid_t clock_id, const struct timespec *tp);
+int __cdecl WINPTHREAD_API clock_nanosleep(clockid_t clock_id, int flags, const struct timespec32 *request, struct timespec32 *remain);
+int __cdecl WINPTHREAD_API clock_getres(clockid_t clock_id, struct timespec32 *res);
+int __cdecl WINPTHREAD_API clock_gettime(clockid_t clock_id, struct timespec32 *tp);
+int __cdecl WINPTHREAD_API clock_settime(clockid_t clock_id, const struct timespec32 *tp);
 
 #pragma pop_macro("WINPTHREAD_API")
 
