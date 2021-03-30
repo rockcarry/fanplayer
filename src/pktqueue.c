@@ -5,6 +5,10 @@
 // 内部常量定义
 #define DEF_PKT_QUEUE_SIZE 256 // important!! size must be a power of 2
 
+#ifdef WIN32
+#define timespec timespec32
+#endif
+
 // 内部类型定义
 typedef struct {
     int        fsize;
@@ -111,7 +115,7 @@ AVPacket* pktqueue_request_packet(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     AVPacket *pkt = NULL;
-    struct timespec32 ts;
+    struct timespec ts;
     int ret = 0;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 100*1000*1000;
@@ -132,7 +136,7 @@ AVPacket* pktqueue_request_packet(void *ctxt)
 void pktqueue_release_packet(void *ctxt, AVPacket *pkt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
-    struct timespec32 ts;
+    struct timespec ts;
     int ret = 0;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 100*1000*1000;
@@ -167,7 +171,7 @@ AVPacket* pktqueue_audio_dequeue(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     AVPacket *pkt = NULL;
-    struct timespec32 ts;
+    struct timespec ts;
     int ret = 0;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 100*1000*1000;
@@ -205,7 +209,7 @@ AVPacket* pktqueue_video_dequeue(void *ctxt)
 {
     PKTQUEUE *ppq = (PKTQUEUE*)ctxt;
     AVPacket *pkt = NULL;
-    struct timespec32 ts;
+    struct timespec ts;
     int ret = 0;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_nsec += 100*1000*1000;
