@@ -403,6 +403,8 @@ void CplayerDlg::OnSize(UINT nType, int cx, int cy)
 
     if (nType != SIZE_MINIMIZED) {
         GetClientRect(&m_rtClient);
+        cx = cx < SCREEN_WIDTH  ? cx : SCREEN_WIDTH;
+        cy = cy < SCREEN_HEIGHT ? cy : SCREEN_HEIGHT;
         player_setrect(m_ffPlayer, 0, 0, 0, cx, cy - 2);
         player_setrect(m_ffPlayer, 1, 0, 0, cx, cy - 2);
     }
