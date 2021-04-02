@@ -94,6 +94,26 @@ static void ffrdp_send_mouse_event(void *player, char dx, char dy, char btns, ch
     player_setparam(player, PARAM_FFRDP_SENDDATA, &param);
 }
 
+static void ffrdp_send_keybd_event(void *player, char key, char scancode, char flags1, char flags2)
+{
+    char  data[4 + 4];
+    struct {
+        void  *data;
+        DWORD  size;
+    } param;
+    data[0] = 'K';
+    data[1] = 'E';
+    data[2] = 'V';
+    data[3] = 'T';
+    data[4] = key;
+    data[5] = scancode;
+    data[6] = flags1;
+    data[7] = flags2;
+    param.data = data;
+    param.size = sizeof(data);
+    player_setparam(player, PARAM_FFRDP_SENDDATA, &param);
+}
+
 // CplayerDlg dialog
 CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     : CDialog(CplayerDlg::IDD, pParent)
@@ -412,11 +432,10 @@ void CplayerDlg::OnSize(UINT nType, int cx, int cy)
 
 BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg) 
 {
-    if (TranslateAccelerator(GetSafeHwnd(), m_hAcc, pMsg)) return TRUE;
+    if (!m_bLiveDeskMode && TranslateAccelerator(GetSafeHwnd(), m_hAcc, pMsg)) return TRUE;
 
     if (pMsg->message == MSG_FANPLAYER) {
-        switch (pMsg->wParam)
-        {
+        switch (pMsg->wParam) {
         case MSG_OPEN_DONE:
             SetWindowText(TEXT("testplayer"));
             m_ffPlayer = (void*)pMsg->lParam;
@@ -451,7 +470,25 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             break;
         }
         return TRUE;
-    } else return CDialog::PreTranslateMessage(pMsg);
+    } else if (pMsg->message == WM_KEYDOWN || pMsg->message == WM_KEYUP || pMsg->message == WM_SYSKEYDOWN || pMsg->message == WM_SYSKEYUP) {
+        if (m_bLiveDeskMode) {
+            if (pMsg->wParam == VK_CONTROL) {
+                if (pMsg->lParam & (1 << 31)) m_dwExitLiveDesk &= ~(1 << 0);
+                else                          m_dwExitLiveDesk |=  (1 << 0);
+            }
+            if (pMsg->wParam == 'L') {
+                if (pMsg->lParam & (1 << 31)) m_dwExitLiveDesk &= ~(1 << 1);
+                else                          m_dwExitLiveDesk |=  (1 << 1);
+            }
+            if (m_dwExitLiveDesk != 0x3) {
+                ffrdp_send_keybd_event(m_ffPlayer, pMsg->wParam & 0xFF, (pMsg->lParam >> 16) & 0xFF, (pMsg->lParam >> 24) & 0xFF, pMsg->lParam & 0xFF);
+            } else {
+                OnLivedeskMode();
+            }
+            return TRUE;
+        }
+    }
+    return CDialog::PreTranslateMessage(pMsg);
 }
 
 void CplayerDlg::OnOpenFile()
@@ -728,7 +765,8 @@ void CplayerDlg::OnLivedeskMode()
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
         SetTimer (TIMER_ID_LIVEDESK, 20, NULL);
         SetCursorPos(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-        m_bDefinitionEn = FALSE;
+        m_bDefinitionEn  = FALSE;
+        m_dwExitLiveDesk = 0;
         _stprintf(m_strTxt, TEXT("livedesk"));
         player_textout(m_ffPlayer, m_hFont, 0, 00, 160, 36, RGB(0, 255, 0), 128, m_strTxt);
     } else {
@@ -744,10 +782,13 @@ void CplayerDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
         switch (nState) {
         case WA_INACTIVE:
             KillTimer(TIMER_ID_LIVEDESK);
+            ffrdp_send_keybd_event(m_ffPlayer, VK_CONTROL, MapVirtualKey(VK_CONTROL, 0), (1 << 7), 0);
+            ffrdp_send_keybd_event(m_ffPlayer, VK_MENU   , MapVirtualKey(VK_MENU   , 0), (1 << 7), 0);
+            ffrdp_send_keybd_event(m_ffPlayer, VK_SHIFT  , MapVirtualKey(VK_SHIFT  , 0), (1 << 7), 0);
             break;
         case WA_ACTIVE:
         case WA_CLICKACTIVE:
-            SetTimer (TIMER_ID_LIVEDESK, 10, NULL);
+            SetTimer (TIMER_ID_LIVEDESK, 20, NULL);
             break;
         }
     }

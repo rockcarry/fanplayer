@@ -52,6 +52,7 @@ private:
     BOOL   m_bPlayPause;
     RECT   m_rtClient;
     BOOL   m_bMouseSelFlag;
+    DWORD  m_dwExitLiveDesk;
     CPoint m_tMouseSelPoint;
 
 public:
