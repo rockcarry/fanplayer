@@ -392,8 +392,8 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
             int   dx, dy;
             GetCursorPos(&point);
             SetCursorPos(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-            dx = (point.x - SCREEN_WIDTH  / 2) / 1;
-            dy = (point.y - SCREEN_HEIGHT / 2) / 1;
+            dx = (point.x - SCREEN_WIDTH  / 2) * 2 / 3;
+            dy = (point.y - SCREEN_HEIGHT / 2) * 2 / 3;
             if      (dx < -127) dx = -127;
             else if (dx >  127) dx =  127;
             if      (dy < -127) dy = -127;
@@ -483,6 +483,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
             if (m_dwExitLiveDesk != 0x3) {
                 ffrdp_send_keybd_event(m_ffPlayer, pMsg->wParam & 0xFF, (pMsg->lParam >> 16) & 0xFF, (pMsg->lParam >> 24) & 0xFF, pMsg->lParam & 0xFF);
             } else {
+                ffrdp_send_keybd_event(m_ffPlayer, VK_CONTROL, MapVirtualKey(VK_CONTROL, 0), (1 << 7), 0);
                 OnLivedeskMode();
             }
             return TRUE;
