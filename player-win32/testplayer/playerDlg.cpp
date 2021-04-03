@@ -74,9 +74,9 @@ static void player_textout(void *player, HFONT hfont, int x, int y, int w, int h
     player_setparam(player, PARAM_VDEV_SET_OVERLAY_RECT, overlay + !text);
 }
 
-static void ffrdp_send_mouse_event(void *player, char dx, char dy, char btns, char wheel)
+static void ffrdp_send_mouse_event(void *player, uint8_t dx, uint8_t dy, uint8_t btns, uint8_t wheel)
 {
-    char  data[4 + 4];
+    uint8_t data[4 + 4];
     struct {
         void  *data;
         DWORD  size;
@@ -94,9 +94,9 @@ static void ffrdp_send_mouse_event(void *player, char dx, char dy, char btns, ch
     player_setparam(player, PARAM_FFRDP_SENDDATA, &param);
 }
 
-static void ffrdp_send_keybd_event(void *player, char key, char scancode, char flags1, char flags2)
+static void ffrdp_send_keybd_event(void *player, uint8_t key, uint8_t scancode, uint8_t flags1, uint8_t flags2)
 {
-    char  data[4 + 4];
+    uint8_t data[4 + 4];
     struct {
         void  *data;
         DWORD  size;
@@ -481,7 +481,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
                 else                          m_dwExitLiveDesk |=  (1 << 1);
             }
             if (m_dwExitLiveDesk != 0x3) {
-                ffrdp_send_keybd_event(m_ffPlayer, pMsg->wParam & 0xFF, (pMsg->lParam >> 16) & 0xFF, (pMsg->lParam >> 24) & 0xFF, pMsg->lParam & 0xFF);
+                ffrdp_send_keybd_event(m_ffPlayer, (uint8_t)pMsg->wParam, (uint8_t)(pMsg->lParam >> 16), (uint8_t)(pMsg->lParam >> 24), (uint8_t)pMsg->lParam);
             } else {
                 ffrdp_send_keybd_event(m_ffPlayer, VK_CONTROL, MapVirtualKey(VK_CONTROL, 0), (1 << 7), 0);
                 OnLivedeskMode();
