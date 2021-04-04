@@ -11,6 +11,7 @@
 #define DEF_VDEV_BUF_NUM       3
 #define VDEV_D3D_SET_RECT     (1 << 16)
 #define VDEV_D3D_SET_ROTATE   (1 << 17)
+#define VDEV_D3D_DEVICE_LOST  (1 << 18)
 
 // 内部类型定义
 typedef LPDIRECT3D9 (WINAPI *PFNDirect3DCreate9)(UINT);
@@ -119,7 +120,7 @@ static void d3d_release_for_rotate(VDEVD3DCTXT *c)
     }
 }
 
-static void d3d_release_and_create(VDEVD3DCTXT *c, int release, int create)
+static void d3d_release_or_create(VDEVD3DCTXT *c, int release, int create)
 {
     if (release) {
         int i;
@@ -142,8 +143,8 @@ static void d3d_release_and_create(VDEVD3DCTXT *c, int release, int create)
 
     if (create) {
         if (!c->pD3DDev) { // try create d3d device
-            if (c->d3dpp.BackBufferWidth  < GetSystemMetrics(SM_CXSCREEN)) c->d3dpp.BackBufferWidth  = GetSystemMetrics(SM_CXSCREEN);
-            if (c->d3dpp.BackBufferHeight < GetSystemMetrics(SM_CYSCREEN)) c->d3dpp.BackBufferHeight = GetSystemMetrics(SM_CYSCREEN);
+            if ((int)c->d3dpp.BackBufferWidth  < GetSystemMetrics(SM_CXSCREEN)) c->d3dpp.BackBufferWidth  = GetSystemMetrics(SM_CXSCREEN);
+            if ((int)c->d3dpp.BackBufferHeight < GetSystemMetrics(SM_CYSCREEN)) c->d3dpp.BackBufferHeight = GetSystemMetrics(SM_CYSCREEN);
             IDirect3D9_CreateDevice(c->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)c->surface, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &c->d3dpp, &c->pD3DDev);
             if (!c->pD3DDev) return;
         }
@@ -170,6 +171,7 @@ static void d3d_release_and_create(VDEVD3DCTXT *c, int release, int create)
                 IDirect3DSurface9_LockRect(c->surfb, &rect, NULL, D3DLOCK_DISCARD);
                 memset(rect.pBits, 0, 2 * rect.Pitch);
                 IDirect3DSurface9_UnlockRect(c->surfb);
+                c->status &= ~VDEV_D3D_DEVICE_LOST;
             }
         }
     }
@@ -181,7 +183,6 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     D3DLOCKED_RECT  rect = {0};
     HDC             hdc  = NULL;
 
-    if (c->pD3DDev == NULL) { d3d_release_and_create(c, 0, 1); return; }
     if (c->rotate && (c->status & VDEV_D3D_SET_ROTATE)) {
         double radian = c->rotate * M_PI / 180;
         c->rotw = abs((int)(c->vw  * cos(radian))) + abs((int)(c->vh * sin(radian)));
@@ -234,7 +235,7 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, &c->rrect, D3DTEXF_LINEAR);
     if (D3DERR_DEVICELOST == IDirect3DDevice9_Present(c->pD3DDev, &c->rrect, &c->rrect, NULL, NULL)) {
         av_log(NULL, AV_LOG_WARNING, "D3DERR_DEVICELOST\n");
-        d3d_release_and_create(c, 1, 0);
+        c->status |= VDEV_D3D_DEVICE_LOST;
     }
 }
 
@@ -248,7 +249,8 @@ static void* video_render_thread_proc(void *param)
         if (c->size > 0) {
             c->size--;
             if (c->ppts[c->head] != -1) {
-                d3d_draw_surf(c, c->surfs[c->head]);
+                if (c->status & VDEV_D3D_DEVICE_LOST) d3d_release_or_create(c, 1, 1);
+                else d3d_draw_surf(c, c->surfs[c->head]);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
             }
@@ -305,12 +307,14 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
     if (!ctxt || !param) return;
     switch (id) {
-    case PARAM_VDEV_POST_SURFACE: {
+    case PARAM_VDEV_POST_SURFACE:
+        pthread_mutex_lock(&c->mutex);
+        if (c->status & VDEV_D3D_DEVICE_LOST) player_send_message(c->cmnvars->winmsg, MSG_D3D_DEVICE_LOST, 0);
+        else {
             D3DSURFACE_DESC desc1 = {0};
             D3DSURFACE_DESC desc2 = {0};
             AVFrame *frame = ((void**)param)[0];
             RECT    *rect  = ((void**)param)[1];
-            pthread_mutex_lock(&c->mutex);
             if (c->surfh1) IDirect3DSurface9_GetDesc(c->surfh1, &desc1);
             if (desc1.Width != frame->width || desc1.Height != frame->height) {
                 if (c->surfh1) { IDirect3DSurface9_Release(c->surfh1); c->surfh1 = NULL; }
@@ -330,9 +334,9 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
                 d3d_draw_surf(c, c->surfh2);
                 c->cmnvars->vpts = frame->pts;
             }
-            pthread_mutex_unlock(&c->mutex);
-            vdev_avsync_and_complete(c);
         }
+        pthread_mutex_unlock(&c->mutex);
+        vdev_avsync_and_complete(c);
         break;
     case PARAM_VDEV_D3D_ROTATE:
         if (c->rotate != *(int*)param) {
@@ -361,7 +365,7 @@ static void vdev_d3d_destroy(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
 
-    d3d_release_and_create(c, 1, 0);
+    d3d_release_or_create(c, 1, 0);
     if (c->pD3D9) IDirect3D9_Release(c->pD3D9);
     if (c->hDll ) FreeLibrary(c->hDll);
 
@@ -422,9 +426,7 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->d3dpp.Windowed              = TRUE;
     ctxt->d3dpp.EnableAutoDepthStencil= FALSE;
     ctxt->d3dpp.PresentationInterval  = ENABLE_WAIT_D3D_VSYNC == FALSE ? D3DPRESENT_INTERVAL_IMMEDIATE : d3dmode.RefreshRate < 60 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
-
-    // create d3d resources
-    d3d_release_and_create(ctxt, 0, 1);
+    d3d_release_or_create(ctxt, 0, 1); // create d3d resources
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);

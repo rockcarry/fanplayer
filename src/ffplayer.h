@@ -18,6 +18,7 @@ extern "C" {
 #define MSG_STREAM_CONNECTED  (('C' << 24) | ('N' << 16) | ('C' << 8) | ('T' << 0))
 #define MSG_STREAM_DISCONNECT (('D' << 24) | ('I' << 16) | ('S' << 8) | ('C' << 0))
 #define MSG_VIDEO_RESIZED     (('S' << 24) | ('I' << 16) | ('Z' << 8) | ('E' << 0))
+#define MSG_D3D_DEVICE_LOST   (('L' << 24) | ('O' << 16) | ('S' << 8) | ('T' << 0))
 
 // adev render type
 enum {

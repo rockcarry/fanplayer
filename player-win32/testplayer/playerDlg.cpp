@@ -468,6 +468,14 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
                 PlayerOpenFile(NULL);
             }
             break;
+        case MSG_D3D_DEVICE_LOST:
+            PLAYER_INIT_PARAMS params;
+            player_getparam(m_ffPlayer, PARAM_PLAYER_INIT_PARAMS, &params);
+            player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &m_llLastPos);
+            m_bResetPlayer = TRUE;
+            m_strTxt[0]    = '\0';
+            PlayerReset(&params);
+            break;
         }
         return TRUE;
     } else if (pMsg->message == WM_KEYDOWN || pMsg->message == WM_KEYUP || pMsg->message == WM_SYSKEYDOWN || pMsg->message == WM_SYSKEYUP) {
