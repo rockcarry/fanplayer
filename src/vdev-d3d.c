@@ -5,8 +5,7 @@
 #include "libavformat/avformat.h"
 
 // 预编译开关
-#define ENABLE_WAIT_D3D_VSYNC    TRUE
-#define ENABLE_D3DMULTISAMPLE_X2 FALSE
+#define ENABLE_WAIT_D3D_VSYNC  TRUE
 
 // 内部常量定义
 #define DEF_VDEV_BUF_NUM       3
@@ -74,9 +73,8 @@ static void d3d_reinit_for_rotate(VDEVD3DCTXT *c, int w, int h, int angle)
     h = (int)(h * rh / frh);
 
     if (c->surfr) IDirect3DSurface9_Release(c->surfr);
-    IDirect3DDevice9_CreateRenderTarget(c->pD3DDev,
-        (int)rw, (int)rh, c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE,
-        c->d3dpp.MultiSampleQuality, FALSE, &c->surfr, NULL);
+    IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, (int)rw, (int)rh, c->d3dpp.BackBufferFormat,
+        c->d3dpp.MultiSampleType, c->d3dpp.MultiSampleQuality, FALSE, &c->surfr, NULL);
 
     if (!c->texture) {
         IDirect3DDevice9_CreateTexture(c->pD3DDev, w, h, 1, D3DUSAGE_RENDERTARGET, c->d3dpp.BackBufferFormat, D3DPOOL_DEFAULT, &c->texture , NULL);
@@ -140,12 +138,12 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     if (desc.Width != c->rrect.right - c->rrect.left || desc.Height != c->rrect.bottom - c->rrect.top) {
         if (c->surfw) { IDirect3DSurface9_Release(c->surfw); c->surfw = NULL; }
         IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->rrect.right - c->rrect.left, c->rrect.bottom - c->rrect.top,
-            c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
+            c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType, c->d3dpp.MultiSampleQuality, TRUE, &c->surfw, NULL);
         if (!c->surfw) return;
     }
 
     if (c->rotate && c->surft && c->surfr) {
-        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_POINT);
+        IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surft, NULL, D3DTEXF_LINEAR);
         if (SUCCEEDED(IDirect3DDevice9_BeginScene(c->pD3DDev))) {
             IDirect3DDevice9_SetRenderTarget(c->pD3DDev, 0, c->surfr);
             IDirect3DDevice9_Clear(c->pD3DDev, 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0);
@@ -256,7 +254,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
             if (desc1.Width != frame->width || desc1.Height != frame->height) {
                 if (c->surfh1) { IDirect3DSurface9_Release(c->surfh1); c->surfh1 = NULL; }
                 IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, frame->width, frame->height,
-                    c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh1, NULL);
+                    c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh1, NULL);
                 if (c->surfh1 == NULL) break;;
             }
 
@@ -264,12 +262,12 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
             if (desc2.Width != c->vw || desc2.Height != c->vh) {
                 if (c->surfh2) { IDirect3DSurface9_Release(c->surfh2); c->surfh2 = NULL; }
                 IDirect3DDevice9_CreateRenderTarget(c->pD3DDev, c->vw, c->vh,
-                    c->d3dpp.BackBufferFormat, D3DMULTISAMPLE_NONE, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh2, NULL);
+                    c->d3dpp.BackBufferFormat, c->d3dpp.MultiSampleType, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh2, NULL);
                 if (c->surfh2 == NULL) break;;
             }
             if (frame->pts != -1) {
                 IDirect3DDevice9_StretchRect(c->pD3DDev, (LPDIRECT3DSURFACE9)frame->data[3], NULL, c->surfh1, NULL, D3DTEXF_POINT);
-                IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfh1, rect, c->surfh2, NULL, D3DTEXF_POINT);
+                IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfh1, rect, c->surfh2, NULL, D3DTEXF_LINEAR);
                 d3d_draw_surf(c, c->surfh2);
                 c->cmnvars->vpts = frame->pts;
             }
@@ -379,17 +377,7 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->d3dpp.hDeviceWindow         = (HWND)surface;
     ctxt->d3dpp.Windowed              = TRUE;
     ctxt->d3dpp.EnableAutoDepthStencil= FALSE;
-#if ENABLE_WAIT_D3D_VSYNC
-    ctxt->d3dpp.PresentationInterval  = d3dmode.RefreshRate < 60 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
-#else
-    ctxt->d3dpp.PresentationInterval  = D3DPRESENT_INTERVAL_IMMEDIATE;
-#endif
-
-#if ENABLE_D3DMULTISAMPLE_X2
-    if (SUCCEEDED(IDirect3D9_CheckDeviceMultiSampleType(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, TRUE, D3DMULTISAMPLE_2_SAMPLES, NULL))) {
-        ctxt->d3dpp.MultiSampleType = D3DMULTISAMPLE_2_SAMPLES;
-    }
-#endif
+    ctxt->d3dpp.PresentationInterval  = ENABLE_WAIT_D3D_VSYNC == FALSE ? D3DPRESENT_INTERVAL_IMMEDIATE : d3dmode.RefreshRate < 60 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
     if (FAILED(IDirect3D9_CreateDevice(ctxt->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)surface,
                D3DCREATE_SOFTWARE_VERTEXPROCESSING, &ctxt->d3dpp, &ctxt->pD3DDev)) ) {
