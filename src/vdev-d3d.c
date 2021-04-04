@@ -142,8 +142,8 @@ static void d3d_release_and_create(VDEVD3DCTXT *c, int release, int create)
 
     if (create) {
         if (!c->pD3DDev) { // try create d3d device
-            c->d3dpp.BackBufferWidth = GetSystemMetrics(SM_CXSCREEN);
-            c->d3dpp.BackBufferHeight= GetSystemMetrics(SM_CYSCREEN);
+            if (c->d3dpp.BackBufferWidth  < GetSystemMetrics(SM_CXSCREEN)) c->d3dpp.BackBufferWidth  = GetSystemMetrics(SM_CXSCREEN);
+            if (c->d3dpp.BackBufferHeight < GetSystemMetrics(SM_CYSCREEN)) c->d3dpp.BackBufferHeight = GetSystemMetrics(SM_CYSCREEN);
             IDirect3D9_CreateDevice(c->pD3D9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)c->surface, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &c->d3dpp, &c->pD3DDev);
             if (!c->pD3DDev) return;
         }
