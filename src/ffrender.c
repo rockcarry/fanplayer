@@ -199,6 +199,9 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
     // init software volume scaler
     render->vol_zerodb = swvol_scaler_init(render->vol_scaler, SW_VOLUME_MINDB, SW_VOLUME_MAXDB);
     render->vol_curvol = render->vol_zerodb;
+
+    // setup default swscale_type
+    if (render->cmnvars->init_params->swscale_type == 0) render->cmnvars->init_params->swscale_type = SWS_FAST_BILINEAR;
     return render;
 }
 
@@ -442,7 +445,7 @@ void render_video(void *hrender, AVFrame *video)
                     render->sws_dst_height = dstpic.linesize[7];
                     if (render->sws_context) sws_freeContext(render->sws_context);
                     render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
-                        render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, SWS_FAST_BILINEAR, 0, 0, 0);
+                        render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, render->cmnvars->init_params->swscale_type, 0, 0, 0);
                 }
                 if (render->sws_context) sws_scale(render->sws_context, (const uint8_t**)srcpic.data, srcpic.linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
             }
