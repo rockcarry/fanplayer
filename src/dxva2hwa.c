@@ -401,3 +401,33 @@ void dxva2hwa_free(AVCodecContext *s)
     av_freep(&s->opaque);
 }
 
+void dxva2hwa_lock_frame(AVFrame *dxva2frame, AVFrame *lockedframe)
+{
+    LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)dxva2frame->data[3];
+    D3DSURFACE_DESC    desc;
+    D3DLOCKED_RECT     rect;
+    if (surface) {
+        IDirect3DSurface9_GetDesc (surface, &desc);
+        IDirect3DSurface9_LockRect(surface, &rect, NULL, D3DLOCK_READONLY);
+        switch (desc.Format) {
+        case MAKEFOURCC('N', 'V', '1', '2'):
+            if (lockedframe) {
+                lockedframe->width       = desc.Width;
+                lockedframe->height      = desc.Height;
+                lockedframe->format      = AV_PIX_FMT_NV12;
+                lockedframe->pts         = dxva2frame->pts;
+                lockedframe->data[0]     = (uint8_t*)rect.pBits;
+                lockedframe->data[1]     = (uint8_t*)rect.pBits + desc.Height * rect.Pitch;
+                lockedframe->linesize[0] = rect.Pitch;
+                lockedframe->linesize[1] = rect.Pitch;
+            }
+            break;
+        }
+    }
+}
+
+void dxva2hwa_unlock_frame(AVFrame *dxva2frame)
+{
+    LPDIRECT3DSURFACE9 surface = (LPDIRECT3DSURFACE9)dxva2frame->data[3];
+    if (surface) IDirect3DSurface9_UnlockRect(surface);
+}

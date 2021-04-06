@@ -6,6 +6,7 @@
 #include "veffect.h"
 #include "adev.h"
 #include "vdev.h"
+#include "dxva2hwa.h"
 
 #include "libavutil/time.h"
 #include "libswresample/swresample.h"
@@ -414,6 +415,7 @@ void render_video(void *hrender, AVFrame *video)
     if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
+        AVFrame lockedpic = *video, srcpic, dstpic = {0};
         if (render->cur_video_w != video->width || render->cur_video_h != video->height) {
             render->cur_video_w = render->new_src_rect.right  = video->width ;
             render->cur_video_h = render->new_src_rect.bottom = video->height;
@@ -427,37 +429,46 @@ void render_video(void *hrender, AVFrame *video)
             vdev->vw = MAX(render->cur_src_rect.right - render->cur_src_rect.left, 1); vdev->vh = MAX(render->cur_src_rect.bottom - render->cur_src_rect.top, 1);
             vdev_setparam(vdev, PARAM_VIDEO_MODE, &vdev->vm);
         }
-        if (video->format == AV_PIX_FMT_DXVA2_VLD) {
-            void **params[2] = { (void*)video, (void*)&render->cur_src_rect };
+
+#ifdef WIN32
+        if (render->cmnvars->init_params->video_hwaccel == 1) { // dxva2 zero copy render
+            void *params[2] = { (void*)video, (void*)&render->cur_src_rect };
             vdev_setparam(render->vdev, PARAM_VDEV_POST_SURFACE, params);
-        } else {
-            AVFrame srcpic, dstpic = {0};
-            render_setup_srcrect(render, video, &srcpic);
-            vdev_lock(render->vdev, dstpic.data, dstpic.linesize, srcpic.pts);
-            if (dstpic.data[0] && srcpic.format != -1 && srcpic.pts != -1) {
-                if (  render->sws_src_pixfmt != srcpic.format || render->sws_src_width != srcpic.width       || render->sws_src_height != srcpic.height
-                   || render->sws_dst_pixfmt != vdev ->pixfmt || render->sws_dst_width != dstpic.linesize[6] || render->sws_dst_height != dstpic.linesize[7]) {
-                    render->sws_src_pixfmt = srcpic.format;
-                    render->sws_src_width  = srcpic.width;
-                    render->sws_src_height = srcpic.height;
-                    render->sws_dst_pixfmt = vdev ->pixfmt;
-                    render->sws_dst_width  = dstpic.linesize[6];
-                    render->sws_dst_height = dstpic.linesize[7];
-                    if (render->sws_context) sws_freeContext(render->sws_context);
-                    render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
-                        render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, render->cmnvars->init_params->swscale_type, 0, 0, 0);
-                }
-                if (render->sws_context) sws_scale(render->sws_context, (const uint8_t**)srcpic.data, srcpic.linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
-            }
-            vdev_unlock(render->vdev);
+            continue;
         }
+        if (render->cmnvars->init_params->video_hwaccel == 2) { // dxva2 swscale render
+            dxva2hwa_lock_frame(video, &lockedpic);
+        }
+#endif
+
+        render_setup_srcrect(render, &lockedpic, &srcpic);
+        vdev_lock(render->vdev, dstpic.data, dstpic.linesize, srcpic.pts);
+        if (dstpic.data[0] && srcpic.format != -1 && srcpic.pts != -1) {
+            if (  render->sws_src_pixfmt != srcpic.format || render->sws_src_width != srcpic.width || render->sws_src_height != srcpic.height
+               || render->sws_dst_pixfmt != vdev->pixfmt  || render->sws_dst_width != dstpic.linesize[6] || render->sws_dst_height != dstpic.linesize[7]) {
+                render->sws_src_pixfmt = srcpic.format;
+                render->sws_src_width  = srcpic.width;
+                render->sws_src_height = srcpic.height;
+                render->sws_dst_pixfmt = vdev->pixfmt;
+                render->sws_dst_width  = dstpic.linesize[6];
+                render->sws_dst_height = dstpic.linesize[7];
+                if (render->sws_context) sws_freeContext(render->sws_context);
+                render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
+                    render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, render->cmnvars->init_params->swscale_type, 0, 0, 0);
+            }
+            if (render->sws_context) sws_scale(render->sws_context, (const uint8_t**)srcpic.data, srcpic.linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
+        }
+        vdev_unlock(render->vdev);
 
 #if CONFIG_ENABLE_SNAPSHOT
         if (render->status & RENDER_SNAPSHOT) {
-            int ret = take_snapshot(render->snapfile, render->snapwidth, render->snapheight, video);
+            int ret = take_snapshot(render->snapfile, render->snapwidth, render->snapheight, &lockedpic);
             player_send_message(render->cmnvars->winmsg, MSG_TAKE_SNAPSHOT, 0);
             render->status &= ~RENDER_SNAPSHOT;
         }
+#endif
+#ifdef WIN32
+        dxva2hwa_unlock_frame(video);
 #endif
     } while ((render->status & RENDER_PAUSE) && !(render->status & RENDER_STEPFORWARD));
 
