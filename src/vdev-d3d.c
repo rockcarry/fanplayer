@@ -313,8 +313,9 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
         else {
             D3DSURFACE_DESC desc1 = {0};
             D3DSURFACE_DESC desc2 = {0};
-            AVFrame *frame = ((void**)param)[0];
-            RECT    *rect  = ((void**)param)[1];
+            AVFrame *frame   = ((void**)param)[0];
+            RECT    *rectdst = ((void**)param)[1];
+            RECT     rectsrc = { 0, 0, frame->width, frame->height };
             if (c->surfh1) IDirect3DSurface9_GetDesc(c->surfh1, &desc1);
             if (desc1.Width != frame->width || desc1.Height != frame->height) {
                 if (c->surfh1) { IDirect3DSurface9_Release(c->surfh1); c->surfh1 = NULL; }
@@ -329,8 +330,8 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
                     c->d3dpp.MultiSampleType, c->d3dpp.MultiSampleQuality, FALSE, &c->surfh2, NULL);
             }
             if (frame->pts != -1 && c->surfh1 && c->surfh2) {
-                IDirect3DDevice9_StretchRect(c->pD3DDev, (LPDIRECT3DSURFACE9)frame->data[3], NULL, c->surfh1, NULL, D3DTEXF_POINT);
-                IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfh1, rect, c->surfh2, NULL, D3DTEXF_LINEAR);
+                IDirect3DDevice9_StretchRect(c->pD3DDev, (LPDIRECT3DSURFACE9)frame->data[3], &rectsrc, c->surfh1, NULL, D3DTEXF_POINT);
+                IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfh1, rectdst, c->surfh2, NULL, D3DTEXF_LINEAR);
                 d3d_draw_surf(c, c->surfh2);
                 c->cmnvars->vpts = frame->pts;
             }
