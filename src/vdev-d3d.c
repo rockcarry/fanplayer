@@ -235,7 +235,11 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, &c->rrect, D3DTEXF_LINEAR);
     if (D3DERR_DEVICELOST == IDirect3DDevice9_Present(c->pD3DDev, &c->rrect, &c->rrect, NULL, NULL)) {
         av_log(NULL, AV_LOG_WARNING, "D3DERR_DEVICELOST\n");
-        c->status |= VDEV_D3D_DEVICE_LOST;
+        if (c->cmnvars->init_params->video_hwaccel) { // for hwaccel decoding case can't reset d3d, so send msg to reopen player
+            player_send_message(c->cmnvars->winmsg, MSG_D3D_DEVICE_LOST, 0);
+        } else {
+            c->status |= VDEV_D3D_DEVICE_LOST; // for sw decoding case set VDEV_D3D_DEVICE_LOST flag to reset d3d
+        }
     }
 }
 
@@ -309,8 +313,7 @@ void vdev_d3d_setparam(void *ctxt, int id, void *param)
     switch (id) {
     case PARAM_VDEV_POST_SURFACE:
         pthread_mutex_lock(&c->mutex);
-        if (c->status & VDEV_D3D_DEVICE_LOST) player_send_message(c->cmnvars->winmsg, MSG_D3D_DEVICE_LOST, 0);
-        else {
+        if (!(c->status & VDEV_D3D_DEVICE_LOST)) {
             D3DSURFACE_DESC desc1 = {0};
             D3DSURFACE_DESC desc2 = {0};
             AVFrame *frame   = ((void**)param)[0];
