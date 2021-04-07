@@ -147,6 +147,7 @@ BEGIN
     "A",            ID_AUDIO_STREAM,        VIRTKEY, CONTROL, NOINVERT
     "D",            ID_DEFINITION_EVAL,     VIRTKEY, CONTROL, NOINVERT
     "E",            ID_EFFECT_MODE,         VIRTKEY, CONTROL, NOINVERT
+    "L",            ID_LIVEDESK_MODE,       VIRTKEY, CONTROL, NOINVERT
     "O",            ID_OPEN_FILE,           VIRTKEY, CONTROL, NOINVERT
     VK_DOWN,        ID_PLAY_SPEED_DEC,      VIRTKEY, CONTROL, NOINVERT
     VK_UP,          ID_PLAY_SPEED_INC,      VIRTKEY, CONTROL, NOINVERT
@@ -161,7 +162,7 @@ BEGIN
     "R",            ID_VRENDER_TYPE,        VIRTKEY, CONTROL, NOINVERT
     "W",            ID_WINFIT_VIDEOSIZE,    VIRTKEY, CONTROL, NOINVERT
     "0",            ID_ZOOM_RESTORE,        VIRTKEY, CONTROL, NOINVERT
-    "L",            ID_LIVEDESK_MODE,       VIRTKEY, CONTROL, NOINVERT
+    "I",            ID_SHOW_DATARATE,       VIRTKEY, CONTROL, NOINVERT
 END
 
 #endif    // Chinese (P.R.C.) resources

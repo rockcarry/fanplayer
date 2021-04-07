@@ -86,6 +86,8 @@ enum {
 
     // definition evaluation
     PARAM_DEFINITION_VALUE,
+
+    PARAM_DATARATE_VALUE,
     //-- public
 
     //++ for adev

@@ -14,7 +14,9 @@
 #define TIMER_ID_PROGRESS           2
 #define TIMER_ID_HIDE_TEXT          3
 #define TIMER_ID_DISP_DEFINITIONVAL 4
-#define TIMER_ID_LIVEDESK           5
+#define TIMER_ID_DATARATE           5
+#define TIMER_ID_LIVEDESK           6
+
 static const int SCREEN_WIDTH  = GetSystemMetrics(SM_CXSCREEN);
 static const int SCREEN_HEIGHT = GetSystemMetrics(SM_CYSCREEN);
 
@@ -124,6 +126,7 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_bResetPlayer  = FALSE;
     m_bIsRecording  = FALSE;
     m_bDefinitionEn = FALSE;
+    m_bShowDataRate = FALSE;
     m_bLiveDeskMode = FALSE;
     m_bMouseSelFlag = FALSE;
     m_nCurMouseBtns = 0;
@@ -248,6 +251,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_VDEVD3D_ROTATE  , &CplayerDlg::OnVdevD3dRotate  )
     ON_COMMAND(ID_RECORD_VIDEO    , &CplayerDlg::OnRecordVideo    )
     ON_COMMAND(ID_DEFINITION_EVAL , &CplayerDlg::OnDefinitionEval )
+    ON_COMMAND(ID_SHOW_DATARATE   , &CplayerDlg::OnShowDatarate   )
     ON_COMMAND(ID_WINFIT_VIDEOSIZE, &CplayerDlg::OnWinfitVideosize)
     ON_COMMAND(ID_ZOOM_RESTORE    , &CplayerDlg::OnZoomRestore    )
     ON_COMMAND(ID_LIVEDESK_MODE   , &CplayerDlg::OnLivedeskMode   )
@@ -384,6 +388,13 @@ void CplayerDlg::OnTimer(UINT_PTR nIDEvent)
             float val;
             player_getparam(m_ffPlayer, PARAM_DEFINITION_VALUE, &val);
             _stprintf(m_strTxt, TEXT("ÇåÎú¶È %3.1f"), val);
+            player_textout(m_ffPlayer, m_hFont, 20, 20, 360, 50, RGB(0, 255, 0), 200, m_strTxt);
+        }
+        break;
+    case TIMER_ID_DATARATE: {
+            int val;
+            player_getparam(m_ffPlayer, PARAM_DATARATE_VALUE, &val);
+            _stprintf(m_strTxt, TEXT("%d KB/s"), val / 1024);
             player_textout(m_ffPlayer, m_hFont, 20, 20, 360, 50, RGB(0, 255, 0), 200, m_strTxt);
         }
         break;
@@ -650,6 +661,19 @@ void CplayerDlg::OnDefinitionEval()
         SetTimer(TIMER_ID_DISP_DEFINITIONVAL, 200, NULL);
     } else {
         KillTimer(TIMER_ID_DISP_DEFINITIONVAL);
+        player_textout(m_ffPlayer, m_hFont, 0, 0, 0, 0, 0, 0, NULL);
+    }
+}
+
+void CplayerDlg::OnShowDatarate()
+{
+    m_bShowDataRate = !m_bShowDataRate;
+    if (m_bShowDataRate) {
+        _stprintf(m_strTxt, TEXT("--- KB/s"));
+        player_textout(m_ffPlayer, m_hFont, 20, 20, 360, 50, RGB(0, 255, 0), 200, m_strTxt);
+        SetTimer(TIMER_ID_DATARATE, 2000, NULL);
+    } else {
+        KillTimer(TIMER_ID_DATARATE);
         player_textout(m_ffPlayer, m_hFont, 0, 0, 0, 0, 0, 0, NULL);
     }
 }

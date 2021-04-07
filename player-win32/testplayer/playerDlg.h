@@ -41,6 +41,7 @@ private:
     BOOL     m_bLiveStream;
     BOOL     m_bIsRecording;
     BOOL     m_bDefinitionEn;
+    BOOL     m_bShowDataRate;
     BOOL     m_bLiveDeskMode;
     int      m_nCurMouseBtns;
     void PlayerReset(PLAYER_INIT_PARAMS *params);
@@ -75,6 +76,7 @@ public:
     afx_msg void   OnVdevD3dRotate();
     afx_msg void   OnRecordVideo();
     afx_msg void   OnDefinitionEval();
+    afx_msg void   OnShowDatarate();
     afx_msg void   OnWinfitVideosize();
     afx_msg void   OnLButtonDown(UINT nFlags, CPoint point);
     afx_msg void   OnLButtonUp(UINT nFlags, CPoint point);

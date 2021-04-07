@@ -4,6 +4,7 @@
 #include "ffrender.h"
 #include "recorder.h"
 #include "dxva2hwa.h"
+#include "datarate.h"
 #include "ffplayer.h"
 #include "vdev.h"
 
@@ -44,6 +45,7 @@ typedef struct {
 
     void            *pktqueue; // pktqueue
     void            *render;   // render
+    void            *datarate; // data rate
 
     // thread
     #define PS_A_PAUSE    (1 << 0)  // audio decoding pause
@@ -623,7 +625,7 @@ static void* audio_decode_thread_proc(void *param)
         if (packet == NULL) {
 //          render_audio(player->render, &player->aframe);
             continue;
-        }
+        } else datarate_audio_packet(player->datarate, packet);
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
@@ -697,7 +699,7 @@ static void* video_decode_thread_proc(void *param)
         if (packet == NULL) {
             render_video(player->render, &player->vframe);
             continue;
-        }
+        } else datarate_video_packet(player->datarate, packet);
 
         //++ decode video packet ++//
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
@@ -889,8 +891,8 @@ void player_close(void *hplayer)
     ffrdpdemuxer_exit(player->ffrdpd);
 #endif
 
-    // destroy packet queue
-    pktqueue_destroy(player->pktqueue);
+    datarate_destroy(player->datarate); // destroy data rate
+    pktqueue_destroy(player->pktqueue); // destroy packet queue
 
 #ifdef ANDROID
     JniReleaseWinObj(player->cmnvars.winmsg);
@@ -908,6 +910,7 @@ void player_play(void *hplayer)
     if (!hplayer) return;
     player->status &= PS_CLOSE;
     render_pause(player->render, 0);
+    datarate_reset(player->datarate);
 }
 
 void player_pause(void *hplayer)
@@ -916,6 +919,7 @@ void player_pause(void *hplayer)
     if (!hplayer) return;
     player->status |= PS_R_PAUSE;
     render_pause(player->render, 1);
+    datarate_reset(player->datarate);
 }
 
 void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
@@ -1029,6 +1033,10 @@ void player_getparam(void *hplayer, int id, void *param)
         break;
     case PARAM_PLAYER_INIT_PARAMS:
         memcpy(param, &player->init_params, sizeof(PLAYER_INIT_PARAMS));
+        break;
+    case PARAM_DATARATE_VALUE:
+        if (!player->datarate) player->datarate = datarate_create();
+        datarate_result(player->datarate, NULL, NULL, (int*)param);
         break;
     default:
         render_getparam(player->render, id, param);
