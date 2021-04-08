@@ -57,6 +57,10 @@ static const dxva2_mode dxva2_modes[] = {
 };
 
 typedef struct DXVA2Context {
+    HMODULE                      hDll;
+    LPDIRECT3D9                  pD3D9;
+    LPDIRECT3DDEVICE9            pD3DDev;
+
     IDirectXVideoDecoder        *decoder;
 
     GUID                         decoder_guid;
@@ -73,6 +77,8 @@ typedef struct {
     int  (*hwaccel_get_buffer)(AVCodecContext *s, AVFrame *frame, int flags);
     enum AVPixelFormat (*hwaccel_get_format)(AVCodecContext *s, const enum AVPixelFormat *fmts);
 } HWACCEL;
+
+typedef LPDIRECT3D9(WINAPI *PFNDirect3DCreate9)(UINT);
 
 // 内部函数实现
 static int dxva2_get_buffer(AVCodecContext *s, AVFrame *frame, int flags)
@@ -329,15 +335,35 @@ fail:
     return AVERROR(EINVAL);
 }
 
-int dxva2hwa_init(AVCodecContext *s, void *d3ddev)
+int dxva2hwa_init(AVCodecContext *s, void *d3ddev, void *hwnd)
 {
-    HWACCEL      *hwa;
-    DXVA2Context *ctx;
-    int           ret;
+    HMODULE            hdll  = NULL;
+    PFNDirect3DCreate9 create= NULL;
+    LPDIRECT3D9        pd3d9 = NULL;
+    HWACCEL           *hwa   = NULL;
+    DXVA2Context      *ctx   = NULL;
+    int                ret;
 
     if (!d3ddev) {
-        av_log(NULL, AV_LOG_ERROR, "dxva2hwa_init:: d3ddev is NULL !\n");
-        return AVERROR(ENODEV);
+        hdll   = LoadLibrary(TEXT("d3d9.dll"));
+        create = (PFNDirect3DCreate9)GetProcAddress(hdll, "Direct3DCreate9");
+        if (create) pd3d9 = create(D3D_SDK_VERSION);
+        if (pd3d9) {
+            D3DPRESENT_PARAMETERS d3dpp = {0};
+            d3dpp.BackBufferWidth       = GetSystemMetrics(SM_CXSCREEN);
+            d3dpp.BackBufferHeight      = GetSystemMetrics(SM_CYSCREEN);
+            d3dpp.SwapEffect            = D3DSWAPEFFECT_DISCARD;
+            d3dpp.hDeviceWindow         = (HWND)hwnd;
+            d3dpp.Windowed              = TRUE;
+            IDirect3D9_CreateDevice(pd3d9, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, (HWND)hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, (LPDIRECT3DDEVICE9*)&d3ddev);
+        }
+        if (!hdll || !create || !pd3d9 || !d3ddev) {
+            if (d3ddev) IDirect3DDevice9_Release((LPDIRECT3DDEVICE9)d3ddev);
+            if (pd3d9 ) IDirect3D9_Release(pd3d9);
+            if (hdll  ) FreeLibrary(hdll);
+            av_log(NULL, AV_LOG_ERROR, "dxva2hwa_init:: d3ddev is NULL !\n");
+            return AVERROR(ENODEV);
+        }
     }
 
     hwa = (HWACCEL*)av_mallocz(sizeof(HWACCEL));
@@ -353,6 +379,9 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev)
         if (ret < 0) return ret;
     }
     ctx = (DXVA2Context*)hwa->hwaccel_ctx;
+    ctx->hDll    = hdll;
+    ctx->pD3D9   = pd3d9;
+    ctx->pD3DDev = d3ddev;
 
     if (s->codec_id == AV_CODEC_ID_H264 &&
         (s->profile & ~FF_PROFILE_H264_CONSTRAINED) > FF_PROFILE_H264_HIGH) {
@@ -382,16 +411,16 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev)
 void dxva2hwa_free(AVCodecContext *s)
 {
     HWACCEL      *hwa = (HWACCEL*)s->opaque;
-    DXVA2Context *ctx = NULL;
+    DXVA2Context *ctx = hwa ? (DXVA2Context*)hwa->hwaccel_ctx : NULL;
     if (!hwa) return;
 
     hwa->hwaccel_get_buffer = NULL;
     hwa->hwaccel_get_format = NULL;
 
-    ctx = (DXVA2Context*)hwa->hwaccel_ctx;
-    if (ctx->decoder_service) {
-        IDirectXVideoDecoderService_Release(ctx->decoder_service);
-    }
+    if (ctx->decoder_service) IDirectXVideoDecoderService_Release(ctx->decoder_service);
+    if (ctx->pD3DDev        ) IDirect3DDevice9_Release(ctx->pD3DDev);
+    if (ctx->pD3D9          ) IDirect3D9_Release(ctx->pD3D9);
+    if (ctx->hDll           ) FreeLibrary(ctx->hDll);
 
     av_buffer_unref(&ctx->hw_frames_ctx);
     av_buffer_unref(&ctx->hw_device_ctx);
