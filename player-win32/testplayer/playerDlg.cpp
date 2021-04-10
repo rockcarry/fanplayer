@@ -319,7 +319,7 @@ void CplayerDlg::OnPaint()
         player_getparam(m_ffPlayer, PARAM_MEDIA_DURATION, &total);
         player_getparam(m_ffPlayer, PARAM_MEDIA_POSITION, &pos  );
         if (!m_bLiveStream) {
-            if (pos > 0) {
+            if (total > 0 && pos > 0) {
                 CPaintDC dc(this);
                 RECT fill  = m_rtClient;
                 fill.right = (LONG)(fill.right * pos / total);
