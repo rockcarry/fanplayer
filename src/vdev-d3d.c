@@ -369,7 +369,9 @@ static void vdev_d3d_destroy(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
 
+    pthread_mutex_lock(&c->mutex);
     d3d_release_or_create(c, 1, 0);
+    pthread_mutex_unlock(&c->mutex);
     if (c->pD3D9) IDirect3D9_Release(c->pD3D9);
     if (c->hDll ) FreeLibrary(c->hDll);
 
