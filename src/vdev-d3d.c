@@ -120,7 +120,7 @@ static void d3d_release_for_rotate(VDEVD3DCTXT *c)
     }
 }
 
-static void d3d_release_or_create(VDEVD3DCTXT *c, int release, int create)
+static void d3d_release_and_create(VDEVD3DCTXT *c, int release, int create)
 {
     if (release) {
         int i;
@@ -253,7 +253,7 @@ static void* video_render_thread_proc(void *param)
         if (c->size > 0) {
             c->size--;
             if (c->ppts[c->head] != -1) {
-                if (c->status & VDEV_D3D_DEVICE_LOST) d3d_release_or_create(c, 1, 1);
+                if (c->status & VDEV_D3D_DEVICE_LOST) d3d_release_and_create(c, 1, 1);
                 else d3d_draw_surf(c, c->surfs[c->head]);
                 c->cmnvars->vpts = c->ppts[c->head];
                 av_log(NULL, AV_LOG_INFO, "vpts: %lld\n", c->cmnvars->vpts);
@@ -369,9 +369,7 @@ static void vdev_d3d_destroy(void *ctxt)
 {
     VDEVD3DCTXT *c = (VDEVD3DCTXT*)ctxt;
 
-    pthread_mutex_lock(&c->mutex);
-    d3d_release_or_create(c, 1, 0);
-    pthread_mutex_unlock(&c->mutex);
+    d3d_release_and_create(c, 1, 0);
     if (c->pD3D9) IDirect3D9_Release(c->pD3D9);
     if (c->hDll ) FreeLibrary(c->hDll);
 
@@ -432,7 +430,7 @@ void* vdev_d3d_create(void *surface, int bufnum)
     ctxt->d3dpp.Windowed              = TRUE;
     ctxt->d3dpp.EnableAutoDepthStencil= FALSE;
     ctxt->d3dpp.PresentationInterval  = ENABLE_WAIT_D3D_VSYNC == FALSE ? D3DPRESENT_INTERVAL_IMMEDIATE : d3dmode.RefreshRate < 60 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
-    d3d_release_or_create(ctxt, 0, 1); // create d3d resources
+    d3d_release_and_create(ctxt, 0, 1); // create d3d resources
 
     // create video rendering thread
     pthread_create(&ctxt->thread, NULL, video_render_thread_proc, ctxt);
