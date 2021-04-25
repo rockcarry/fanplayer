@@ -877,19 +877,17 @@ void player_close(void *hplayer)
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
 #endif
+#ifdef ENABLE_AVKCP_SUPPORT
+    if (player->avkcpd          ) avkcpdemuxer_exit(player->avkcpd);
+#endif
+#ifdef ENABLE_AVKCP_SUPPORT
+    if (player->ffrdpd          ) ffrdpdemuxer_exit(player->ffrdpd);
+#endif
     if (player->acodec_context  ) avcodec_close(player->acodec_context);
     if (player->vcodec_context  ) avcodec_close(player->vcodec_context);
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
     if (player->render          ) render_close (player->render);
     if (player->recorder        ) recorder_free(player->recorder);
-
-#ifdef ENABLE_AVKCP_SUPPORT
-    avkcpdemuxer_exit(player->avkcpd);
-#endif
-
-#ifdef ENABLE_AVKCP_SUPPORT
-    ffrdpdemuxer_exit(player->ffrdpd);
-#endif
 
     datarate_destroy(player->datarate); // destroy data rate
     pktqueue_destroy(player->pktqueue); // destroy packet queue
