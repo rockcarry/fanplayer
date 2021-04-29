@@ -122,6 +122,8 @@ typedef struct {
     AES_KEY  aes_decrypt_key;
 #endif
 
+    #define DEADLINK_SENDERR_THRESHOLD 300
+    uint32_t counter_udpsenderr;
     uint32_t counter_send_bytes;
     uint32_t counter_recv_bytes;
     uint32_t counter_send_1sttime;
@@ -260,7 +262,8 @@ static int ffrdp_send_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame, s
     case 4 : ffrdp->counter_txfull ++; break; // tx full  frame
     default: ffrdp->counter_txshort++; break; // tx short frame
     }
-    if (sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)) != frame->size) return -1;
+    if (sendto(ffrdp->udp_fd, frame->data, frame->size, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in)) != frame->size) { ffrdp->counter_udpsenderr++; return -1; }
+    else ffrdp->counter_udpsenderr = 0;
     if (frame->size == 4 + ffrdp->smss + 2) { // fec frame
         uint32_t *psrc = (uint32_t*)frame->data, *pdst = (uint32_t*)ffrdp->fec_txbuf, i;
         for (i=0; i<(4+ffrdp->smss)/sizeof(uint32_t); i++) *pdst++ ^= *psrc++; // make xor fec frame
@@ -449,7 +452,7 @@ int ffrdp_isdead(void *ctxt)
     if (ffrdp->send_list_head->flags & FLAG_FIRST_SEND) {
         return (int32_t)get_tick_count() - (int32_t)ffrdp->send_list_head->tick_1sts > FFRDP_DEAD_TIMEOUT;
     } else {
-        return (int32_t)ffrdp->tick_send_query - (int32_t)ffrdp->tick_recv_ack > FFRDP_DEAD_TIMEOUT;
+        return (int32_t)ffrdp->tick_send_query - (int32_t)ffrdp->tick_recv_ack > FFRDP_DEAD_TIMEOUT || ffrdp->counter_udpsenderr > DEADLINK_SENDERR_THRESHOLD;
     }
 }
 
@@ -539,7 +542,7 @@ void ffrdp_update(void *ctxt)
                 p->tick_timeout = p->tick_send + ffrdp->rto;
                 p->flags       |= FLAG_FIRST_SEND;
                 ffrdp->swnd--; ffrdp->counter_send_1sttime++;
-            } else if ((int32_t)get_tick_count() - (int32_t)ffrdp->tick_send_query > FFRDP_QUERY_CYCLE) { // query remote receive window size
+            } else if (ffrdp->tick_send_query == 0 || (int32_t)get_tick_count() - (int32_t)ffrdp->tick_send_query > FFRDP_QUERY_CYCLE) { // query remote receive window size
                 data[0] = FFRDP_FRAME_TYPE_QUERY; sendto(ffrdp->udp_fd, data, 1, 0, (struct sockaddr*)dstaddr, sizeof(struct sockaddr_in));
                 ffrdp->tick_send_query = get_tick_count(); ffrdp->counter_send_query++;
                 break;
