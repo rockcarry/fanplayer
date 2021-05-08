@@ -310,14 +310,10 @@ static int ffrdp_recv_data_frame(FFRDPCONTEXT *ffrdp, FFRDP_FRAME_NODE *frame)
 
 void* ffrdp_init(char *ip, int port, char *txkey, char *rxkey, int server, int smss, int sfec)
 {
+    FFRDPCONTEXT *ffrdp = NULL;
+    unsigned long opt;
 #ifdef WIN32
     WSADATA wsaData;
-#endif
-    unsigned long opt;
-    FFRDPCONTEXT *ffrdp = calloc(1, sizeof(FFRDPCONTEXT));
-    if (!ffrdp) return NULL;
-
-#ifdef WIN32
     timeBeginPeriod(1);
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         printf("WSAStartup failed !\n");
@@ -325,7 +321,7 @@ void* ffrdp_init(char *ip, int port, char *txkey, char *rxkey, int server, int s
     }
 #endif
 
-    pthread_mutex_init(&ffrdp->lock, NULL);
+    if (!(ffrdp = calloc(1, sizeof(FFRDPCONTEXT)))) return NULL;
     ffrdp->swnd     = FFRDP_DEF_CWND_SIZE;
     ffrdp->cwnd     = FFRDP_DEF_CWND_SIZE;
     ffrdp->ssthresh = FFRDP_DEF_CWND_SIZE;
@@ -374,6 +370,7 @@ void* ffrdp_init(char *ip, int port, char *txkey, char *rxkey, int server, int s
         AES_set_decrypt_key((uint8_t*)rxkey, 256, &ffrdp->aes_decrypt_key);
 #endif
     }
+    pthread_mutex_init(&ffrdp->lock, NULL);
     return ffrdp;
 
 failed:
