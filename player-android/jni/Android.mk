@@ -12,6 +12,7 @@ LOCAL_SRC_FILES := \
     ../../src/pktqueue.c \
     ../../src/snapshot.c \
     ../../src/recorder.c \
+    ../../src/datarate.c \
     ../../src/vdev-cmn.c \
     ../../src/vdev-android.cpp \
     ../../src/adev-android.cpp \
