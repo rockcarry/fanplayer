@@ -108,7 +108,7 @@ static void *fft_init(int n)
         ctxt->W[i * 2 + 1] =(float)-sin(2 * M_PI * i / ctxt->N);
     }
 
-    shift = (int)(32 - log((float)n)/log((float)2));
+    shift = 32 - (int)(log((float)n)/log((float)2));
     for (i=0; i<ctxt->N; i++) {
         ctxt->order[i] = (unsigned)reverse_bits(i) >> shift;
     }
