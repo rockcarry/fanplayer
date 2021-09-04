@@ -1,0 +1,6 @@
+!.gitignore
+/_install/
+/ffmpeg/
+/openssl/
+/zlib/
+

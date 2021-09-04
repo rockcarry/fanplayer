@@ -123,8 +123,8 @@ static int interrupt_callback(void *param)
 //++ for filter graph
 static void vfilter_graph_init(PLAYER *player)
 {
-    AVFilter          *filter_src  = avfilter_get_by_name("buffer"    );
-    AVFilter          *filter_sink = avfilter_get_by_name("buffersink");
+    const AVFilter    *filter_src  = avfilter_get_by_name("buffer"    );
+    const AVFilter    *filter_sink = avfilter_get_by_name("buffersink");
     AVCodecContext    *vdec_ctx    = player->vcodec_context;
     int                pixfmts[]   = { vdec_ctx ? vdec_ctx->pix_fmt : AV_PIX_FMT_NONE, AV_PIX_FMT_NONE };
     AVBufferSinkParams params      = { (enum AVPixelFormat*) pixfmts };

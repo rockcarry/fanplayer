@@ -1,0 +1,14 @@
+how to build ffmpeg lib for win64
+
+1. install msys2 build enviroment on pc
+   pacman -S git
+   pacman -S make
+   pacman -S mingw-w64-x86_64-gcc
+   pacman -S mingw-w64-x86_64-yasm
+   pacman -S mingw-w64-x86_64-nasm
+   pacman -S mingw-w64-x86_64-pkg-config
+   pacman -S mingw-w64-x86_64-diffutils
+
+2. run build_ffmpeg_for_win64.sh to build the ffmpeg for win64
+   ./build_ffmpeg_for_win64.sh
+

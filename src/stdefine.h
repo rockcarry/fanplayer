@@ -42,10 +42,19 @@ typedef struct {
 #define TCHAR  char
 #endif
 
+
+#ifndef _TIMESPEC
+#define _TIMESPEC
+struct timespec {
+    time_t tv_sec; // seconds
+    long  tv_nsec; // and nanoseconds
+};
+#endif
+
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define DO_USE_VAR(a) do { a = a; } while (0)
-
 
 #endif
 

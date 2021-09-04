@@ -5,10 +5,6 @@
 // 内部常量定义
 #define DEF_PKT_QUEUE_SIZE 256 // important!! size must be a power of 2
 
-#ifdef WIN32
-#define timespec timespec32
-#endif
-
 // 内部类型定义
 typedef struct {
     int        fsize;
