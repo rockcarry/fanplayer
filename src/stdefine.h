@@ -43,8 +43,7 @@ typedef struct {
 #endif
 
 
-#ifndef _TIMESPEC
-#define _TIMESPEC
+#if (_MSC_VER <= 1400)
 struct timespec {
     time_t tv_sec; // seconds
     long  tv_nsec; // and nanoseconds

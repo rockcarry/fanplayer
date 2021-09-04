@@ -8,3 +8,5 @@ obj/
 *.user
 *.suo
 *.aps
+/player-windows/.vs/
+

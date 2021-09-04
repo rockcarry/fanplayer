@@ -2046,7 +2046,7 @@ const char *avformat_license(void);
  * @see av_register_input_format()
  * @see av_register_output_format()
  */
-attribute_deprecated
+// attribute_deprecated
 void av_register_all(void);
 
 attribute_deprecated
