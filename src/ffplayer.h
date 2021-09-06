@@ -166,6 +166,7 @@ typedef struct {
     char ffrdp_tx_key[32];         // w  ffrdp 协议发送数据用到的 aes256 加密 key
     char ffrdp_rx_key[32];         // w  ffrdp 协议接收数据用到的 aes256 解密 key
     int  swscale_type;             // w  ffrender 使用的 swscale 图像缩放算法类型
+    int  waveout_device_id;        // w  指定 windows 平台 waveout 设备的 ID
 } PLAYER_INIT_PARAMS;
 // video_stream_cur 和 audio_stream_cur 这两个参数，如果设置为 -1 可以禁止对应的解码动作
 // 应用场景：播放视频时，窗口退到后台，或者我只想听声音，可以将 video_stream_cur 设置为 -1

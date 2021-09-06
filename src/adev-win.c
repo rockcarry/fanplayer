@@ -68,7 +68,7 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     wfx.nChannels       = 2;     // stereo
     wfx.nBlockAlign     = wfx.nChannels * wfx.wBitsPerSample / 8;
     wfx.nAvgBytesPerSec = wfx.nBlockAlign * wfx.nSamplesPerSec;
-    result = waveOutOpen(&ctxt->hWaveOut, WAVE_MAPPER, &wfx, (DWORD_PTR)waveOutProc, (DWORD_PTR)ctxt, CALLBACK_FUNCTION);
+    result = waveOutOpen(&ctxt->hWaveOut, ctxt->cmnvars->init_params->waveout_device_id, &wfx, (DWORD_PTR)waveOutProc, (DWORD_PTR)ctxt, CALLBACK_FUNCTION);
     if (result != MMSYSERR_NOERROR) {
         CloseHandle(ctxt->bufsem);
         free(ctxt->ppts    );
