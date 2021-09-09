@@ -113,7 +113,7 @@ void adev_destroy(void *ctxt)
 void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
 {
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (!ctxt || WAIT_OBJECT_0 != WaitForSingleObject(c->bufsem, -1)) return;
+    if (!ctxt || WAIT_OBJECT_0 != WaitForSingleObject(c->bufsem, -1) || (c->status & ADEV_CLOSE)) return;
     memcpy(c->pWaveHdr[c->tail].lpData, buf, MIN((int)c->pWaveHdr[c->tail].dwBufferLength, len));
     waveOutWrite(c->hWaveOut, &c->pWaveHdr[c->tail], sizeof(WAVEHDR));
     c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
@@ -136,3 +136,16 @@ void adev_reset(void *ctxt)
     ReleaseSemaphore(c->bufsem, c->bufnum, NULL);
 }
 
+void adev_setparam(void *ctxt, int id, void *param)
+{
+    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    if (!ctxt) return;
+    switch (id) {
+    case PARAM_RENDER_STOP:
+        c->status |= ADEV_CLOSE;
+        waveOutReset(c->hWaveOut);
+        break;
+    }
+}
+
+void adev_getparam(void *ctxt, int id, void *param) {}

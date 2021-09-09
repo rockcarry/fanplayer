@@ -29,9 +29,6 @@ typedef struct {
     //++ for audio render thread
     pthread_mutex_t lock;
     pthread_cond_t  cond;
-    #define ADEV_CLOSE (1 << 0)
-    #define ADEV_PAUSE (1 << 1)
-    int        status;
     pthread_t  thread;
     //-- for audio render thread
 
@@ -193,6 +190,22 @@ void adev_reset(void *ctxt)
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     pthread_mutex_lock(&c->lock);
     c->head = c->tail = c->curnum = c->status = 0;
+    pthread_cond_signal(&c->cond);
     pthread_mutex_unlock(&c->lock);
 }
 
+void adev_setparam(void *ctxt, int id, void *param)
+{
+    if (!ctxt) return;
+    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    switch (id) {
+    case PARAM_RENDER_STOP:
+        pthread_mutex_lock(&c->lock);
+        c->status |= ADEV_CLOSE;
+        pthread_cond_signal(&c->cond);
+        pthread_mutex_unlock(&c->lock);
+        break;
+    }
+}
+
+void adev_getparam(void *ctxt, int id, void *param) {}

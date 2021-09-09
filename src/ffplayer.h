@@ -109,6 +109,7 @@ enum {
     PARAM_RENDER_STEPFORWARD,
     PARAM_RENDER_VDEV_WIN,
     PARAM_RENDER_SOURCE_RECT,
+    PARAM_RENDER_STOP,
     //-- for render
 
     //++ for ffrdp

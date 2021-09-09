@@ -592,6 +592,11 @@ void render_setparam(void *hrender, int id, void *param)
             render->cur_video_w = render->cur_video_h = 0;
         }
         break;
+    case PARAM_RENDER_STOP:
+        render->status = RENDER_CLOSE;
+        adev_setparam(render->adev, id, param);
+        vdev_setparam(render->vdev, id, param);
+        break;
     }
 }
 
