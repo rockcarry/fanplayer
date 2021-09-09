@@ -36,35 +36,27 @@ void* pktqueue_create(int size, CMNVARS *cmnvars)
     PKTQUEUE *ppq;
     int       i  ;
 
-    ppq = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE));
+    size = size ? size : DEF_PKT_QUEUE_SIZE;
+    ppq  = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE) + size * sizeof(AVPacket) + 3 * size * sizeof(AVPacket*));
     if (!ppq) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate pktqueue context !\n");
         exit(0);
     }
 
-    ppq->fsize = size ? size : DEF_PKT_QUEUE_SIZE;
-    ppq->fncur = ppq->asize = ppq->vsize = ppq->fsize;
-
     // alloc buffer & semaphore
-    ppq->bpkts  = (AVPacket* )calloc(ppq->fsize, sizeof(AVPacket ));
-    ppq->fpkts  = (AVPacket**)calloc(ppq->fsize, sizeof(AVPacket*));
-    ppq->apkts  = (AVPacket**)calloc(ppq->asize, sizeof(AVPacket*));
-    ppq->vpkts  = (AVPacket**)calloc(ppq->vsize, sizeof(AVPacket*));
+    ppq->fncur  = ppq->asize = ppq->vsize = ppq->fsize = size;
+    ppq->bpkts  = (AVPacket* )((uint8_t*)ppq + sizeof(PKTQUEUE));
+    ppq->fpkts  = (AVPacket**)((uint8_t*)ppq->bpkts + size * sizeof(AVPacket ));
+    ppq->apkts  = (AVPacket**)((uint8_t*)ppq->fpkts + size * sizeof(AVPacket*));
+    ppq->vpkts  = (AVPacket**)((uint8_t*)ppq->apkts + size * sizeof(AVPacket*));
     ppq->cmnvars= cmnvars;
     pthread_mutex_init(&ppq->lock, NULL);
     pthread_cond_init (&ppq->cond, NULL);
-
-    // check invalid
-    if (!ppq->bpkts || !ppq->fpkts || !ppq->apkts || !ppq->vpkts) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate resources for pktqueue !\n");
-        exit(0);
-    }
 
     // init fpkts
     for (i=0; i<ppq->fsize; i++) {
         ppq->fpkts[i] = &ppq->bpkts[i];
     }
-
     return ppq;
 }
 
@@ -81,10 +73,6 @@ void pktqueue_destroy(void *ctxt)
     pthread_cond_destroy (&ppq->cond);
 
     // free
-    free(ppq->bpkts);
-    free(ppq->fpkts);
-    free(ppq->apkts);
-    free(ppq->vpkts);
     free(ppq);
 }
 
