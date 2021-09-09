@@ -11,10 +11,11 @@
 #endif
 
 #ifdef WIN32
+#pragma warning(disable:4996) // disable warnings
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
 #define get_tick_count GetTickCount
-#pragma warning(disable:4996) // disable warnings
+#define socklen_t int
 #else
 #include <time.h>
 #include <unistd.h>
@@ -511,9 +512,9 @@ void ffrdp_update(void *ctxt)
     FFRDPCONTEXT       *ffrdp   = (FFRDPCONTEXT*)ctxt;
     FFRDP_FRAME_NODE   *node    = NULL, *p = NULL, *t = NULL;
     struct sockaddr_in *dstaddr = NULL, srcaddr;
-    int32_t  addrlen = sizeof(srcaddr);
-    int32_t  una, mack, ret, got_data = 0, got_query = 0, send_una, send_mack = 0, recv_una, dist, maxack, i;
-    uint8_t  data[8];
+    socklen_t addrlen = sizeof(srcaddr);
+    int32_t   una, mack, ret, got_data = 0, got_query = 0, send_una, send_mack = 0, recv_una, dist, maxack, i;
+    uint8_t   data[8];
 
     if (!ctxt) return;
     if (!(ffrdp->flags & FLAG_SERVER) && !(ffrdp->flags & FLAG_CONNECTED)) dstaddr = &ffrdp->server_addr;

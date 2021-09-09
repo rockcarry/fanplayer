@@ -153,10 +153,7 @@ static void render_setspeed(RENDER *render, int speed)
 // º¯ÊýÊµÏÖ
 void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational frate, int w, int h, CMNVARS *cmnvars)
 {
-    RENDER  *render = NULL;
-    int64_t *papts  = NULL;
-
-    render = (RENDER*)calloc(1, sizeof(RENDER));
+    RENDER  *render = (RENDER*)calloc(1, sizeof(RENDER));
     if (!render) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate render context !\n");
         exit(0);
@@ -404,7 +401,7 @@ static void render_setup_srcrect(RENDER *render, AVFrame *video, AVFrame *srcpic
 
 void render_video(void *hrender, AVFrame *video)
 {
-    RENDER  *render = (RENDER*)hrender;
+    RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
 
     if (render->status & RENDER_DEFINITION_EVAL) {
@@ -415,7 +412,7 @@ void render_video(void *hrender, AVFrame *video)
     if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->vpktn > render->cmnvars->init_params->video_bufpktn) return;
     do {
         VDEV_COMMON_CTXT *vdev = (VDEV_COMMON_CTXT*)render->vdev;
-        AVFrame lockedpic = *video, srcpic, dstpic = {0};
+        AVFrame lockedpic = *video, srcpic, dstpic = {{0}};
         if (render->cur_video_w != video->width || render->cur_video_h != video->height) {
             render->cur_video_w = render->new_src_rect.right  = video->width ;
             render->cur_video_h = render->new_src_rect.bottom = video->height;
@@ -462,7 +459,7 @@ void render_video(void *hrender, AVFrame *video)
 
 #if CONFIG_ENABLE_SNAPSHOT
         if (render->status & RENDER_SNAPSHOT) {
-            int ret = take_snapshot(render->snapfile, render->snapwidth, render->snapheight, &lockedpic);
+            take_snapshot(render->snapfile, render->snapwidth, render->snapheight, &lockedpic);
             player_send_message(render->cmnvars->winmsg, MSG_TAKE_SNAPSHOT, 0);
             render->status &= ~RENDER_SNAPSHOT;
         }
@@ -583,9 +580,6 @@ void render_setparam(void *hrender, int id, void *param)
         render->status |= RENDER_STEPFORWARD;
         break;
     case PARAM_RENDER_VDEV_WIN:
-#ifdef WIN32
-        render->surface = param;
-#endif
 #ifdef ANDROID
         JniReleaseWinObj(render->surface);
         render->surface = JniRequestWinObj(param);

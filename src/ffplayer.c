@@ -848,12 +848,7 @@ error_handler:
 void player_close(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
-    int     vol    = -255;
     if (!hplayer) return;
-
-    //++ fix noise sound issue when player_close on android platform
-    player_setparam(player, PARAM_AUDIO_VOLUME, &vol);
-    //-- fix noise sound issue when player_close on android platform
 
     // set read_timeout to 0
     player->read_timeout = 0;

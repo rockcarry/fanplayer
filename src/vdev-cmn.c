@@ -33,10 +33,11 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     case VDEV_RENDER_TYPE_GDI: c = (VDEV_COMMON_CTXT*)vdev_gdi_create(surface, bufnum); break;
     case VDEV_RENDER_TYPE_D3D: c = (VDEV_COMMON_CTXT*)vdev_d3d_create(surface, bufnum); break;
     }
-    if (1) {
+    if (!c) return NULL;
+    else {
         BITMAPINFO bmpinfo = {0};
         HDC        hdc     = NULL;
-        hdc = GetDC((HWND)c->surface);
+        hdc = GetDC((HWND)surface);
         c->hoverlay = CreateCompatibleDC(hdc);
         bmpinfo.bmiHeader.biSize        =  sizeof(BITMAPINFOHEADER);
         bmpinfo.bmiHeader.biWidth       =  GetSystemMetrics(SM_CXSCREEN);
@@ -46,16 +47,14 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
         bmpinfo.bmiHeader.biCompression =  BI_RGB;
         c->hoverbmp = CreateDIBSection(c->hoverlay, &bmpinfo, DIB_RGB_COLORS, &c->poverlay, NULL, 0);
         SelectObject(c->hoverlay, c->hoverbmp);
-        ReleaseDC((HWND)c->surface, hdc);
+        ReleaseDC((HWND)surface, hdc);
     }
-    if (!c) return NULL;
 #endif
 #ifdef ANDROID
     c = (VDEV_COMMON_CTXT*)vdev_android_create(surface, bufnum);
     if (!c) return NULL;
     c->tickavdiff=-ftime * 2; // 2 should equals to (DEF_ADEV_BUF_NUM - 1)
 #endif
-    c->surface     = surface;
     c->vw          = MAX(w, 1);
     c->vh          = MAX(h, 1);
     c->rrect.right = MAX(w, 1);
@@ -125,7 +124,7 @@ void vdev_pause(void *ctxt, int pause)
 void vdev_reset(void *ctxt)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (!ctxt) return;
+    if (!c) return;
 }
 
 void vdev_setparam(void *ctxt, int id, void *param)

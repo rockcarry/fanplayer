@@ -1,0 +1,6 @@
+!.gitignore
+/_install/
+/openssl/
+/soundtouch/
+/ffmpeg/
+

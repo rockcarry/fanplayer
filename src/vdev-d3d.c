@@ -397,6 +397,7 @@ void* vdev_d3d_create(void *surface, int bufnum)
 
     // init vdev context
     bufnum         = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
+    ctxt->surface  = surface;
     ctxt->bufnum   = bufnum;
     ctxt->lock     = vdev_d3d_lock;
     ctxt->unlock   = vdev_d3d_unlock;

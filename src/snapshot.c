@@ -13,7 +13,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     int                codecid    = AV_CODEC_ID_NONE;
     struct SwsContext *sws_ctx    = NULL;
     int                swsofmt    = AV_PIX_FMT_NONE;
-    AVFrame            picture    = {0};
+    AVFrame            picture    = {{0}};
     int                ret        = -1;
 
     AVFormatContext   *fmt_ctxt   = NULL;

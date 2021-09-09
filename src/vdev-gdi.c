@@ -134,6 +134,7 @@ void* vdev_gdi_create(void *surface, int bufnum)
 
     // init vdev context
     bufnum         = bufnum ? bufnum : DEF_VDEV_BUF_NUM;
+    ctxt->surface  = surface;
     ctxt->bufnum   = bufnum;
     ctxt->pixfmt   = AV_PIX_FMT_RGB32;
     ctxt->lock     = vdev_gdi_lock;

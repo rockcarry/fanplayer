@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #define usleep(t) Sleep((t) / 1000)
 #define get_tick_count GetTickCount
+#define socklen_t int
 #else
 #include <unistd.h>
 #include <fcntl.h>
@@ -67,11 +68,11 @@ static void avkcpc_ikcp_update(AVKCPC *avkcpc)
 
 static void* avkcpc_thread_proc(void *argv)
 {
-    AVKCPC  *avkcpc = (AVKCPC*)argv;
-    struct   sockaddr_in fromaddr;
-    int      addrlen = sizeof(fromaddr), ret;
-    uint32_t tickheartbeat = 0, tickgetframe = 0;
-    uint8_t  buffer[1500];
+    AVKCPC   *avkcpc = (AVKCPC*)argv;
+    struct    sockaddr_in fromaddr;
+    socklen_t addrlen = sizeof(fromaddr), ret;
+    uint32_t  tickheartbeat = 0, tickgetframe = 0;
+    uint8_t   buffer[1500];
     unsigned long opt;
 
 #ifdef WIN32

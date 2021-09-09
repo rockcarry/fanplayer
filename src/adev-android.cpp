@@ -2,7 +2,6 @@
 #include <jni.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include "adev.h"
 
 // 类型定义
@@ -20,16 +19,16 @@ JNIEXPORT JNIEnv* get_jni_env(void);
 #define DEF_ADEV_BUF_LEN  2048
 
 // 内部类型定义
-typedef struct
-{
+typedef struct {
     ADEV_COMMON_MEMBERS
 
     uint8_t   *pWaveBuf;
     AUDIOBUF  *pWaveHdr;
+    int        curnum;
 
     //++ for audio render thread
-    sem_t      semr;
-    sem_t      semw;
+    pthread_mutex_t lock;
+    pthread_cond_t  cond;
     #define ADEV_CLOSE (1 << 0)
     #define ADEV_PAUSE (1 << 1)
     int        status;
@@ -51,19 +50,19 @@ static void* audio_render_thread_proc(void *param)
     JNIEnv     *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)param;
 
-    while (1) {
-        if (c->status & ADEV_PAUSE) {
-            usleep(10*1000);
-            continue;
-        }
+    while (!(c->status & ADEV_CLOSE)) {
+        if (c->status & ADEV_PAUSE) { usleep(10*1000); continue; }
 
-        sem_wait(&c->semr);
-        if (c->status & ADEV_CLOSE) break;
-        env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
-        c->bufcur = c->pWaveHdr[c->head].data;
-        c->cmnvars->apts = c->ppts[c->head];
-        if (++c->head == c->bufnum) c->head = 0;
-        sem_post(&c->semw);
+        pthread_mutex_lock(&c->lock);
+        while (c->curnum == 0 && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
+        if ((c->status & ADEV_CLOSE) == 0) {
+            env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
+            c->curnum--; c->bufcur = c->pWaveHdr[c->head].data;
+            c->cmnvars->apts = c->ppts[c->head];
+            if (++c->head == c->bufnum) c->head = 0;
+            pthread_cond_signal(&c->cond);
+        }
+        pthread_mutex_unlock(&c->lock);
     }
 
     // close audiotrack
@@ -82,19 +81,16 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     int           i;
 
     DO_USE_VAR(type);
+    bufnum = bufnum ? bufnum : DEF_ADEV_BUF_NUM;
+    buflen = buflen ? buflen : DEF_ADEV_BUF_LEN;
 
     // allocate adev context
-    ctxt = (ADEV_CONTEXT*)calloc(1, sizeof(ADEV_CONTEXT));
+    ctxt = (ADEV_CONTEXT*)calloc(1, sizeof(ADEV_CONTEXT) + bufnum * sizeof(int64_t) + bufnum * sizeof(AUDIOBUF));
     if (!ctxt) return NULL;
-
-    bufnum         = bufnum ? bufnum : DEF_ADEV_BUF_NUM;
-    buflen         = buflen ? buflen : DEF_ADEV_BUF_LEN;
     ctxt->bufnum   = bufnum;
     ctxt->buflen   = buflen;
-    ctxt->head     = 0;
-    ctxt->tail     = 0;
-    ctxt->ppts     = (int64_t *)calloc(bufnum, sizeof(int64_t));
-    ctxt->pWaveHdr = (AUDIOBUF*)calloc(bufnum, sizeof(AUDIOBUF));
+    ctxt->ppts     = (int64_t *)((uint8_t*)ctxt + sizeof(ADEV_CONTEXT));
+    ctxt->pWaveHdr = (AUDIOBUF*)((uint8_t*)ctxt->ppts + bufnum * sizeof(int64_t));
     ctxt->cmnvars  = cmnvars;
 
     // new buffer
@@ -121,17 +117,16 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     #define ENCODING_PCM_16BIT  2
     #define CHANNEL_STEREO      3
     #define MODE_STREAM         1
-    jobject at_obj = env->NewObject(jcls, ctxt->jmid_at_init,
-        STREAM_MUSIC, ADEV_SAMPLE_RATE, CHANNEL_STEREO, ENCODING_PCM_16BIT, ctxt->buflen * 2, MODE_STREAM);
+    jobject at_obj = env->NewObject(jcls, ctxt->jmid_at_init, STREAM_MUSIC, ADEV_SAMPLE_RATE, CHANNEL_STEREO, ENCODING_PCM_16BIT, ctxt->buflen * 2, MODE_STREAM);
     ctxt->jobj_at  = env->NewGlobalRef(at_obj);
     env->DeleteLocalRef(at_obj);
 
     // start audiotrack
     env->CallVoidMethod(ctxt->jobj_at, ctxt->jmid_at_play);
 
-    // create semaphore
-    sem_init(&ctxt->semr, 0, 0     );
-    sem_init(&ctxt->semw, 0, bufnum);
+    // create mutex & cond
+    pthread_mutex_init(&ctxt->lock, NULL);
+    pthread_cond_init (&ctxt->cond, NULL);
 
     // create audio rendering thread
     pthread_create(&ctxt->thread, NULL, audio_render_thread_proc, ctxt);
@@ -140,22 +135,20 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
 
 void adev_destroy(void *ctxt)
 {
-    JNIEnv *env = get_jni_env();
     if (!ctxt) return;
+    JNIEnv *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
 
     // make audio rendering thread safely exit
-    c->status = ADEV_CLOSE;
-    sem_post(&c->semr);
+    pthread_mutex_lock(&c->lock);
+    c->status |= ADEV_CLOSE;
+    pthread_cond_signal(&c->cond);
+    pthread_mutex_unlock(&c->lock);
     pthread_join(c->thread, NULL);
 
-    // close semaphore
-    sem_destroy(&c->semr);
-    sem_destroy(&c->semw);
-
-    // free buffers
-    free(c->ppts);
-    free(c->pWaveHdr);
+    // close mutex & cond
+    pthread_mutex_destroy(&c->lock);
+    pthread_cond_destroy (&c->cond);
 
     // for jni
     env->ReleaseByteArrayElements(c->audio_buffer, (jbyte*)c->pWaveBuf, 0);
@@ -170,16 +163,20 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
 {
     if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    sem_wait(&c->semw);
-    memcpy(c->pWaveHdr[c->tail].data, buf, MIN(c->pWaveHdr[c->tail].size, len));
-    c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
-    sem_post(&c->semr);
+    pthread_mutex_lock(&c->lock);
+    while (c->curnum == c->bufnum && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
+    if (c->curnum < c->bufnum) {
+        memcpy(c->pWaveHdr[c->tail].data, buf, MIN(c->pWaveHdr[c->tail].size, len));
+        c->curnum++; c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
+        pthread_cond_signal(&c->cond);
+    }
+    pthread_mutex_unlock(&c->lock);
 }
 
 void adev_pause(void *ctxt, int pause)
 {
-    JNIEnv *env = get_jni_env();
     if (!ctxt) return;
+    JNIEnv *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     if (pause) {
         c->status |=  ADEV_PAUSE;
@@ -192,14 +189,10 @@ void adev_pause(void *ctxt, int pause)
 
 void adev_reset(void *ctxt)
 {
-    JNIEnv *env = get_jni_env();
     if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    while (0 == sem_trywait(&c->semr)) {
-        sem_post(&c->semw);
-    }
-    c->head   = 0;
-    c->tail   = 0;
-    c->status = 0;
+    pthread_mutex_lock(&c->lock);
+    c->head = c->tail = c->curnum = c->status = 0;
+    pthread_mutex_unlock(&c->lock);
 }
 
