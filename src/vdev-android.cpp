@@ -43,11 +43,12 @@ static void vdev_android_lock(void *ctxt, uint8_t *buffer[8], int linesize[8], i
     }
     if (c->win) {
         ANativeWindow_Buffer winbuf;
-        ANativeWindow_lock(c->win, &winbuf, NULL);
-        if (buffer  ) buffer  [0] = (uint8_t*)winbuf.bits;
-        if (linesize) linesize[0] = winbuf.stride * 4;
-        if (linesize) linesize[6] = c->vw;
-        if (linesize) linesize[7] = c->vh;
+        if (0 == ANativeWindow_lock(c->win, &winbuf, NULL)) {
+            buffer  [0] = (uint8_t*)winbuf.bits;
+            linesize[0] = winbuf.stride * 4;
+            linesize[6] = c->vw;
+            linesize[7] = c->vh;
+        }
     }
     c->cmnvars->vpts = pts;
 }
