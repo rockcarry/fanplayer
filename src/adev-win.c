@@ -40,22 +40,23 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     MMRESULT      result;
     int           i;
 
+    bufnum = bufnum ? bufnum : DEF_ADEV_BUF_NUM;
+    buflen = buflen ? buflen : DEF_ADEV_BUF_LEN;
+
     // allocate adev context
-    ctxt = (ADEV_CONTEXT*)calloc(1, sizeof(ADEV_CONTEXT));
+    ctxt = (ADEV_CONTEXT*)calloc(1, sizeof(ADEV_CONTEXT) + bufnum * sizeof(int64_t) + bufnum * (sizeof(WAVEHDR) + buflen));
     if (!ctxt) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate adev context !\n");
         exit(0);
     }
 
-    bufnum         = bufnum ? bufnum : DEF_ADEV_BUF_NUM;
-    buflen         = buflen ? buflen : DEF_ADEV_BUF_LEN;
     ctxt->bufnum   = bufnum;
     ctxt->buflen   = buflen;
-    ctxt->ppts     = (int64_t*)calloc(bufnum, sizeof(int64_t));
-    ctxt->pWaveHdr = (WAVEHDR*)calloc(bufnum, (sizeof(WAVEHDR) + buflen));
+    ctxt->ppts     = (int64_t*)((uint8_t*)ctxt + sizeof(ADEV_CONTEXT));
+    ctxt->pWaveHdr = (WAVEHDR*)((uint8_t*)ctxt->ppts + bufnum * sizeof(int64_t));
     ctxt->bufsem   = CreateSemaphore(NULL, bufnum, bufnum, NULL);
     ctxt->cmnvars  = cmnvars;
-    if (!ctxt->ppts || !ctxt->pWaveHdr || !ctxt->bufsem) {
+    if (!ctxt->bufsem) {
         av_log(NULL, AV_LOG_ERROR, "failed to allocate waveout buffer and waveout semaphore !\n");
         exit(0);
     }
@@ -106,8 +107,6 @@ void adev_destroy(void *ctxt)
     CloseHandle(c->bufsem);
 
     // free memory
-    free(c->ppts    );
-    free(c->pWaveHdr);
     free(c);
 }
 
