@@ -40,7 +40,7 @@ typedef struct {
     AVPacket*      (*pktqueue_request_packet)(void*);
     void           (*pktqueue_audio_enqueue )(void*, AVPacket*);
     void           (*pktqueue_video_enqueue )(void*, AVPacket*);
-    void           (*player_send_message    )(void*, int32_t, int64_t);
+    void           (*player_send_message    )(void*, int32_t, void*);
     int            (*dxva2hwa_init          )(AVCodecContext*, void*);
     int             *playerstatus;
     int              inited;
@@ -196,7 +196,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         avkcpd->cmnvars->init_params->video_vheight = avkcpd->cmnvars->init_params->video_oheight = avkcpd->vheight;
        *avkcpd->playerstatus = 0;
         avkcpd->inited       = 1;
-        avkcpd->player_send_message(avkcpd->cmnvars->winmsg, MSG_OPEN_DONE, (long)avkcpd->player);
+        avkcpd->player_send_message(avkcpd->cmnvars->winmsg, MSG_OPEN_DONE, avkcpd->player);
         break;
     case 'A': case 'V':
         if (!avkcpd->inited) { ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, NULL, fsize); break; }

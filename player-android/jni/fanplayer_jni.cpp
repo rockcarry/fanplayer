@@ -188,10 +188,10 @@ void  JniAttachCurrentThread(void) { get_jni_env(); }
 void  JniDetachCurrentThread(void) { g_jvm->DetachCurrentThread(); }
 void *JniRequestWinObj(void *data) { return data ? get_jni_env()->NewGlobalRef((jobject)data) : NULL; }
 void  JniReleaseWinObj(void *data) { if (data) get_jni_env()->DeleteGlobalRef((jobject)data);         }
-void  JniPostMessage(void *extra, int32_t msg, long param)
+void  JniPostMessage(void *extra, int32_t msg, void *param)
 {
     JNIEnv   *env = get_jni_env();
     jobject   obj = (jobject)extra;
     jmethodID mid = env->GetMethodID(env->GetObjectClass(obj), "internalPlayerEventCallback", "(IJ)V");
-    env->CallVoidMethod(obj, mid, msg, param);
+    env->CallVoidMethod(obj, mid, msg, (unsigned long)param);
 }

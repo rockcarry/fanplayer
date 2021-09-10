@@ -16,7 +16,7 @@ void  JniAttachCurrentThread(void);
 void  JniDetachCurrentThread(void);
 void *JniRequestWinObj(void *data);
 void  JniReleaseWinObj(void *data);
-void  JniPostMessage  (void *extra, int32_t msg, long param);
+void  JniPostMessage  (void *extra, int32_t msg, void *param);
 
 #ifdef __cplusplus
 }
