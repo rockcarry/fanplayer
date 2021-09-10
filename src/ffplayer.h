@@ -212,7 +212,7 @@ void  player_setparam(void *hplayer, int id, void *param);
 void  player_getparam(void *hplayer, int id, void *param);
 
 // internal helper function
-void  player_send_message(void *extra, int32_t msg, int64_t param);
+void  player_send_message(void *extra, int32_t msg, long param);
 void  player_load_params (PLAYER_INIT_PARAMS *params, char *str);
 
 // 函数说明

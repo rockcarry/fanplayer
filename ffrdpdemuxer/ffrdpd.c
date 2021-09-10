@@ -197,7 +197,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         ffrdpd->cmnvars->init_params->video_vheight = ffrdpd->cmnvars->init_params->video_oheight = ffrdpd->vheight;
        *ffrdpd->playerstatus = 0;
         ffrdpd->inited       = 1;
-        ffrdpd->player_send_message(ffrdpd->cmnvars->winmsg, MSG_OPEN_DONE, (int64_t)ffrdpd->player);
+        ffrdpd->player_send_message(ffrdpd->cmnvars->winmsg, MSG_OPEN_DONE, (long)ffrdpd->player);
         break;
     case 'A': case 'V':
         if (!ffrdpd->inited) { ret = ringbuf_read((uint8_t*)rbuf, rbsize, rbhead, NULL, fsize); break; }

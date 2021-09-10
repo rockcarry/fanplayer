@@ -5,9 +5,9 @@ set -e
 #
 # howto build fanplayer_jni ?
 # enviroment setup:
-# 1. msys2 + android-ndk-r20b
+# 1. msys2 + android-ndk-r13b
 # 2. export ANDROID_NDK_HOME
-# 3. ./build_fanplayer_jni.sh arm (arm64, x86 or x86-64)
+# 3. ./build_fanplayer_jni.sh arm (arm, arm64, x86 or x86_64)
 #
 
 if [ x"$1" == x"" ]; then
@@ -19,34 +19,30 @@ fi
 case "$ARCH" in
 arm)
     CPU=armv7-a
+    TOOLCHAIN_PATH=arm-linux-androideabi-4.9
     CROSS_PREFIX=arm-linux-androideabi-
     OPENSSL_TARGET=android-arm
-    NDK_CC=armv7a-linux-androideabi21-clang
-    NDK_CXX=armv7a-linux-androideabi21-clang++
     JNI_DIR=armeabi-v7a
     ;;
 arm64)
     CPU=armv8-a
+    TOOLCHAIN_PATH=aarch64-linux-android-4.9
     CROSS_PREFIX=aarch64-linux-android-
     OPENSSL_TARGET=android-arm64
-    NDK_CC=aarch64-linux-android21-clang
-    NDK_CXX=aarch64-linux-android21-clang++
     JNI_DIR=arm64-v8a
     ;;
 x86)
     CPU=i686
+    TOOLCHAIN_PATH=x86-4.9
     CROSS_PREFIX=i686-linux-android-
     OPENSSL_TARGET=android-x86
-    NDK_CC=i686-linux-android21-clang
-    NDK_CXX=i686-linux-android21-clang++
     JNI_DIR=x86
     ;;
-x86-64)
+x86_64)
     CPU=x86-64
+    TOOLCHAIN_PATH=x86_64-4.9
     CROSS_PREFIX=x86_64-linux-android-
     OPENSSL_TARGET=android-x86_64
-    NDK_CC=x86_64-linux-android21-clang
-    NDK_CXX=x86_64-linux-android21-clang++
     JNI_DIR=x86_64
     ;;
 *)
@@ -55,9 +51,10 @@ x86-64)
     ;;
 esac
 
-export PATH=$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin
+export PATH=$PATH:$ANDROID_NDK_HOME/toolchains/$TOOLCHAIN_PATH/prebuilt/windows-x86_64/bin
 export PKG_CONFIG_PATH=$PWD/_install/lib/pkgconfig:$PKG_CONFIG_PATH
 
+SYSROOT=$ANDROID_NDK_HOME/platforms/android-21/arch-$ARCH
 PREFIX_DIR=$PWD/_install
 EXTRA_CFLAGS="-I$PREFIX_DIR/include -DANDROID -DNDEBUG -Os -ffast-math"
 EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"
@@ -80,8 +77,8 @@ if [ ! -d soundtouch ]; then
 fi
 cd soundtouch
 echo "#define SOUNDTOUCH_FLOAT_SAMPLES 1" > $PWD/include/soundtouch_config.h
-$NDK_CC -fvisibility=hidden -fdata-sections -ffunction-sections -c \
--I$PWD/include -I$PWD/source/Android-lib/jni \
+${CROSS_PREFIX}gcc --sysroot=$SYSROOT -fvisibility=hidden -fdata-sections -ffunction-sections -c \
+-I$ANDROID_NDK_HOME/sources/cxx-stl/stlport/stlport -I$PWD/include -I$PWD/source/Android-lib/jni \
 $PWD/source/Android-lib/jni/soundtouch-lib.cpp \
 $PWD/source/SoundTouch/AAFilter.cpp \
 $PWD/source/SoundTouch/FIFOSampleBuffer.cpp \
@@ -105,18 +102,17 @@ cd -
 
 #++ build ffmpeg ++#
 if [ ! -d ffmpeg ]; then
-  git clone -b fanplayer-n4.3.x https://github.com/rockcarry/ffmpeg
+  git clone -b fanplayer-n3.3.x https://github.com/rockcarry/ffmpeg
 fi
 cd ffmpeg
 ./configure \
 --pkg-config=pkg-config \
---cc=$NDK_CC \
---cxx=$NDK_CXX \
 --arch=$ARCH \
 --cpu=$CPU \
 --target-os=android \
 --enable-cross-compile \
 --cross-prefix=$CROSS_PREFIX \
+--sysroot=$SYSROOT \
 --prefix=$PREFIX_DIR \
 --enable-thumb \
 --enable-static \
@@ -161,9 +157,10 @@ cd -
 #-- build ffmpeg --#
 
 #++ build fanplayer_jni ++#
-$NDK_CC -Wall -fPIC -shared -o $PWD/libfanplayer_jni.so \
--I$PWD -I$PWD/_install/include -I$PWD/../../src -I$PWD/../../avkcpdemuxer -I$PWD/../../ffrdpdemuxer \
--DANDROID -DNDEBUG -DENABLE_AVKCP_SUPPORT -DENABLE_FFRDP_SUPPORT -DCONFIG_ENABLE_AES256 -Os -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm -lz -llog -landroid \
+${CROSS_PREFIX}gcc --sysroot=$SYSROOT -Wall -fPIC -fno-strict-aliasing -shared -Os -o $PWD/libfanplayer_jni.so \
+-I$ANDROID_NDK_HOME/sources/cxx-stl/stlport/stlport -I$PWD -I$PWD/_install/include -I$PWD/../../src -I$PWD/../../avkcpdemuxer -I$PWD/../../ffrdpdemuxer \
+-L$ANDROID_NDK_HOME/sources/cxx-stl/stlport/libs/$JNI_DIR \
+-DANDROID -DNDEBUG -DENABLE_AVKCP_SUPPORT -DENABLE_FFRDP_SUPPORT -DCONFIG_ENABLE_AES256 \
 $PWD/fanplayer_jni.cpp \
 $PWD/../../src/adev-android.cpp \
 $PWD/../../src/vdev-android.cpp \
@@ -190,7 +187,8 @@ $PWD/_install/lib/libswscale.a \
 $PWD/_install/lib/libavutil.a \
 $PWD/_install/lib/libsoundtouch.a \
 $PWD/_install/lib/libssl.a \
-$PWD/_install/lib/libcrypto.a
+$PWD/_install/lib/libcrypto.a \
+-lstlport_static -lm -lz -llog -landroid
 ${CROSS_PREFIX}strip $PWD/libfanplayer_jni.so
 mkdir -p $PWD/../apk/app/src/main/jniLibs/$JNI_DIR
 mv $PWD/libfanplayer_jni.so $PWD/../apk/app/src/main/jniLibs/$JNI_DIR

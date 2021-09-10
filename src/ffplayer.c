@@ -489,7 +489,7 @@ static int player_prepare(PLAYER *player)
 
 done:
     // send player init message
-    player_send_message(player->cmnvars.winmsg, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, (int64_t)player);
+    player_send_message(player->cmnvars.winmsg, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, (long)player);
     return ret;
 }
 
@@ -521,9 +521,9 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
         av_frame_unref(&player->aframe); player->aframe.pts = -1;
         av_frame_unref(&player->vframe); player->vframe.pts = -1;
 
-        player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, (int64_t)player);
+        player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, (long)player);
         player_prepare(player);
-        player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , (int64_t)player);
+        player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , (long)player);
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
         if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
@@ -1015,7 +1015,7 @@ void player_getparam(void *hplayer, int id, void *param)
     }
 }
 
-void player_send_message(void *extra, int32_t msg, int64_t param) {
+void player_send_message(void *extra, int32_t msg, long param) {
 #ifdef WIN32
     PostMessage((HWND)extra, MSG_FANPLAYER, msg, (LPARAM)param);
 #endif
