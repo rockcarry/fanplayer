@@ -34,6 +34,7 @@ features
 18. support overlay for win32 platform
 19. support drag mouse right button to select area zoom
 20. support livedesk ffrdp remote control
+21. support yolo-fastest detection
 
 
 testplayer
@@ -58,6 +59,7 @@ ctrl+W    - set window size to video size
 ctrl+D    - display video definition  
 ctrl+0    - restore zoom  
 ctrl+L    - enter livedesk ffrdp remote control mode  
+ctrl+Y    - enable/disable yolo-fastest detection  
 
 
 want to learn more?
