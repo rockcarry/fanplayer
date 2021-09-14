@@ -1,9 +1,12 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31624.102
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1622
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fanplayer", "fanplayer\fanplayer.vcxproj", "{2537A15B-F975-416D-8106-22CD6EDFCCDE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1} = {22D248BF-D90F-491E-95A1-72458EB0EBE1}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testplayer", "testplayer\testplayer.vcxproj", "{0E175BF5-7997-4F54-86ED-40991B4D386A}"
 EndProject
@@ -14,6 +17,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "avkcpdemuxer", "avkcpdemuxer\avkcpdemuxer.vcxproj", "{8F731DF4-F11E-4704-AF28-DB1AD045C60C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ffrdpdemuxer", "ffrdpdemuxer\ffrdpdemuxer.vcxproj", "{488C56C6-C223-4CDB-8598-78E4E928F0EE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ffobjdet", "ffobjdet\ffobjdet.vcxproj", "{22D248BF-D90F-491E-95A1-72458EB0EBE1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,6 +76,14 @@ Global
 		{488C56C6-C223-4CDB-8598-78E4E928F0EE}.Release|Win32.Build.0 = Release|Win32
 		{488C56C6-C223-4CDB-8598-78E4E928F0EE}.Release|x64.ActiveCfg = Release|x64
 		{488C56C6-C223-4CDB-8598-78E4E928F0EE}.Release|x64.Build.0 = Release|x64
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Debug|Win32.Build.0 = Debug|Win32
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Debug|x64.ActiveCfg = Debug|x64
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Debug|x64.Build.0 = Debug|x64
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Release|Win32.ActiveCfg = Release|Win32
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Release|Win32.Build.0 = Release|Win32
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Release|x64.ActiveCfg = Release|x64
+		{22D248BF-D90F-491E-95A1-72458EB0EBE1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -22,29 +22,29 @@
     <ProjectGuid>{2537A15B-F975-416D-8106-22CD6EDFCCDE}</ProjectGuid>
     <RootNamespace>fanplayer</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -85,8 +85,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\ffmpeg-win32\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ffmpeg-win32\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -95,8 +95,8 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\ffmpeg-win32\bin;..\soundtouch\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch.lib;yolodet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ffmpeg-win32\bin;..\soundtouch\lib32;..\ffobjdet\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>fanplayer.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -107,8 +107,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\ffmpeg-win64\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ffmpeg-win64\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>
@@ -117,8 +117,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\ffmpeg-win64\bin;..\soundtouch\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch_x64.lib;yolodet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ffmpeg-win64\bin;..\soundtouch\lib64;..\ffobjdet\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>fanplayer.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -127,16 +127,16 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\ffmpeg-win32\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ffmpeg-win32\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\ffmpeg-win32\bin;..\soundtouch\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch.lib;yolodet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ffmpeg-win32\bin;..\soundtouch\lib32;..\ffobjdet\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>fanplayer.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -148,8 +148,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\ffmpeg-win64\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ffmpeg-win64\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -157,8 +157,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\ffmpeg-win64\bin;..\soundtouch\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;msimg32.lib;pthread.lib;avutil.lib;avcodec.lib;avformat.lib;avdevice.lib;avfilter.lib;swscale.lib;swresample.lib;soundtouch_x64.lib;yolodet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ffmpeg-win64\bin;..\soundtouch\lib64;..\ffobjdet\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>fanplayer.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -198,6 +198,9 @@
     <ProjectReference Include="..\avkcpdemuxer\avkcpdemuxer.vcxproj">
       <Project>{8f731df4-f11e-4704-af28-db1ad045c60c}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\ffobjdet\ffobjdet.vcxproj">
+      <Project>{22d248bf-d90f-491e-95a1-72458eb0ebe1}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ffrdpdemuxer\ffrdpdemuxer.vcxproj">
       <Project>{488c56c6-c223-4cdb-8598-78e4e928f0ee}</Project>

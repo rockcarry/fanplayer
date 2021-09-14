@@ -287,22 +287,24 @@ void vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase)
     }
 }
 
-void vdev_win32_render_bboxes(void *ctxt, HDC hdc, BBOX *boxlist)
+void vdev_win32_render_bboxes(void *ctxt, HDC hdc, void *boxlist)
 {
+#if CONFIG_ENABLE_FFOBJDET
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
     int  i;
     if (!boxlist) return;
     if (!c->hbboxpen) c->hbboxpen = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
     SelectObject(hdc, GetStockObject(NULL_BRUSH));
     SelectObject(hdc, c->hbboxpen);
-    for (i=0; boxlist[i].score; i++) {
-        int x1 = (int)(boxlist[i].x1 * (c->vrect.right  - c->vrect.left));
-        int y1 = (int)(boxlist[i].y1 * (c->vrect.bottom - c->vrect.top ));
-        int x2 = (int)(boxlist[i].x2 * (c->vrect.right  - c->vrect.left));
-        int y2 = (int)(boxlist[i].y2 * (c->vrect.bottom - c->vrect.top ));
+    for (i=0; ((BBOX*)boxlist)[i].score; i++) {
+        int x1 = (int)(((BBOX*)boxlist)[i].x1 * (c->vrect.right  - c->vrect.left));
+        int y1 = (int)(((BBOX*)boxlist)[i].y1 * (c->vrect.bottom - c->vrect.top ));
+        int x2 = (int)(((BBOX*)boxlist)[i].x2 * (c->vrect.right  - c->vrect.left));
+        int y2 = (int)(((BBOX*)boxlist)[i].y2 * (c->vrect.bottom - c->vrect.top ));
         x1 += c->vrect.left; x2 += c->vrect.left;
         y1 += c->vrect.top ; y2 += c->vrect.top ;
         Rectangle(hdc, x1, y1, x2, y2);
     }
+#endif
 }
 #endif
