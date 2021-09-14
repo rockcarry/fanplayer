@@ -84,6 +84,7 @@ void vdev_destroy(void *ctxt)
 #ifdef WIN32
     DeleteDC(c->hoverlay);
     DeleteObject(c->hoverbmp);
+    DeleteObject(c->hbboxpen);
 #endif
     if (c->destroy) c->destroy(c);
 }
@@ -155,6 +156,9 @@ void vdev_setparam(void *ctxt, int id, void *param)
         } else c->overlay_rects[0].type = 0;
         break;
 #endif
+    case PARAM_VDEV_SET_BBOX:
+        c->bbox_list = param;
+        break;
     }
     if (c->setparam) c->setparam(c, id, param);
 }
@@ -168,7 +172,7 @@ void vdev_getparam(void *ctxt, int id, void *param)
     case PARAM_PLAY_SPEED_VALUE    : *(int *)param = c->speed;      break;
     case PARAM_AVSYNC_TIME_DIFF    : *(int *)param = c->tickavdiff; break;
 #ifdef WIN32
-    case PARAM_VDEV_GET_OVERLAY_HDC: *(HDC*)param = c->hoverlay;    break;
+    case PARAM_VDEV_GET_OVERLAY_HDC: *(HDC *)param = c->hoverlay;   break;
 #endif
     case PARAM_VDEV_GET_VRECT      : *(RECT*)param = c->vrect;      break;
     }
@@ -280,6 +284,25 @@ void vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase)
             AlphaBlend(hdc, c->overlay_rects[i].dstx, c->overlay_rects[i].dsty, c->overlay_rects[i].dstw, c->overlay_rects[i].dsth,
                c->hoverlay, c->overlay_rects[i].srcx, c->overlay_rects[i].srcy, c->overlay_rects[i].srcw, c->overlay_rects[i].srch, func);
         }
+    }
+}
+
+void vdev_win32_render_bboxes(void *ctxt, HDC hdc, BBOX *boxlist)
+{
+    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
+    int  i;
+    if (!boxlist) return;
+    if (!c->hbboxpen) c->hbboxpen = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
+    SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    SelectObject(hdc, c->hbboxpen);
+    for (i=0; boxlist[i].score; i++) {
+        int x1 = (int)(boxlist[i].x1 * (c->vrect.right  - c->vrect.left));
+        int y1 = (int)(boxlist[i].y1 * (c->vrect.bottom - c->vrect.top ));
+        int x2 = (int)(boxlist[i].x2 * (c->vrect.right  - c->vrect.left));
+        int y2 = (int)(boxlist[i].y2 * (c->vrect.bottom - c->vrect.top ));
+        x1 += c->vrect.left; x2 += c->vrect.left;
+        y1 += c->vrect.top ; y2 += c->vrect.top ;
+        Rectangle(hdc, x1, y1, x2, y2);
     }
 }
 #endif

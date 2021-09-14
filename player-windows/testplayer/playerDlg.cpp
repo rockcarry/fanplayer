@@ -128,6 +128,7 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_bDefinitionEn = FALSE;
     m_bShowDataRate = FALSE;
     m_bLiveDeskMode = FALSE;
+    m_bYoloDetect   = FALSE;
     m_bMouseSelFlag = FALSE;
     m_nCurMouseBtns = 0;
 }
@@ -255,6 +256,7 @@ BEGIN_MESSAGE_MAP(CplayerDlg, CDialog)
     ON_COMMAND(ID_WINFIT_VIDEOSIZE, &CplayerDlg::OnWinfitVideosize)
     ON_COMMAND(ID_ZOOM_RESTORE    , &CplayerDlg::OnZoomRestore    )
     ON_COMMAND(ID_LIVEDESK_MODE   , &CplayerDlg::OnLivedeskMode   )
+    ON_COMMAND(ID_YOLO_DETECT     , &CplayerDlg::OnYoloDetect     )
 END_MESSAGE_MAP()
 
 
@@ -827,3 +829,8 @@ void CplayerDlg::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
     }
 }
 
+void CplayerDlg::OnYoloDetect()
+{
+    m_bYoloDetect =!m_bYoloDetect;
+    int precision = m_bYoloDetect ? 256 : 0; player_setparam(m_ffPlayer, PARAM_OBJECT_DETECT, &precision);
+}

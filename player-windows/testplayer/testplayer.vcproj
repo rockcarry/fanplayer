@@ -101,7 +101,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="copy ffmpeg and soundtouch dlls"
-				CommandLine="copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
+				CommandLine="copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param&quot; &quot;$(TargetDir)&quot; /y"
 			/>
 		</Configuration>
 		<Configuration
@@ -192,7 +192,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="copy ffmpeg and soundtouch dlls"
-				CommandLine="copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;"
+				CommandLine="copy &quot;$(SolutionDir)\ffmpeg-win32\bin\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\soundtouch\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\lib32\*.dll&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin&quot; &quot;$(TargetDir)&quot; /y&#x0D;&#x0A;copy &quot;$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param&quot; &quot;$(TargetDir)&quot; /y"
 			/>
 		</Configuration>
 	</Configurations>

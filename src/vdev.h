@@ -6,6 +6,10 @@
 #include "ffplayer.h"
 #include "ffrender.h"
 
+#if CONFIG_ENABLE_FFOBJDET
+#include "ffobjdet.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -47,7 +51,7 @@ extern "C" {
     int         completed_counter; \
     int64_t     completed_apts;    \
     int64_t     completed_vpts;    \
-                                   \
+    BBOX       *bbox_list;         \
     void (*lock    )(void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts); \
     void (*unlock  )(void *ctxt);  \
     void (*setrect )(void *ctxt, int x, int y, int w, int h); \
@@ -57,6 +61,7 @@ extern "C" {
 //-- vdev context common members
 
 #define VDEV_WIN32__MEMBERS \
+    HPEN        hbboxpen; \
     HDC         hoverlay; \
     HBITMAP     hoverbmp; \
     BYTE       *poverlay; \
@@ -73,7 +78,8 @@ typedef struct {
 #ifdef WIN32
 void* vdev_gdi_create(void *surface, int bufnum);
 void* vdev_d3d_create(void *surface, int bufnum);
-void  vdev_win32_render_overlay(void *surface, HDC hdc, int erase);
+void  vdev_win32_render_overlay(void *ctxt, HDC hdc, int erase);
+void  vdev_win32_render_bboxes (void *ctxt, HDC hdc, BBOX *boxlist);
 #endif
 
 #ifdef ANDROID

@@ -88,6 +88,7 @@ enum {
     PARAM_DEFINITION_VALUE,
 
     PARAM_DATARATE_VALUE,
+    PARAM_OBJECT_DETECT,
     //-- public
 
     //++ for adev
@@ -102,6 +103,7 @@ enum {
     PARAM_VDEV_GET_OVERLAY_HDC,
     PARAM_VDEV_SET_OVERLAY_RECT,
     PARAM_VDEV_GET_VRECT,
+    PARAM_VDEV_SET_BBOX,
     //-- for vdev
 
     //++ for render

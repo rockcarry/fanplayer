@@ -43,6 +43,7 @@ private:
     BOOL     m_bDefinitionEn;
     BOOL     m_bShowDataRate;
     BOOL     m_bLiveDeskMode;
+    BOOL     m_bYoloDetect;
     int      m_nCurMouseBtns;
     void PlayerReset(PLAYER_INIT_PARAMS *params);
     void PlayerOpenFile(TCHAR *file);
@@ -86,5 +87,6 @@ public:
     afx_msg BOOL   OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg void   OnZoomRestore();
     afx_msg void   OnLivedeskMode();
+    afx_msg void   OnYoloDetect();
     afx_msg void   OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 };

@@ -40,8 +40,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT"
+				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -61,9 +61,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
+				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib yolodet.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\soundtouch\lib32"
+				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\soundtouch\lib32;..\ffobjdet\lib32"
 				ModuleDefinitionFile="fanplayer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -119,8 +119,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\soundtouch\include;..\..\avkcpdemuxer;..\..\ffrdpdemuxer"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT"
+				AdditionalIncludeDirectories="..\ffmpeg-win32\include;..\soundtouch\include;..\ffobjdet;..\..\avkcpdemuxer;..\..\ffrdpdemuxer"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;inline=_inline;ENABLE_AVKCP_SUPPORT;ENABLE_FFRDP_SUPPORT;CONFIG_ENABLE_FFOBJDET=1"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -138,9 +138,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib"
+				AdditionalDependencies="winmm.lib msimg32.lib pthread.lib avutil.lib avcodec.lib avformat.lib avdevice.lib avfilter.lib swscale.lib swresample.lib soundtouch.lib yolodet.lib"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\soundtouch\lib32"
+				AdditionalLibraryDirectories="..\ffmpeg-win32\bin;..\soundtouch\lib32;..\ffobjdet\lib32"
 				ModuleDefinitionFile="fanplayer.def"
 				GenerateDebugInformation="true"
 				SubSystem="2"

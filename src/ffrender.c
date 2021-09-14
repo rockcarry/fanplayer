@@ -16,6 +16,10 @@
 #include <soundtouch.h>
 #endif
 
+#if CONFIG_ENABLE_FFOBJDET
+#include "ffobjdet.h"
+#endif
+
 #ifdef ANDROID
 #include "fanplayer_jni.h"
 #endif
@@ -103,6 +107,10 @@ typedef struct
     int                snapwidth;
     int                snapheight;
 #endif
+
+#if CONFIG_ENABLE_FFOBJDET
+    void              *ffobjdet;
+#endif
 } RENDER;
 
 // 内部函数实现
@@ -172,15 +180,19 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
     render->adev = adev_create(adevtype, 5, render->adev_buf_size, cmnvars);
     render->vdev = vdev_create(vdevtype, surface, 0, w, h, 1000 * frate.den / frate.num, cmnvars);
 
-    // init for visual effect
-#if CONFIG_ENABLE_VEFFECT
-    render->veffect_context = veffect_create(surface);
-#endif
-
 #if CONFIG_ENABLE_SOUNDTOUCH
     render->stcontext = soundtouch_createInstance();
     soundtouch_setSampleRate(render->stcontext, ADEV_SAMPLE_RATE);
     soundtouch_setChannels  (render->stcontext, 2);
+#endif
+
+#if CONFIG_ENABLE_VEFFECT
+    render->veffect_context = veffect_create(surface);
+#endif
+
+#if CONFIG_ENABLE_FFOBJDET
+    render->ffobjdet = ffobjdet_init();
+    vdev_setparam(render->vdev, PARAM_VDEV_SET_BBOX, ffobjdet_bbox(render->ffobjdet));
 #endif
 
 #ifdef WIN32
@@ -210,10 +222,6 @@ void render_close(void *hrender)
     // wait visual effect thread exit
     render->status = RENDER_CLOSE;
 
-#if CONFIG_ENABLE_VEFFECT
-    veffect_destroy(render->veffect_context);
-#endif
-
     //++ audio ++//
     // destroy adev
     adev_destroy(render->adev);
@@ -231,6 +239,14 @@ void render_close(void *hrender)
         sws_freeContext(render->sws_context);
     }
     //-- video --//
+
+#if CONFIG_ENABLE_FFOBJDET
+    ffobjdet_free(render->ffobjdet);
+#endif
+
+#if CONFIG_ENABLE_VEFFECT
+    veffect_destroy(render->veffect_context);
+#endif
 
 #if CONFIG_ENABLE_SOUNDTOUCH
     soundtouch_destroyInstance(render->stcontext);
@@ -464,6 +480,9 @@ void render_video(void *hrender, AVFrame *video)
             render->status &= ~RENDER_SNAPSHOT;
         }
 #endif
+#if CONFIG_ENABLE_FFOBJDET
+        ffobjdet_data(render->ffobjdet, video);
+#endif
 #ifdef WIN32
         dxva2hwa_unlock_frame(video);
 #endif
@@ -597,6 +616,11 @@ void render_setparam(void *hrender, int id, void *param)
         adev_setparam(render->adev, id, param);
         vdev_setparam(render->vdev, id, param);
         break;
+#if CONFIG_ENABLE_FFOBJDET
+    case PARAM_OBJECT_DETECT:
+        ffobjdet_enable(render->ffobjdet, *(int*)param);
+        break;
+#endif
     }
 }
 

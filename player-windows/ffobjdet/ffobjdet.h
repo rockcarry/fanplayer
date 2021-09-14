@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <libavutil/frame.h>
+
 #ifndef DEFINE_BBOX_TYPE
 #define DEFINE_BBOX_TYPE
 typedef struct {
@@ -13,10 +15,11 @@ typedef struct {
 } BBOX;
 #endif
 
-void* ffobjdet_init(void);
-void  ffobjdet_data(void *ctx, void *rgb, int w, int h);
-BBOX* ffobjdet_bbox(void *ctx);
-void  ffobjdet_free(void *ctx);
+void* ffobjdet_init  (void);
+void  ffobjdet_data  (void *ctx, struct AVFrame *video);
+BBOX* ffobjdet_bbox  (void *ctx);
+void  ffobjdet_enable(void *ctx, int precision);
+void  ffobjdet_free  (void *ctx);
 
 #ifdef __cplusplus
 }

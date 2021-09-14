@@ -230,7 +230,8 @@ static void d3d_draw_surf(VDEVD3DCTXT *c, LPDIRECT3DSURFACE9 surf)
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfb, NULL, c->surfw, NULL, D3DTEXF_POINT);
     IDirect3DDevice9_StretchRect(c->pD3DDev, surf, NULL, c->surfw, c->rotate ? &c->rotrect : &c->vrect, D3DTEXF_LINEAR);
     IDirect3DSurface9_GetDC     (c->surfw, &hdc);
-    vdev_win32_render_overlay   (c, hdc ,     0);
+    vdev_win32_render_bboxes    (c, hdc, c->bbox_list);
+    vdev_win32_render_overlay   (c, hdc, 0           );
     IDirect3DSurface9_ReleaseDC (c->surfw,  hdc);
     IDirect3DDevice9_StretchRect(c->pD3DDev, c->surfw, NULL, c->bkbuf, &c->rrect, D3DTEXF_LINEAR);
     if (D3DERR_DEVICELOST == IDirect3DDevice9_Present(c->pD3DDev, &c->rrect, &c->rrect, NULL, NULL)) {
