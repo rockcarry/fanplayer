@@ -609,7 +609,7 @@ static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-    int64_t   apts; int ret;
+    int64_t   apts;
 
     player->aframe.pts = -1;
     while (!(player->status & PS_CLOSE)) {
@@ -629,32 +629,43 @@ static void* audio_decode_thread_proc(void *param)
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
-        if (0 == avcodec_send_packet(player->acodec_context, packet)) {
-            do {
-                ret = avcodec_receive_frame(player->acodec_context, &player->aframe);
-                if (ret == 0) {
-                    AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
-                    if (apts == AV_NOPTS_VALUE) {
-                        apts  = av_rescale_q(player->aframe.pts, player->astream_timebase, tb_sample_rate);
-                    } else {
-                        apts += player->aframe.nb_samples;
-                    }
-                    player->aframe.pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
-                    //++ for seek operation
-                    if (player->status & PS_A_SEEK) {
-                        if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
-                            player->cmnvars.start_tick = av_gettime_relative() / 1000;
-                            player->cmnvars.start_pts  = player->aframe.pts;
-                            player->cmnvars.apts       = player->aframe.pts;
-                            player->cmnvars.vpts       = player->vstream_index == -1 ? -1 : player->seek_dest;
-                            player->status            &=~PS_A_SEEK;
-                            if (player->status & PS_R_PAUSE) render_pause(player->render, 1);
+        while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
+            int consumed = 0;
+            int gotaudio = 0;
+
+            consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
+            if (consumed < 0) {
+                av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n");
+                break;
+            }
+
+            if (gotaudio) {
+                AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
+                if (apts == AV_NOPTS_VALUE) {
+                    apts  = av_rescale_q(player->aframe.pts, player->astream_timebase, tb_sample_rate);
+                } else {
+                    apts += player->aframe.nb_samples;
+                }
+                player->aframe.pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
+                //++ for seek operation
+                if (player->status & PS_A_SEEK) {
+                    if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
+                        player->cmnvars.start_tick = av_gettime_relative() / 1000;
+                        player->cmnvars.start_pts  = player->aframe.pts;
+                        player->cmnvars.apts       = player->aframe.pts;
+                        player->cmnvars.vpts       = player->vstream_index == -1 ? -1 : player->seek_dest;
+                        player->status &= ~PS_A_SEEK;
+                        if (player->status & PS_R_PAUSE) {
+                            render_pause(player->render, 1);
                         }
                     }
-                    //-- for seek operation
-                    if (!(player->status & PS_A_SEEK)) render_audio(player->render, &player->aframe);
                 }
-            } while (ret >= 0);
+                //-- for seek operation
+                if (!(player->status & PS_A_SEEK)) render_audio(player->render, &player->aframe);
+            }
+
+            packet->data += consumed;
+            packet->size -= consumed;
         }
         //-- decode audio packet --//
 
@@ -672,7 +683,7 @@ static void* audio_decode_thread_proc(void *param)
 static void* video_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
-    AVPacket *packet = NULL; int ret;
+    AVPacket *packet = NULL;
 
     player->vframe.pts = -1;
     while (!(player->status & PS_CLOSE)) {
@@ -691,39 +702,50 @@ static void* video_decode_thread_proc(void *param)
         } else datarate_video_packet(player->datarate, packet);
 
         //++ decode video packet ++//
-        if (0 == avcodec_send_packet(player->vcodec_context, packet)) {
-            do {
-                ret = avcodec_receive_frame(player->vcodec_context, &player->vframe);
-                if (ret == 0) {
-                    if (player->vcodec_context->width != player->init_params.video_vwidth || player->vcodec_context->height != player->init_params.video_vheight) {
-                        player->init_params.video_vwidth  = player->init_params.video_owidth  = player->vcodec_context->width;
-                        player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
-                        vfilter_graph_free(player);
-                        vfilter_graph_init(player);
-                        player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
-                    }
-                    vfilter_graph_input(player, &player->vframe);
-                    do {
-                        if (vfilter_graph_output(player, &player->vframe) < 0) break;
-                        player->seek_vpts = av_frame_get_best_effort_timestamp(&player->vframe);
-//                      player->seek_vpts = player->vframe.pkt_dts; // if rtmp has problem, try to use this code
-                        player->vframe.pts= av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
-                        //++ for seek operation
-                        if (player->status & PS_V_SEEK) {
-                            if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
-                                player->cmnvars.start_tick = av_gettime_relative() / 1000;
-                                player->cmnvars.start_pts  = player->vframe.pts;
-                                player->cmnvars.vpts       = player->vframe.pts;
-                                player->cmnvars.apts       = player->astream_index == -1 ? -1 : player->seek_dest;
-                                player->status            &=~PS_V_SEEK;
-                                if (player->status & PS_R_PAUSE) render_pause(player->render, 1);
+        while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
+            int consumed = 0;
+            int gotvideo = 0;
+
+            consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);
+            if (consumed < 0) {
+                av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n");
+                break;
+            }
+            if (player->vcodec_context->width != player->init_params.video_vwidth || player->vcodec_context->height != player->init_params.video_vheight) {
+                player->init_params.video_vwidth  = player->init_params.video_owidth  = player->vcodec_context->width;
+                player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
+                vfilter_graph_free(player);
+                vfilter_graph_init(player);
+                player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
+            }
+
+            if (gotvideo) {
+                vfilter_graph_input(player, &player->vframe);
+                do {
+                    if (vfilter_graph_output(player, &player->vframe) < 0) break;
+                    player->seek_vpts = av_frame_get_best_effort_timestamp(&player->vframe);
+//                  player->seek_vpts = player->vframe.pkt_dts; // if rtmp has problem, try to use this code
+                    player->vframe.pts= av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS);
+                    //++ for seek operation
+                    if (player->status & PS_V_SEEK) {
+                        if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
+                            player->cmnvars.start_tick = av_gettime_relative() / 1000;
+                            player->cmnvars.start_pts  = player->vframe.pts;
+                            player->cmnvars.vpts       = player->vframe.pts;
+                            player->cmnvars.apts       = player->astream_index == -1 ? -1 : player->seek_dest;
+                            player->status &= ~PS_V_SEEK;
+                            if (player->status & PS_R_PAUSE) {
+                                render_pause(player->render, 1);
                             }
                         }
-                        //-- for seek operation
-                        if (!(player->status & PS_V_SEEK)) render_video(player->render, &player->vframe);
-                    } while (player->vfilter_graph);
-                }
-            } while (ret >= 0);
+                    }
+                    //-- for seek operation
+                    if (!(player->status & PS_V_SEEK)) render_video(player->render, &player->vframe);
+                } while (player->vfilter_graph);
+            }
+
+            packet->data += packet->size;
+            packet->size -= packet->size;
         }
         //-- decode video packet --//
 
