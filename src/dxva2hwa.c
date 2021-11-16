@@ -383,18 +383,6 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev, void *hwnd)
     ctx->pD3D9   = pd3d9;
     ctx->pD3DDev = d3ddev;
 
-    if (s->codec_id == AV_CODEC_ID_H264 &&
-        (s->profile & ~FF_PROFILE_H264_CONSTRAINED) > FF_PROFILE_H264_HIGH) {
-        av_log(NULL, AV_LOG_INFO, "Unsupported H.264 profile for DXVA2 HWAccel: %d\n", s->profile);
-        return AVERROR(EINVAL);
-    }
-
-    if (s->codec_id == AV_CODEC_ID_HEVC &&
-        s->profile != FF_PROFILE_HEVC_MAIN && s->profile != FF_PROFILE_HEVC_MAIN_10) {
-        av_log(NULL, AV_LOG_INFO, "Unsupported HEVC profile for DXVA2 HWAccel: %d\n", s->profile);
-        return AVERROR(EINVAL);
-    }
-
     ret = dxva2_create_decoder(s);
     if (ret < 0) {
         av_log(NULL, AV_LOG_INFO, "Error creating the DXVA2 decoder\n");

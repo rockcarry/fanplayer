@@ -543,10 +543,6 @@ static void* av_demux_thread_proc(void *param)
     AVPacket *packet = NULL;
     int       retv   = 0;
 
-#ifdef WIN32
-    CoInitialize(NULL);
-#endif
-
     // async prepare player
     if (!player->init_params.open_syncmode) {
         retv = player_prepare(player);
@@ -598,9 +594,6 @@ static void* av_demux_thread_proc(void *param)
 done:
 #ifdef ANDROID
     JniDetachCurrentThread();
-#endif
-#ifdef WIN32
-    CoUninitialize();
 #endif
     return NULL;
 }
@@ -720,6 +713,7 @@ static void* video_decode_thread_proc(void *param)
             }
 
             if (gotvideo) {
+                player->vframe.height = player->vcodec_context->height; // when using dxva2 hardware hwaccel, the frame heigh may incorrect, so we need fix it
                 vfilter_graph_input(player, &player->vframe);
                 do {
                     if (vfilter_graph_output(player, &player->vframe) < 0) break;

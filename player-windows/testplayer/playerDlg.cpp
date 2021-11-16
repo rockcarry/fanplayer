@@ -266,9 +266,6 @@ BOOL CplayerDlg::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
-    // init COM
-    CoInitialize(NULL);
-
     // Set the icon for this dialog.  The framework does this automatically
     //  when the application's main window is not a dialog
     SetIcon(m_hIcon, TRUE );  // Set big icon
@@ -356,9 +353,6 @@ void CplayerDlg::OnDestroy()
     // delete font
     DeleteObject(m_hFont);
     m_hFont = NULL;
-
-    // uninit COM
-    CoUninitialize();
 }
 
 void CplayerDlg::OnTimer(UINT_PTR nIDEvent)

@@ -41,7 +41,7 @@ typedef struct {
     void           (*pktqueue_audio_enqueue )(void*, AVPacket*);
     void           (*pktqueue_video_enqueue )(void*, AVPacket*);
     void           (*player_send_message    )(void*, int32_t, void*);
-    int            (*dxva2hwa_init          )(AVCodecContext*, void*);
+    int            (*dxva2hwa_init          )(AVCodecContext*, void*, void*);
     int             *playerstatus;
     int              inited;
     uint32_t         curtimestamp;
@@ -189,7 +189,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
 #ifdef WIN32
         if (vcodec && avkcpd->cmnvars->init_params->video_hwaccel) {
             void *d3ddev = NULL; avkcpd->render_getparam(*avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
-            if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev) != 0) {
+            if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev, avkcpd->cmnvars->winmsg) != 0) {
                 avkcpd->cmnvars->init_params->video_hwaccel = 0;
             }
         }

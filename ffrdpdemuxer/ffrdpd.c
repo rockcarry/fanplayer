@@ -42,7 +42,7 @@ typedef struct {
     void           (*pktqueue_audio_enqueue )(void*, AVPacket*);
     void           (*pktqueue_video_enqueue )(void*, AVPacket*);
     void           (*player_send_message    )(void*, int32_t, void*);
-    int            (*dxva2hwa_init          )(AVCodecContext*, void*);
+    int            (*dxva2hwa_init          )(AVCodecContext*, void*, void*);
     int             *playerstatus;
     int              inited;
     uint32_t         curtimestamp;
@@ -190,7 +190,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
 #ifdef WIN32
         if (vcodec && ffrdpd->cmnvars->init_params->video_hwaccel) {
             void *d3ddev = NULL; ffrdpd->render_getparam(*ffrdpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
-            if (ffrdpd->dxva2hwa_init(*ffrdpd->vcodec_context, d3ddev) != 0) {
+            if (ffrdpd->dxva2hwa_init(*ffrdpd->vcodec_context, d3ddev, ffrdpd->cmnvars->winmsg) != 0) {
                 ffrdpd->cmnvars->init_params->video_hwaccel = 0;
             }
         }
