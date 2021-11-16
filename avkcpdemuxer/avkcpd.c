@@ -172,10 +172,11 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 if (vcodec->capabilities & AV_CODEC_CAP_TRUNCATED) {
                     (*avkcpd->vcodec_context)->flags |= AV_CODEC_FLAG_TRUNCATED;
                 }
-                (*avkcpd->vcodec_context)->width     = avkcpd->vwidth;
-                (*avkcpd->vcodec_context)->height    = avkcpd->vheight;
-                (*avkcpd->vcodec_context)->framerate = vrate;
-                (*avkcpd->vcodec_context)->pix_fmt   = AV_PIX_FMT_YUV420P;
+                (*avkcpd->vcodec_context)->width        = avkcpd->vwidth;
+                (*avkcpd->vcodec_context)->height       = avkcpd->vheight;
+                (*avkcpd->vcodec_context)->framerate    = vrate;
+                (*avkcpd->vcodec_context)->pix_fmt      = AV_PIX_FMT_YUV420P;
+                (*avkcpd->vcodec_context)->thread_count = avkcpd->cmnvars->init_params->video_thread_count;
                 if (avcodec_open2(*avkcpd->vcodec_context, vcodec, NULL) < 0) {
                     avcodec_close(*avkcpd->vcodec_context);
                     avcodec_free_context(avkcpd->vcodec_context);
