@@ -350,8 +350,6 @@ int dxva2hwa_init(AVCodecContext *s, void *d3ddev, void *hwnd)
         if (create) pd3d9 = create(D3D_SDK_VERSION);
         if (pd3d9) {
             D3DPRESENT_PARAMETERS d3dpp = {0};
-            d3dpp.BackBufferWidth       = GetSystemMetrics(SM_CXSCREEN);
-            d3dpp.BackBufferHeight      = GetSystemMetrics(SM_CYSCREEN);
             d3dpp.SwapEffect            = D3DSWAPEFFECT_DISCARD;
             d3dpp.hDeviceWindow         = (HWND)hwnd;
             d3dpp.Windowed              = TRUE;

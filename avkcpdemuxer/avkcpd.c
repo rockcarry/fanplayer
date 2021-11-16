@@ -188,7 +188,8 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
        *avkcpd->render = avkcpd->render_open(avkcpd->adevtype, avkcpd->vdevtype, avkcpd->cmnvars->winmsg, vrate, avkcpd->vwidth, avkcpd->vheight, avkcpd->cmnvars);
 #ifdef WIN32
         if (vcodec && avkcpd->cmnvars->init_params->video_hwaccel) {
-            void *d3ddev = NULL; avkcpd->render_getparam(*avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+            void *d3ddev = NULL;
+            if (avkcpd->cmnvars->init_params->video_hwaccel == 1) avkcpd->render_getparam(*avkcpd->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
             if (avkcpd->dxva2hwa_init(*avkcpd->vcodec_context, d3ddev, avkcpd->cmnvars->winmsg) != 0) {
                 avkcpd->cmnvars->init_params->video_hwaccel = 0;
             }

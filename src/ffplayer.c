@@ -470,7 +470,7 @@ static int player_prepare(PLAYER *player)
     } else if (player->init_params.video_hwaccel) {
 #ifdef WIN32
         void *d3ddev = NULL;
-        render_getparam(player->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
+        if (player->init_params.video_hwaccel == 1) render_getparam(player->render, PARAM_VDEV_GET_D3DDEV, &d3ddev);
         if (dxva2hwa_init(player->vcodec_context, d3ddev, player->cmnvars.winmsg) != 0) {
             player->init_params.video_hwaccel = 0;
         }
