@@ -123,8 +123,8 @@
       <Command>copy "$(SolutionDir)\ffmpeg-win32\bin\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\soundtouch\lib32\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\ffobjdet\lib32\*.dll" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y</Command>
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.bin" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.param" "$(TargetDir)" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -162,8 +162,8 @@ copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y</Command
       <Command>copy "$(SolutionDir)\ffmpeg-win64\bin\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\soundtouch\lib64\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\ffobjdet\lib64\*.dll" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y</Command>
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.bin" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.param" "$(TargetDir)" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -203,8 +203,8 @@ copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y</Command
       <Command>copy "$(SolutionDir)\ffmpeg-win32\bin\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\soundtouch\lib32\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\ffobjdet\lib32\*.dll" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.bin" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.param" "$(TargetDir)" /y
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -245,8 +245,8 @@ copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y
       <Command>copy "$(SolutionDir)\ffmpeg-win64\bin\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\soundtouch\lib64\*.dll" "$(TargetDir)" /y
 copy "$(SolutionDir)\ffobjdet\lib64\*.dll" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.bin" "$(TargetDir)" /y
-copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1.param" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.bin" "$(TargetDir)" /y
+copy "$(SolutionDir)\ffobjdet\yolo-fastest-1.1*.param" "$(TargetDir)" /y
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
