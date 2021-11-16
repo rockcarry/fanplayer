@@ -481,7 +481,7 @@ void render_video(void *hrender, AVFrame *video)
         }
 #endif
 #if CONFIG_ENABLE_FFOBJDET
-        ffobjdet_data(render->ffobjdet, video);
+        ffobjdet_data(render->ffobjdet, &lockedpic);
 #endif
 #ifdef WIN32
         dxva2hwa_unlock_frame(video);

@@ -74,8 +74,8 @@ void* ffobjdet_init(void)
     OBJDET *det = calloc(1, sizeof(OBJDET));
     if (!det) return NULL;
 
-    get_app_dir(paramfile, sizeof(paramfile)); strncat(paramfile, "\\yolo-fastest-1.1.param", sizeof(paramfile));
-    get_app_dir(binfile  , sizeof(binfile  )); strncat(binfile  , "\\yolo-fastest-1.1.bin"  , sizeof(binfile  ));
+    get_app_dir(paramfile, sizeof(paramfile)); strncat(paramfile, "\\yolo-fastest-1.1_body.param", sizeof(paramfile));
+    get_app_dir(binfile  , sizeof(binfile  )); strncat(binfile  , "\\yolo-fastest-1.1_body.bin"  , sizeof(binfile  ));
     det->yolodet = yolodet_init(paramfile, binfile);
     if (!det->yolodet) {
         av_log(NULL, AV_LOG_ERROR, "ffobjdet_init failed to init yolodet !\n");
