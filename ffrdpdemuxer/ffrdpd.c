@@ -239,25 +239,21 @@ void* ffrdpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     strncpy(ipaddr, url + 8, sizeof(ipaddr));
     str = strstr(ipaddr, ":");
     if (str) *str = '\0';
- 
-    ffrdpd->ffrdpc = ffrdpc_init(ipaddr, port, cmnvars->init_params->ffrdp_tx_key, cmnvars->init_params->ffrdp_rx_key, ffrdpc_callback, ffrdpd);
-    if (!ffrdpd->ffrdpc) { free(ffrdpd); return NULL; }
 
     astream_timebase->num  = 1;
     astream_timebase->den  = 1000;
     vstream_timebase->num  = 1;
     vstream_timebase->den  = 1000;
 
-    ffrdpd->player         = player;
-    ffrdpd->pktqueue       = pktqueue;
-    ffrdpd->acodec_context = acodec_context;
-    ffrdpd->vcodec_context = vcodec_context;
-    ffrdpd->playerstatus   = playerstatus;
-    ffrdpd->render         = render;
-    ffrdpd->adevtype       = adevtype;
-    ffrdpd->vdevtype       = vdevtype;
-    ffrdpd->cmnvars        = cmnvars;
-
+    ffrdpd->player                  = player;
+    ffrdpd->pktqueue                = pktqueue;
+    ffrdpd->acodec_context          = acodec_context;
+    ffrdpd->vcodec_context          = vcodec_context;
+    ffrdpd->playerstatus            = playerstatus;
+    ffrdpd->render                  = render;
+    ffrdpd->adevtype                = adevtype;
+    ffrdpd->vdevtype                = vdevtype;
+    ffrdpd->cmnvars                 = cmnvars;
     ffrdpd->render_open             = pfnrenderopen;
     ffrdpd->render_getparam         = pfnrendergetparam;
     ffrdpd->pktqueue_request_packet = pfnpktqrequest;
@@ -265,6 +261,9 @@ void* ffrdpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     ffrdpd->pktqueue_video_enqueue  = pfnpktqvenqueue;
     ffrdpd->player_send_message     = pfnplayermsg;
     ffrdpd->dxva2hwa_init           = pfndxva2hwinit;
+
+    ffrdpd->ffrdpc = ffrdpc_init(ipaddr, port, cmnvars->init_params->ffrdp_tx_key, cmnvars->init_params->ffrdp_rx_key, ffrdpc_callback, ffrdpd);
+    if (!ffrdpd->ffrdpc) { free(ffrdpd); ffrdpd = NULL; }
     return ffrdpd;
 }
 
@@ -272,6 +271,7 @@ void ffrdpdemuxer_exit(void *ctxt)
 {
     FFRDPDEMUXER *ffrdpd = (FFRDPDEMUXER*)ctxt;
     if (ffrdpd) {
+        ffrdpc_exit(ffrdpd->ffrdpc);
         if (*ffrdpd->vcodec_context) {
             (*ffrdpd->vcodec_context)->extradata_size = 0;
             (*ffrdpd->vcodec_context)->extradata      = NULL;
@@ -280,7 +280,6 @@ void ffrdpdemuxer_exit(void *ctxt)
         avcodec_close(*ffrdpd->vcodec_context);
         avcodec_free_context(ffrdpd->acodec_context);
         avcodec_free_context(ffrdpd->vcodec_context);
-        ffrdpc_exit(ffrdpd->ffrdpc);
         free(ffrdpd);
     }
 }

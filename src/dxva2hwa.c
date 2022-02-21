@@ -404,9 +404,11 @@ void dxva2hwa_free(AVCodecContext *s)
     hwa->hwaccel_get_format = NULL;
 
     if (ctx->decoder_service) IDirectXVideoDecoderService_Release(ctx->decoder_service);
-    if (ctx->pD3DDev        ) IDirect3DDevice9_Release(ctx->pD3DDev);
-    if (ctx->pD3D9          ) IDirect3D9_Release(ctx->pD3D9);
-    if (ctx->hDll           ) FreeLibrary(ctx->hDll);
+    if (ctx->hDll) {
+        if (ctx->pD3DDev) IDirect3DDevice9_Release(ctx->pD3DDev);
+        if (ctx->pD3D9  ) IDirect3D9_Release(ctx->pD3D9);
+        FreeLibrary(ctx->hDll);
+    }
 
     av_buffer_unref(&ctx->hw_frames_ctx);
     av_buffer_unref(&ctx->hw_device_ctx);

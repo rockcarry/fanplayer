@@ -174,7 +174,7 @@ static int avkcpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
                 }
                 (*avkcpd->vcodec_context)->width          = avkcpd->vwidth;
                 (*avkcpd->vcodec_context)->height         = avkcpd->vheight;
-                (*avkcpd->vcodec_context)->framerate      = vrate;\
+                (*avkcpd->vcodec_context)->framerate      = vrate;
                 (*avkcpd->vcodec_context)->extradata_size = avkcpd->vpsspsppslen;
                 (*avkcpd->vcodec_context)->extradata      = avkcpd->vpsspsppsbuf;
                 (*avkcpd->vcodec_context)->pix_fmt        = AV_PIX_FMT_YUV420P;
@@ -238,25 +238,21 @@ void* avkcpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     strncpy(ipaddr, url + 8, sizeof(ipaddr));
     str = strstr(ipaddr, ":");
     if (str) *str = '\0';
- 
-    avkcpd->avkcpc = avkcpc_init(ipaddr, port, avkcpc_callback, avkcpd);
-    if (!avkcpd->avkcpc) { free(avkcpd); return NULL; }
 
     astream_timebase->num  = 1;
     astream_timebase->den  = 1000;
     vstream_timebase->num  = 1;
     vstream_timebase->den  = 1000;
 
-    avkcpd->player         = player;
-    avkcpd->pktqueue       = pktqueue;
-    avkcpd->acodec_context = acodec_context;
-    avkcpd->vcodec_context = vcodec_context;
-    avkcpd->playerstatus   = playerstatus;
-    avkcpd->render         = render;
-    avkcpd->adevtype       = adevtype;
-    avkcpd->vdevtype       = vdevtype;
-    avkcpd->cmnvars        = cmnvars;
-
+    avkcpd->player                  = player;
+    avkcpd->pktqueue                = pktqueue;
+    avkcpd->acodec_context          = acodec_context;
+    avkcpd->vcodec_context          = vcodec_context;
+    avkcpd->playerstatus            = playerstatus;
+    avkcpd->render                  = render;
+    avkcpd->adevtype                = adevtype;
+    avkcpd->vdevtype                = vdevtype;
+    avkcpd->cmnvars                 = cmnvars;
     avkcpd->render_open             = pfnrenderopen;
     avkcpd->render_getparam         = pfnrendergetparam;
     avkcpd->pktqueue_request_packet = pfnpktqrequest;
@@ -264,6 +260,9 @@ void* avkcpdemuxer_init(char *url, void *player, void *pktqueue, AVCodecContext 
     avkcpd->pktqueue_video_enqueue  = pfnpktqvenqueue;
     avkcpd->player_send_message     = pfnplayermsg;
     avkcpd->dxva2hwa_init           = pfndxva2hwinit;
+
+    avkcpd->avkcpc = avkcpc_init(ipaddr, port, avkcpc_callback, avkcpd);
+    if (!avkcpd->avkcpc) { free(avkcpd); avkcpd = NULL; }
     return avkcpd;
 }
 
@@ -271,6 +270,7 @@ void avkcpdemuxer_exit(void *ctxt)
 {
     AVKCPDEMUXER *avkcpd = (AVKCPDEMUXER*)ctxt;
     if (avkcpd) {
+        avkcpc_exit(avkcpd->avkcpc);
         if (*avkcpd->vcodec_context) {
             (*avkcpd->vcodec_context)->extradata_size = 0;
             (*avkcpd->vcodec_context)->extradata      = NULL;
@@ -279,7 +279,6 @@ void avkcpdemuxer_exit(void *ctxt)
         avcodec_close(*avkcpd->vcodec_context);
         avcodec_free_context(avkcpd->acodec_context);
         avcodec_free_context(avkcpd->vcodec_context);
-        avkcpc_exit(avkcpd->avkcpc);
         free(avkcpd);
     }
 }

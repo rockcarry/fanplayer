@@ -54,9 +54,8 @@ typedef struct {
     #define PS_F_SEEK     (1 << 3)  // seek flag
     #define PS_A_SEEK     (1 << 4)  // seek audio
     #define PS_V_SEEK     (1 << 5)  // seek video
-    #define PS_CLOSE      (1 << 6)  // close player
     #define PS_RECONNECT  (1 << 7)  // reconnect
-    int              status;
+    int              status, close;
     int              seek_req ;
     int64_t          seek_pos ;
     int64_t          seek_dest;
@@ -410,7 +409,7 @@ static int player_prepare(PLAYER *player)
         player->read_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
 
         if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
-            if (player->init_params.auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
+            if (player->init_params.auto_reconnect > 0 && !player->close) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", url);
                 av_usleep(100*1000);
             } else {
@@ -509,7 +508,7 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
 
     // wait for pause done
     while ((player->status & PAUSE_ACK) != PAUSE_ACK) {
-        if (player->status & PS_CLOSE) return;
+        if (player->close) return;
         av_usleep(20*1000);
     }
 
@@ -549,7 +548,7 @@ static void* av_demux_thread_proc(void *param)
         if (retv != 0) goto done;
     }
 
-    while (!(player->status & PS_CLOSE)) {
+    while (!player->close) {
         //++ when player seek ++//
         if (player->status & (PS_F_SEEK|PS_RECONNECT)) {
             handle_fseek_or_reconnect(player, (player->status & PS_RECONNECT) ? 1 : 0);
@@ -605,7 +604,7 @@ static void* audio_decode_thread_proc(void *param)
     int64_t   apts;
 
     player->aframe.pts = -1;
-    while (!(player->status & PS_CLOSE)) {
+    while (!player->close) {
         //++ when audio decode pause ++//
         if (player->status & PS_A_PAUSE) {
             player->status |= (PS_A_PAUSE << 16);
@@ -622,7 +621,7 @@ static void* audio_decode_thread_proc(void *param)
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
-        while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
+        while (packet->size > 0 && !(player->status & PS_A_PAUSE) && !player->close) {
             int consumed = 0;
             int gotaudio = 0;
 
@@ -679,7 +678,7 @@ static void* video_decode_thread_proc(void *param)
     AVPacket *packet = NULL;
 
     player->vframe.pts = -1;
-    while (!(player->status & PS_CLOSE)) {
+    while (!player->close) {
         //++ when video decode pause ++//
         if (player->status & PS_V_PAUSE) {
             player->status |= (PS_V_PAUSE << 16);
@@ -695,7 +694,7 @@ static void* video_decode_thread_proc(void *param)
         } else datarate_video_packet(player->datarate, packet);
 
         //++ decode video packet ++//
-        while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
+        while (packet->size > 0 && !(player->status & PS_V_PAUSE) && !player->close) {
             int consumed = 0;
             int gotvideo = 0;
 
@@ -847,21 +846,13 @@ void player_close(void *hplayer)
     // set read_timeout to 0
     player->read_timeout = 0;
 
-    // set close flag
-    player->status |= PS_CLOSE;
-    render_setparam(player->render, PARAM_RENDER_STOP, NULL);
+    player->close = 1; // set close flag
+    render_setparam(player->render, PARAM_RENDER_STOP, NULL); // stop render
 
-    // wait audio/video demuxing thread exit
-    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL);
-
-    // wait audio decoding thread exit
-    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL);
-
-    // wait video decoding thread exit
-    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL);
-
-    // free avfilter graph
-    vfilter_graph_free(player);
+    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait audio/video demuxing thread exit
+    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
+    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
+    vfilter_graph_free(player); // free avfilter graph
 
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
@@ -895,7 +886,7 @@ void player_play(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
-    player->status &= PS_CLOSE;
+    player->status = 0;
     render_pause(player->render, 0);
     datarate_reset(player->datarate);
 }
