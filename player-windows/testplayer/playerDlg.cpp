@@ -445,7 +445,6 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
         switch (pMsg->wParam) {
         case MSG_OPEN_DONE:
             SetWindowText(TEXT("testplayer"));
-            m_ffPlayer = (void*)pMsg->lParam;
             if (TRUE) { // set player dynamic params
                 int param = 0;
                 //++ set dynamic player params
