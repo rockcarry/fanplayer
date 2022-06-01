@@ -72,8 +72,6 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     result = waveOutOpen(&ctxt->hWaveOut, ctxt->cmnvars->init_params->waveout_device_id, &wfx, (DWORD_PTR)waveOutProc, (DWORD_PTR)ctxt, CALLBACK_FUNCTION);
     if (result != MMSYSERR_NOERROR) {
         CloseHandle(ctxt->bufsem);
-        free(ctxt->ppts    );
-        free(ctxt->pWaveHdr);
         free(ctxt);
         return NULL;
     }
