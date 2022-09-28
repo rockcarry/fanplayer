@@ -358,7 +358,7 @@ void render_audio(void *hrender, AVFrame *audio)
         {
             sampnum = render_audio_swresample(render, audio);
         }
-    } while (sampnum);
+    } while (sampnum && !(render->status & RENDER_CLOSE));
 }
 
 static float definition_evaluation(uint8_t *img, int w, int h, int stride)
