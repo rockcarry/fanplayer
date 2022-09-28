@@ -842,7 +842,7 @@ void player_close(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
-
+    if (player->close) return;
     // set read_timeout to 0
     player->read_timeout = 0;
 

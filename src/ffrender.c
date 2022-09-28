@@ -299,7 +299,7 @@ static int render_audio_soundtouch(RENDER *render, AVFrame *audio)
 static int render_audio_swresample(RENDER *render, AVFrame *audio)
 {
     int num_samp;
-
+    if (render->status & RENDER_CLOSE) return 0;
     //++ do resample audio data ++//
     num_samp = swr_convert(render->swr_context,
         (uint8_t**)&render->adev_buf_cur, render->adev_buf_avail / 4,
