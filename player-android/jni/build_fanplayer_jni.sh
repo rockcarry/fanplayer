@@ -61,7 +61,7 @@ EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"
 
 #++ build openssl ++#
 if [ ! -d openssl ]; then
-  git clone https://github.com.cnpmjs.org/openssl/openssl.git
+    git clone https://github.com.cnpmjs.org/openssl/openssl.git
 fi
 cd openssl
 git checkout .

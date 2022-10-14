@@ -83,14 +83,18 @@ extern "C" {
 /* MSB 8-bit major version, 8-bit minor version, 16-bit patch level.  */
 #define __WINPTHREADS_VERSION 0x00050000
 
-#if defined DLL_EXPORT
-#ifdef IN_WINPTHREAD
-#define WINPTHREAD_API __declspec(dllexport)
+#if defined(IN_WINPTHREAD)
+#  if defined(DLL_EXPORT)
+#    define WINPTHREAD_API  __declspec(dllexport)  /* building the DLL  */
+#  else
+#    define WINPTHREAD_API  /* building the static library  */
+#  endif
 #else
-#define WINPTHREAD_API __declspec(dllimport)
-#endif
-#else
-#define WINPTHREAD_API
+#  if defined(WINPTHREADS_USE_DLLIMPORT)
+#    define WINPTHREAD_API  __declspec(dllimport)  /* user wants explicit `dllimport`  */
+#  else
+#    define WINPTHREAD_API  /* the default; auto imported in case of DLL  */
+#  endif
 #endif
 
 /* #define WINPTHREAD_DBG 1 */
@@ -393,7 +397,7 @@ int WINPTHREAD_API pthread_barrierattr_getpshared(void **attr, int *s);
 /* Private extensions for analysis and internal use.  */
 struct _pthread_cleanup ** WINPTHREAD_API pthread_getclean (void);
 void *                     WINPTHREAD_API pthread_gethandle (pthread_t t);
-void *                     WINPTHREAD_API pthread_getevent ();
+void *                     WINPTHREAD_API pthread_getevent (void);
 
 unsigned long long         WINPTHREAD_API _pthread_rel_time_in_ms(const struct timespec *ts);
 unsigned long long         WINPTHREAD_API _pthread_time_in_ms(void);

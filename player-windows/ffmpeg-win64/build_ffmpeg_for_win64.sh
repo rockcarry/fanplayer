@@ -5,7 +5,7 @@ export PKG_CONFIG_PATH=$PWD/_install/lib/pkgconfig:$PKG_CONFIG_PATH
 
 #++ build zlib ++#
 if [ ! -d zlib ]; then
-  git clone https://github.com.cnpmjs.org/madler/zlib.git
+  git clone https://github.com/madler/zlib.git
 fi
 cd zlib
 git checkout .
@@ -17,7 +17,7 @@ cd -
 
 #++ build openssl ++#
 if [ ! -d openssl ]; then
-  git clone https://github.com.cnpmjs.org/openssl/openssl.git
+  git clone https://github.com/openssl/openssl.git
 fi
 cd openssl
 git checkout .
@@ -88,10 +88,10 @@ cp -r $PWD/_install/include/lib* $PWD/_install/include/openssl $PWD/include/
 cp -r $PWD/_install/bin/ffmpeg.exe $PWD/_install/bin/*.dll $PWD/_install/bin/*.lib $PWD/bin/
 cp /mingw64/bin/libwinpthread-1.dll $PWD/bin/
 strip $PWD/bin/*.exe $PWD/bin/*.dll
-cp /mingw64/i686-w64-mingw64/lib/libpthread.dll.a $PWD/bin/pthread.lib
-cp /mingw64/i686-w64-mingw64/include/pthread*.h   $PWD/include/
-cp /mingw64/i686-w64-mingw64/include/sched.h      $PWD/include/
-cp /mingw64/i686-w64-mingw64/include/semaphore.h  $PWD/include/
+cp /mingw64/lib/libpthread.dll.a $PWD/bin/pthread.lib
+cp /mingw64/include/pthread*.h   $PWD/include/
+cp /mingw64/include/sched.h      $PWD/include/
+cp /mingw64/include/semaphore.h  $PWD/include/
 dlltool -l $PWD/bin/libcrypto.lib -d $PWD/openssl/libcrypto.def
 dlltool -l $PWD/bin/libssl.lib    -d $PWD/openssl/libssl.def
 #-- copy files --#

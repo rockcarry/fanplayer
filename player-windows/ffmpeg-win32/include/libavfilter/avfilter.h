@@ -710,7 +710,7 @@ const AVFilter *av_filter_iterate(void **opaque);
 
 #if FF_API_NEXT
 /** Initialize the filter system. Register all builtin filters. */
-attribute_deprecated
+// attribute_deprecated
 void avfilter_register_all(void);
 
 /**

@@ -87,10 +87,10 @@ cp -r $PWD/_install/include/lib* $PWD/_install/include/openssl $PWD/include/
 cp -r $PWD/_install/bin/ffmpeg.exe $PWD/_install/bin/*.dll $PWD/_install/bin/*.lib $PWD/bin/
 cp /mingw32/bin/libgcc_s_dw2-1.dll /mingw32/bin/libwinpthread-1.dll $PWD/bin/
 strip $PWD/bin/*.exe $PWD/bin/*.dll
-cp /mingw32/i686-w64-mingw32/lib/libpthread.dll.a $PWD/bin/pthread.lib
-cp /mingw32/i686-w64-mingw32/include/pthread*.h   $PWD/include/
-cp /mingw32/i686-w64-mingw32/include/sched.h      $PWD/include/
-cp /mingw32/i686-w64-mingw32/include/semaphore.h  $PWD/include/
+cp /mingw32/lib/libpthread.dll.a $PWD/bin/pthread.lib
+cp /mingw32/include/pthread*.h   $PWD/include/
+cp /mingw32/include/sched.h      $PWD/include/
+cp /mingw32/include/semaphore.h  $PWD/include/
 dlltool -l $PWD/bin/libcrypto.lib -d $PWD/openssl/libcrypto.def
 dlltool -l $PWD/bin/libssl.lib    -d $PWD/openssl/libssl.def
 #-- copy files --#
