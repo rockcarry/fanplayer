@@ -381,7 +381,7 @@ static int player_prepare(PLAYER *player)
     } else {
         player->init_params.init_timeout   = 0;
         player->init_params.auto_reconnect = 0;
-        player->init_params.avts_syncmode  = AVSYNC_MODE_FILE;
+        if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) player->init_params.avts_syncmode = AVSYNC_MODE_FILE;
     }
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
         char vsize[64];
@@ -1080,7 +1080,7 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->rtsp_transport      = atoi(parse_params(str, "rtsp_transport"     , value, sizeof(value)) ? value : "0");
     params->avts_syncmode       = atoi(parse_params(str, "avts_syncmode"      , value, sizeof(value)) ? value : "0");
     params->swscale_type        = atoi(parse_params(str, "swscale_type"       , value, sizeof(value)) ? value : "0");
-    params->waveout_device_id   = atoi(parse_params(str, "waveout_device_id"  , value, sizeof(value)) ? value : "0");
+    params->waveout_device_id   = atoi(parse_params(str, "waveout_device_id"  , value, sizeof(value)) ? value :"-1");
     parse_params(str, "filter_string", params->filter_string, sizeof(params->filter_string));
     parse_params(str, "ffrdp_tx_key" , params->ffrdp_tx_key , sizeof(params->ffrdp_tx_key ));
     parse_params(str, "ffrdp_rx_key" , params->ffrdp_rx_key , sizeof(params->ffrdp_rx_key ));
