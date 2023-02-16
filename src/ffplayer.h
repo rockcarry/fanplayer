@@ -4,6 +4,8 @@
 // 包含头文件
 #include "stdefine.h"
 
+#define FANPLAYER_VERSION "v1.9.3"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -131,6 +131,7 @@ static void vfilter_graph_init(PLAYER *player)
     char               temp[256], fstr[256];
     int                ret;
     if (!player->vcodec_context) return;
+    if ( player->vfilter_graph ) return;
 
     //++ check if no filter used
     if (  !player->init_params.video_deinterlace
@@ -513,10 +514,13 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
     }
 
     if (reconnect) {
-        vfilter_graph_free(player);
+#ifdef WIN32
+        if (player->vcodec_context  ) { dxva2hwa_free(player->vcodec_context);                                }
+#endif
         if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
         if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
         if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
+        if (player->render          ) { render_close(player->render); }
         av_frame_unref(&player->aframe); player->aframe.pts = -1;
         av_frame_unref(&player->vframe); player->vframe.pts = -1;
 
