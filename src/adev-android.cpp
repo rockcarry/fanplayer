@@ -48,11 +48,9 @@ static void* audio_render_thread_proc(void *param)
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)param;
 
     while (!(c->status & ADEV_CLOSE)) {
-        if (c->status & ADEV_PAUSE) { usleep(10*1000); continue; }
-
         pthread_mutex_lock(&c->lock);
-        while (c->curnum == 0 && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
-        if ((c->status & ADEV_CLOSE) == 0) {
+        while ((c->curnum == 0 || (c->status & ADEV_PAUSE)) && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
+        if ((c->status & (ADEV_CLOSE|ADEV_PAUSE)) == 0) {
             env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
             c->curnum--; c->bufcur = c->pWaveHdr[c->head].data;
             c->cmnvars->apts = c->ppts[c->head];
@@ -173,15 +171,13 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
 void adev_pause(void *ctxt, int pause)
 {
     if (!ctxt) return;
-    JNIEnv *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (pause) {
-        c->status |=  ADEV_PAUSE;
-        env->CallVoidMethod(c->jobj_at, c->jmid_at_pause);
-    } else {
-        c->status &= ~ADEV_PAUSE;
-        env->CallVoidMethod(c->jobj_at, c->jmid_at_play );
-    }
+    pthread_mutex_lock(&c->lock);
+    if (pause) c->status |=  ADEV_PAUSE;
+    else       c->status &= ~ADEV_PAUSE;
+    pthread_cond_signal(&c->cond);
+    pthread_mutex_unlock(&c->lock);
+    get_jni_env()->CallVoidMethod(c->jobj_at, pause ? c->jmid_at_pause : c->jmid_at_play);
 }
 
 void adev_reset(void *ctxt)
