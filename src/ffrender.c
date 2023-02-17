@@ -635,7 +635,7 @@ void render_getparam(void *hrender, int id, void *param)
         if (vdev && vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param = -1; // means completed
         } else {
-            *(int64_t*)param = MAX(render->cmnvars->apts, render->cmnvars->vpts);
+            *(int64_t*)param = render->cmnvars->apts != -1 ? render->cmnvars->apts : render->cmnvars->vpts;
         }
         break;
     case PARAM_AUDIO_VOLUME    : *(int*)param = render->vol_curvol - render->vol_zerodb; break;
