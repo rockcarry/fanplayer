@@ -133,9 +133,6 @@ enum {
 // player_open 函数只会读取传入的初始化参数的内容，而不会改变其内容。想要获取视频文件打开后的新参数值
 // 需要通过 player_getparam(PARAM_PLAYER_INIT_PARAMS, &params); 这样的接口
 // 结构体中 r 表示参数只读，w 表示参数只写，wr 表示参数可配置，但配置是否成功可在 player_open 后读取判断
-// 注意：采用异步打开方式（open_syncmode = 0）时，player_open 函数返回后，获取到的一些参数可能并不是有效
-// 的（比如 video_vwidth, video_vheight），需要等到接收到 MSG_OPEN_DONE 消息后才能获取有效的参数。同步打
-// 开方式则不会有这个问题，因为 player_open 完成后已经做完了全部的初始化工作。
 typedef struct {
     int  video_vwidth;             // wr video actual width
     int  video_vheight;            // wr video actual height
@@ -163,7 +160,6 @@ typedef struct {
     int  adev_render_type;         // w  adev 类型
 
     int  init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
-    int  open_syncmode;            // w  播放器以同步方式打开，调用 player_open 将等待播放器初始化成功
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
     int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 文件播放模式，2 - 直播模式，做音视频同步，3 - 直播模式，放弃音视频同步

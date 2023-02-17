@@ -55,7 +55,8 @@ typedef struct {
     #define PS_A_SEEK     (1 << 4)  // seek audio
     #define PS_V_SEEK     (1 << 5)  // seek video
     #define PS_RECONNECT  (1 << 7)  // reconnect
-    int              status, close;
+    #define PS_CLOSE      (1 << 8)  // close flag
+    int              status;
     int              seek_req ;
     int64_t          seek_pos ;
     int64_t          seek_dest;
@@ -66,6 +67,7 @@ typedef struct {
     // player common vars
     CMNVARS          cmnvars;
 
+    pthread_mutex_t  lock;
     pthread_t        avdemux_thread;
     pthread_t        adecode_thread;
     pthread_t        vdecode_thread;
@@ -130,16 +132,13 @@ static void vfilter_graph_init(PLAYER *player)
     AVFilterInOut     *inputs, *outputs;
     char               temp[256], fstr[256];
     int                ret;
-    if (!player->vcodec_context) return;
-    if ( player->vfilter_graph ) return;
 
-    //++ check if no filter used
-    if (  !player->init_params.video_deinterlace
-       && !player->init_params.video_rotate
-       && !player->init_params.filter_string[0] ) {
+    if (!player->vcodec_context || player->vfilter_graph) return;
+    if (!player->init_params.video_deinterlace
+     && !player->init_params.video_rotate
+     && !player->init_params.filter_string[0] ) {
         return;
     }
-    //-- check if no filter used
 
     player->vfilter_graph = avfilter_graph_alloc();
     if (!player->vfilter_graph) return;
@@ -215,9 +214,7 @@ static void vfilter_graph_input(PLAYER *player, AVFrame *frame)
 {
     if (player->vfilter_graph) {
         int ret = av_buffersrc_add_frame(player->vfilter_src_ctx, frame);
-        if (ret != 0) {
-            av_log(NULL, AV_LOG_WARNING, "av_buffersrc_add_frame_flags failed !\n");
-        }
+        if (ret != 0) av_log(NULL, AV_LOG_WARNING, "av_buffersrc_add_frame_flags failed !\n");
     }
 }
 
@@ -410,17 +407,14 @@ static int player_prepare(PLAYER *player)
         player->read_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
 
         if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
-            if (player->init_params.auto_reconnect > 0 && !player->close) {
+            if (player->init_params.auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", url);
                 av_usleep(100*1000);
             } else {
                 av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", url);
                 goto done;
             }
-        } else {
-            av_log(NULL, AV_LOG_INFO, "successed to open url: %s !\n", url);
-            break;
-        }
+        } else { av_log(NULL, AV_LOG_INFO, "successed to open url: %s !\n", url); break; }
     }
 
     // find stream info
@@ -457,9 +451,6 @@ static int player_prepare(PLAYER *player)
     player->cmnvars.apts       = player->astream_index != -1 ? player->cmnvars.start_time : -1;
     player->cmnvars.vpts       = player->vstream_index != -1 ? player->cmnvars.start_time : -1;
 
-    // init avfilter graph
-    vfilter_graph_init(player);
-
     // open render
     player->render = render_open(player->init_params.adev_render_type, player->init_params.vdev_render_type,
         player->cmnvars.winmsg, vrate, player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
@@ -493,39 +484,41 @@ done:
     return ret;
 }
 
-static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
+static int handle_fseek_or_reconnect(PLAYER *player)
 {
-    int PAUSE_REQ = 0;
-    int PAUSE_ACK = 0;
+    int PAUSE_REQ = 0, PAUSE_ACK = 0, ret = 0;
 
+    if ((player->status & (PS_F_SEEK|PS_RECONNECT)) == 0) return 0;
     if (player->astream_index != -1) { PAUSE_REQ |= PS_A_PAUSE; PAUSE_ACK |= PS_A_PAUSE << 16; }
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
-
-    // set audio & video decoding pause flags
-    player->status = (player->status & ~PAUSE_ACK) | PAUSE_REQ | player->seek_req;
 
     // make render run
     render_pause(player->render, 0);
 
+    // set audio & video decoding pause flags
+    pthread_mutex_lock(&player->lock);
+    player->status = (player->status & ~PAUSE_ACK) | PAUSE_REQ | player->seek_req;
+    pthread_mutex_unlock(&player->lock);
+
     // wait for pause done
     while ((player->status & PAUSE_ACK) != PAUSE_ACK) {
-        if (player->close) return;
+        if (player->status & PS_CLOSE) return 0;
         av_usleep(20*1000);
     }
 
-    if (reconnect) {
+    if (player->status & PS_RECONNECT) {
 #ifdef WIN32
         if (player->vcodec_context  ) { dxva2hwa_free(player->vcodec_context);                                }
 #endif
         if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
         if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
         if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
-        if (player->render          ) { render_close(player->render); }
+        if (player->render          ) { render_close(player->render); player->render = NULL; }
         av_frame_unref(&player->aframe); player->aframe.pts = -1;
         av_frame_unref(&player->vframe); player->vframe.pts = -1;
 
         player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, player);
-        player_prepare(player);
+        ret = player_prepare(player);
         player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , player);
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
@@ -537,68 +530,10 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
     render_reset  (player->render  ); // reset render
 
     // make audio & video decoding thread resume
-    player->status &= ~(PAUSE_REQ|PAUSE_ACK);
-}
-
-static void* av_demux_thread_proc(void *param)
-{
-    PLAYER   *player = (PLAYER*)param;
-    AVPacket *packet = NULL;
-    int       retv   = 0;
-
-    // async prepare player
-    if (!player->init_params.open_syncmode) {
-        retv = player_prepare(player);
-        if (retv != 0) goto done;
-    }
-
-    while (!player->close) {
-        //++ when player seek ++//
-        if (player->status & (PS_F_SEEK|PS_RECONNECT)) {
-            handle_fseek_or_reconnect(player, (player->status & PS_RECONNECT) ? 1 : 0);
-            if (!player->avformat_context) { av_usleep(20*1000); continue; }
-            player->status &= ~(PS_F_SEEK|PS_RECONNECT);
-        }
-        //-- when player seek --//
-
-        packet = pktqueue_request_packet(player->pktqueue);
-        if (packet == NULL) continue;
-
-        retv = av_read_frame(player->avformat_context, packet);
-        if (retv < 0) {
-            pktqueue_release_packet(player->pktqueue, packet);
-            if (  player->init_params.auto_reconnect > 0
-               && av_gettime_relative() - player->read_timelast > player->init_params.auto_reconnect * 1000) {
-                player->status |= PS_RECONNECT;
-            } else av_usleep(20*1000);
-            continue;
-        } else {
-            player->read_timelast = av_gettime_relative();
-        }
-
-        // audio
-        if (packet->stream_index == player->astream_index) {
-            recorder_packet(player->recorder, packet);
-            pktqueue_audio_enqueue(player->pktqueue, packet);
-        }
-
-        // video
-        if (packet->stream_index == player->vstream_index) {
-            recorder_packet(player->recorder, packet);
-            pktqueue_video_enqueue(player->pktqueue, packet);
-        }
-
-        if (  packet->stream_index != player->astream_index
-           && packet->stream_index != player->vstream_index) {
-            pktqueue_release_packet(player->pktqueue, packet);
-        }
-    }
-
-done:
-#ifdef ANDROID
-    JniDetachCurrentThread();
-#endif
-    return NULL;
+    pthread_mutex_lock(&player->lock);
+    player->status &= ~(PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK);
+    pthread_mutex_unlock(&player->lock);
+    return ret;
 }
 
 static void* audio_decode_thread_proc(void *param)
@@ -608,10 +543,12 @@ static void* audio_decode_thread_proc(void *param)
     int64_t   apts;
 
     player->aframe.pts = -1;
-    while (!player->close) {
+   while (!(player->status & PS_CLOSE)) {
         //++ when audio decode pause ++//
         if (player->status & PS_A_PAUSE) {
+            pthread_mutex_lock(&player->lock);
             player->status |= (PS_A_PAUSE << 16);
+            pthread_mutex_unlock(&player->lock);
             av_usleep(20*1000); continue;
         }
         //-- when audio decode pause --//
@@ -625,7 +562,7 @@ static void* audio_decode_thread_proc(void *param)
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
-        while (packet->size > 0 && !(player->status & PS_A_PAUSE) && !player->close) {
+        while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
             int consumed = 0;
             int gotaudio = 0;
 
@@ -650,10 +587,10 @@ static void* audio_decode_thread_proc(void *param)
                         player->cmnvars.start_pts  = player->aframe.pts;
                         player->cmnvars.apts       = player->aframe.pts;
                         player->cmnvars.vpts       = player->vstream_index == -1 ? -1 : player->seek_dest;
+                        pthread_mutex_lock(&player->lock);
                         player->status &= ~PS_A_SEEK;
-                        if (player->status & PS_R_PAUSE) {
-                            render_pause(player->render, 1);
-                        }
+                        pthread_mutex_unlock(&player->lock);
+                        if (player->status & PS_R_PAUSE) render_pause(player->render, 1);
                     }
                 }
                 //-- for seek operation
@@ -682,23 +619,25 @@ static void* video_decode_thread_proc(void *param)
     AVPacket *packet = NULL;
 
     player->vframe.pts = -1;
-    while (!player->close) {
+    vfilter_graph_init(player);
+
+    while (!(player->status & PS_CLOSE)) {
         //++ when video decode pause ++//
         if (player->status & PS_V_PAUSE) {
+            pthread_mutex_lock(&player->lock);
             player->status |= (PS_V_PAUSE << 16);
+            pthread_mutex_unlock(&player->lock);
             av_usleep(20*1000); continue;
         }
         //-- when video decode pause --//
 
         // dequeue video packet
         packet = pktqueue_video_dequeue(player->pktqueue);
-        if (packet == NULL) {
-            render_video(player->render, &player->vframe);
-            continue;
-        } else datarate_video_packet(player->datarate, packet);
+        if (!packet) { render_video(player->render, &player->vframe); continue; }
+        datarate_video_packet(player->datarate, packet);
 
         //++ decode video packet ++//
-        while (packet->size > 0 && !(player->status & PS_V_PAUSE) && !player->close) {
+        while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
             int consumed = 0;
             int gotvideo = 0;
 
@@ -730,10 +669,10 @@ static void* video_decode_thread_proc(void *param)
                             player->cmnvars.start_pts  = player->vframe.pts;
                             player->cmnvars.vpts       = player->vframe.pts;
                             player->cmnvars.apts       = player->astream_index == -1 ? -1 : player->seek_dest;
+                            pthread_mutex_lock(&player->lock);
                             player->status &= ~PS_V_SEEK;
-                            if (player->status & PS_R_PAUSE) {
-                                render_pause(player->render, 1);
-                            }
+                            pthread_mutex_unlock(&player->lock);
+                            if (player->status & PS_R_PAUSE) render_pause(player->render, 1);
                         }
                     }
                     //-- for seek operation
@@ -750,7 +689,62 @@ static void* video_decode_thread_proc(void *param)
         pktqueue_release_packet(player->pktqueue, packet);
     }
 
+    vfilter_graph_free(player);
     av_frame_unref(&player->vframe);
+#ifdef ANDROID
+    JniDetachCurrentThread();
+#endif
+    return NULL;
+}
+
+static void* av_demux_thread_proc(void *param)
+{
+    PLAYER   *player = (PLAYER*)param;
+    AVPacket *packet = NULL;
+    int       retv   = 0;
+
+    retv = player_prepare(player);
+    if (retv != 0) goto done;
+
+    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
+    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+
+    while (!(player->status & PS_CLOSE)) {
+        if (handle_fseek_or_reconnect(player) != 0) { av_usleep(20*1000); continue; }
+        if ((packet = pktqueue_request_packet(player->pktqueue)) == NULL) continue;
+
+        retv = av_read_frame(player->avformat_context, packet);
+        if (retv < 0) {
+            pktqueue_release_packet(player->pktqueue, packet);
+            if (player->init_params.auto_reconnect > 0 && av_gettime_relative() - player->read_timelast > player->init_params.auto_reconnect * 1000) {
+                pthread_mutex_lock(&player->lock);
+                player->status |= PS_RECONNECT;
+                pthread_mutex_unlock(&player->lock);
+            }
+        } else {
+            player->read_timelast = av_gettime_relative();
+            // audio
+            if (packet->stream_index == player->astream_index) {
+                recorder_packet(player->recorder, packet);
+                pktqueue_audio_enqueue(player->pktqueue, packet);
+            }
+
+            // video
+            if (packet->stream_index == player->vstream_index) {
+                recorder_packet(player->recorder, packet);
+                pktqueue_video_enqueue(player->pktqueue, packet);
+            }
+
+            if (  packet->stream_index != player->astream_index
+               && packet->stream_index != player->vstream_index) {
+                pktqueue_release_packet(player->pktqueue, packet);
+            }
+        }
+    }
+
+done:
+    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
+    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
 #ifdef ANDROID
     JniDetachCurrentThread();
 #endif
@@ -797,8 +791,10 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 #endif
     //-- for player_prepare
 
-    // make sure player status paused
-    player->status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE);
+    pthread_mutex_init(&player->lock, NULL); // init lock
+    pthread_mutex_lock(&player->lock);
+    player->status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE); // make sure player status paused
+    pthread_mutex_unlock(&player->lock);
 
     if (0) {
 #ifdef ENABLE_AVKCP_SUPPORT
@@ -826,15 +822,8 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 #endif
 #endif
     } else {
-        if (player->init_params.open_syncmode && player_prepare(player) == -1) {
-            av_log(NULL, AV_LOG_ERROR, "failed to prepare player !\n");
-            goto error_handler;
-        }
         pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
     }
-
-    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
-    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
     return player; // return
 
 error_handler:
@@ -850,13 +839,13 @@ void player_close(void *hplayer)
     // set read_timeout to 0
     player->read_timeout = 0;
 
-    player->close = 1; // set close flag
+    pthread_mutex_lock(&player->lock);
+    player->status |= PS_CLOSE;
+    pthread_mutex_unlock(&player->lock);
     render_setparam(player->render, PARAM_RENDER_STOP, NULL); // stop render
 
     if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait audio/video demuxing thread exit
-    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
-    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
-    vfilter_graph_free(player); // free avfilter graph
+    pthread_mutex_destroy(&player->lock);
 
 #ifdef WIN32
     if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
@@ -890,7 +879,9 @@ void player_play(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
+    pthread_mutex_lock(&player->lock);
     player->status = 0;
+    pthread_mutex_unlock(&player->lock);
     render_pause(player->render, 0);
     datarate_reset(player->datarate);
 }
@@ -899,7 +890,9 @@ void player_pause(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
+    pthread_mutex_lock(&player->lock);
     player->status |= PS_R_PAUSE;
+    pthread_mutex_unlock(&player->lock);
     render_pause(player->render, 1);
     datarate_reset(player->datarate);
 }
@@ -933,7 +926,9 @@ void player_seek(void *hplayer, int64_t ms, int type)
         player->seek_pos  = player->seek_vpts + av_rescale_q(ms, TIMEBASE_MS, player->vstream_timebase);
         player->seek_diff = 0;
         player->seek_sidx = player->vstream_index;
+        pthread_mutex_lock(&player->lock);
         player->status   |= PS_R_PAUSE;
+        pthread_mutex_unlock(&player->lock);
         break;
     default:
         player->seek_dest =  player->cmnvars.start_time + ms;
@@ -944,7 +939,9 @@ void player_seek(void *hplayer, int64_t ms, int type)
     }
 
     // set PS_F_SEEK flag
+    pthread_mutex_lock(&player->lock);
     player->status |= PS_F_SEEK;
+    pthread_mutex_unlock(&player->lock);
 }
 
 int player_snapshot(void *hplayer, char *file, int w, int h, int waitt)
@@ -1079,7 +1076,6 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->vdev_render_type    = atoi(parse_params(str, "vdev_render_type"   , value, sizeof(value)) ? value : "0");
     params->adev_render_type    = atoi(parse_params(str, "adev_render_type"   , value, sizeof(value)) ? value : "0");
     params->init_timeout        = atoi(parse_params(str, "init_timeout"       , value, sizeof(value)) ? value : "0");
-    params->open_syncmode       = atoi(parse_params(str, "open_syncmode"      , value, sizeof(value)) ? value : "0");
     params->auto_reconnect      = atoi(parse_params(str, "auto_reconnect"     , value, sizeof(value)) ? value : "0");
     params->rtsp_transport      = atoi(parse_params(str, "rtsp_transport"     , value, sizeof(value)) ? value : "0");
     params->avts_syncmode       = atoi(parse_params(str, "avts_syncmode"      , value, sizeof(value)) ? value : "0");
