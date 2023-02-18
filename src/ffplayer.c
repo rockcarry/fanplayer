@@ -54,8 +54,8 @@ typedef struct {
     #define PS_F_SEEK     (1 << 3)  // seek flag
     #define PS_A_SEEK     (1 << 4)  // seek audio
     #define PS_V_SEEK     (1 << 5)  // seek video
-    #define PS_RECONNECT  (1 << 7)  // reconnect
-    #define PS_CLOSE      (1 << 8)  // close flag
+    #define PS_RECONNECT  (1 << 6)  // reconnect
+    #define PS_CLOSE      (1 << 7)  // close flag
     int              status;
     int              seek_req ;
     int64_t          seek_pos ;
@@ -63,6 +63,7 @@ typedef struct {
     int64_t          seek_vpts;
     int              seek_diff;
     int              seek_sidx;
+    int              ismp3file;
 
     // player common vars
     CMNVARS          cmnvars;
@@ -272,10 +273,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
             if (decoder && avcodec_open2(player->vcodec_context, decoder, NULL) == 0) {
                 player->vstream_index = idx;
                 av_log(NULL, AV_LOG_WARNING, "using android mediacodec hardware decoder %s !\n", decoder->name);
-            } else {
-                avcodec_close(player->vcodec_context);
-                decoder = NULL;
-            }
+            } else decoder = NULL;
             player->init_params.video_hwaccel = decoder ? 1 : 0;
 #endif
         }
@@ -336,7 +334,7 @@ static int get_stream_current(PLAYER *player, enum AVMediaType type) {
 }
 #endif
 
-static int player_prepare(PLAYER *player)
+static int player_prepare_or_free(PLAYER *player, int prepare)
 {
     //++ for avdevice
     #define AVDEV_DSHOW   "dshow"
@@ -349,6 +347,18 @@ static int player_prepare(PLAYER *player)
     AVRational    vrate   = { 20, 1 };
     AVDictionary *opts    = NULL;
     int           ret     = -1;
+
+#ifdef WIN32
+    if (player->vcodec_context  ) { dxva2hwa_free(player->vcodec_context); }
+#endif
+    if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
+    if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
+    if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
+    if (player->render          ) { render_close(player->render); player->render = NULL; }
+    av_frame_unref(&player->aframe); player->aframe.pts = -1;
+    av_frame_unref(&player->vframe); player->vframe.pts = -1;
+    vfilter_graph_free(player);
+    if (!prepare) return 0;
 
     //++ for avdevice
     if (strstr(player->url, AVDEV_DSHOW) == player->url) {
@@ -377,8 +387,6 @@ static int player_prepare(PLAYER *player)
             player->init_params.avts_syncmode = memcmp(player->url, "rtmp://", 7) == 0 ? AVSYNC_MODE_LIVE_SYNC1 : AVSYNC_MODE_LIVE_SYNC0;
         }
     } else {
-        player->init_params.init_timeout   = 0;
-        player->init_params.auto_reconnect = 0;
         if (player->init_params.avts_syncmode == AVSYNC_MODE_AUTO) player->init_params.avts_syncmode = AVSYNC_MODE_FILE;
     }
     if (player->init_params.video_vwidth != 0 && player->init_params.video_vheight != 0) {
@@ -399,14 +407,14 @@ static int player_prepare(PLAYER *player)
 
         // setup interrupt_callback
         player->avformat_context->interrupt_callback.callback = interrupt_callback;
-        player->avformat_context->interrupt_callback.opaque   = player;
-        player->avformat_context->video_codec_id              = player->init_params.video_codecid;
+        player->avformat_context->interrupt_callback.opaque = player;
+        player->avformat_context->video_codec_id = player->init_params.video_codecid;
 
         // set init_timetick & init_timeout
         player->read_timelast = av_gettime_relative();
         player->read_timeout  = player->init_params.init_timeout ? player->init_params.init_timeout * 1000 : -1;
 
-        if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) {
+        if (avformat_open_input(&player->avformat_context, url, fmt, &opts) != 0) { // if failed, no need call avformat_free_context
             if (player->init_params.auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", url);
                 av_usleep(100*1000);
@@ -444,6 +452,7 @@ static int player_prepare(PLAYER *player)
         if (vrate.num / vrate.den > 100) { vrate.num = 20; vrate.den = 1; }
         player->init_params.video_vwidth = player->init_params.video_owidth  = player->vcodec_context->width;
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
+        vfilter_graph_init(player);
     }
 
     // calculate start_time, apts & vpts
@@ -488,7 +497,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
 {
     int PAUSE_REQ = 0, PAUSE_ACK = 0, ret = 0;
 
-    if ((player->status & (PS_F_SEEK|PS_RECONNECT)) == 0) return 0;
+    if (player->avformat_context && (player->status & (PS_F_SEEK|PS_RECONNECT)) == 0) return 0;
     if (player->astream_index != -1) { PAUSE_REQ |= PS_A_PAUSE; PAUSE_ACK |= PS_A_PAUSE << 16; }
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
 
@@ -497,7 +506,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
 
     // set audio & video decoding pause flags
     pthread_mutex_lock(&player->lock);
-    player->status = (player->status & ~PAUSE_ACK) | PAUSE_REQ | player->seek_req;
+    player->status |= PAUSE_REQ | player->seek_req;
     pthread_mutex_unlock(&player->lock);
 
     // wait for pause done
@@ -506,20 +515,10 @@ static int handle_fseek_or_reconnect(PLAYER *player)
         av_usleep(20*1000);
     }
 
-    if (player->status & PS_RECONNECT) {
-#ifdef WIN32
-        if (player->vcodec_context  ) { dxva2hwa_free(player->vcodec_context);                                }
-#endif
-        if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
-        if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
-        if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
-        if (player->render          ) { render_close(player->render); player->render = NULL; }
-        av_frame_unref(&player->aframe); player->aframe.pts = -1;
-        av_frame_unref(&player->vframe); player->vframe.pts = -1;
-
-        player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, player);
-        ret = player_prepare(player);
-        player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , player);
+    if (!player->avformat_context || (player->status & PS_RECONNECT)) {
+        if (ret == 0) player_send_message(player->cmnvars.winmsg, MSG_STREAM_DISCONNECT, player);
+        ret = player_prepare_or_free(player, 1);
+        if (ret == 0) player_send_message(player->cmnvars.winmsg, MSG_STREAM_CONNECTED , player);
     } else {
         av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
         if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
@@ -531,7 +530,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
 
     // make audio & video decoding thread resume
     pthread_mutex_lock(&player->lock);
-    player->status &= ~(PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK);
+    if (ret == 0) player->status &= ~(PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK);
     pthread_mutex_unlock(&player->lock);
     return ret;
 }
@@ -542,7 +541,6 @@ static void* audio_decode_thread_proc(void *param)
     AVPacket *packet = NULL;
     int64_t   apts;
 
-    player->aframe.pts = -1;
    while (!(player->status & PS_CLOSE)) {
         //++ when audio decode pause ++//
         if (player->status & PS_A_PAUSE) {
@@ -554,24 +552,17 @@ static void* audio_decode_thread_proc(void *param)
         //-- when audio decode pause --//
 
         // dequeue audio packet
-        packet = pktqueue_audio_dequeue(player->pktqueue);
-        if (packet == NULL) {
-//          render_audio(player->render, &player->aframe);
-            continue;
-        } else datarate_audio_packet(player->datarate, packet);
+        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) continue;
+        datarate_audio_packet(player->datarate, packet);
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
         while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
-            int consumed = 0;
-            int gotaudio = 0;
-
-            consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
+            int gotaudio = 0, consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
             if (consumed < 0) {
                 av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n");
                 break;
             }
-
             if (gotaudio) {
                 AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
                 if (apts == AV_NOPTS_VALUE) {
@@ -618,9 +609,6 @@ static void* video_decode_thread_proc(void *param)
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
 
-    player->vframe.pts = -1;
-    vfilter_graph_init(player);
-
     while (!(player->status & PS_CLOSE)) {
         //++ when video decode pause ++//
         if (player->status & PS_V_PAUSE) {
@@ -631,17 +619,19 @@ static void* video_decode_thread_proc(void *param)
         }
         //-- when video decode pause --//
 
+        // some mp3 contain only one video frame
+        if (player->ismp3file && player->vframe.width && player->vframe.height && player->vframe.data) {
+            render_video(player->render, &player->vframe);
+            av_usleep(100 * 1000); continue;
+        }
+
         // dequeue video packet
-        packet = pktqueue_video_dequeue(player->pktqueue);
-        if (!packet) { render_video(player->render, &player->vframe); continue; }
+        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) continue;
         datarate_video_packet(player->datarate, packet);
 
         //++ decode video packet ++//
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
-            int consumed = 0;
-            int gotvideo = 0;
-
-            consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);
+            int gotvideo = 0, consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);;
             if (consumed < 0) {
                 av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n");
                 break;
@@ -649,11 +639,8 @@ static void* video_decode_thread_proc(void *param)
             if (player->vcodec_context->width != player->init_params.video_vwidth || player->vcodec_context->height != player->init_params.video_vheight) {
                 player->init_params.video_vwidth  = player->init_params.video_owidth  = player->vcodec_context->width;
                 player->init_params.video_vheight = player->init_params.video_oheight = player->vcodec_context->height;
-                vfilter_graph_free(player);
-                vfilter_graph_init(player);
                 player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
             }
-
             if (gotvideo) {
                 player->vframe.height = player->vcodec_context->height; // when using dxva2 hardware hwaccel, the frame heigh may incorrect, so we need fix it
                 vfilter_graph_input(player, &player->vframe);
@@ -689,7 +676,6 @@ static void* video_decode_thread_proc(void *param)
         pktqueue_release_packet(player->pktqueue, packet);
     }
 
-    vfilter_graph_free(player);
     av_frame_unref(&player->vframe);
 #ifdef ANDROID
     JniDetachCurrentThread();
@@ -703,14 +689,11 @@ static void* av_demux_thread_proc(void *param)
     AVPacket *packet = NULL;
     int       retv   = 0;
 
-    retv = player_prepare(player);
-    if (retv != 0) goto done;
-
-    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
-    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
-
     while (!(player->status & PS_CLOSE)) {
-        if (handle_fseek_or_reconnect(player) != 0) { av_usleep(20*1000); continue; }
+        if (handle_fseek_or_reconnect(player) != 0) {
+            if (!player->init_params.auto_reconnect) break;
+            av_usleep(20 * 1000); continue;
+        }
         if ((packet = pktqueue_request_packet(player->pktqueue)) == NULL) continue;
 
         retv = av_read_frame(player->avformat_context, packet);
@@ -742,9 +725,6 @@ static void* av_demux_thread_proc(void *param)
         }
     }
 
-done:
-    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
-    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
 #ifdef ANDROID
     JniDetachCurrentThread();
 #endif
@@ -754,7 +734,8 @@ done:
 // 函数实现
 void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 {
-    PLAYER *player = NULL;
+    PLAYER *player = (PLAYER*)calloc(1, sizeof(PLAYER));
+    if (!player) return NULL;
 
     // av register all
     av_register_all();
@@ -766,9 +747,13 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
     av_log_set_level   (AV_LOG_WARNING);
     av_log_set_callback(avlog_callback);
 
-    // alloc player context
-    player = (PLAYER*)calloc(1, sizeof(PLAYER));
-    if (!player) return NULL;
+    pthread_mutex_init(&player->lock, NULL); // init lock
+    player->status = (PS_A_PAUSE | PS_V_PAUSE | PS_R_PAUSE); // make sure player paused
+
+    if (1) { // if file is mp3 file
+        size_t len = strlen(file);
+        player->ismp3file = len > 4 && strcasecmp(file + len - 4, ".mp3") == 0;
+    }
 
     // create packet queue
     player->pktqueue = pktqueue_create(0, &player->cmnvars);
@@ -790,11 +775,6 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
     player->cmnvars.winmsg = JniRequestWinObj(win);
 #endif
     //-- for player_prepare
-
-    pthread_mutex_init(&player->lock, NULL); // init lock
-    pthread_mutex_lock(&player->lock);
-    player->status = (PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE); // make sure player status paused
-    pthread_mutex_unlock(&player->lock);
 
     if (0) {
 #ifdef ENABLE_AVKCP_SUPPORT
@@ -821,9 +801,10 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
                          NULL);
 #endif
 #endif
-    } else {
-        pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
-    }
+    } else pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc, player);
+
+    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
+    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
     return player; // return
 
 error_handler:
@@ -836,32 +817,25 @@ void player_close(void *hplayer)
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
 
-    // set read_timeout to 0
-    player->read_timeout = 0;
-
+    player->read_timeout = 0; // set read_timeout to 0
     pthread_mutex_lock(&player->lock);
     player->status |= PS_CLOSE;
     pthread_mutex_unlock(&player->lock);
-    render_setparam(player->render, PARAM_RENDER_STOP, NULL); // stop render
-
-    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait audio/video demuxing thread exit
+    render_reset(player->render);
+    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
+    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
+    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait avdemux thread exit
     pthread_mutex_destroy(&player->lock);
 
-#ifdef WIN32
-    if (player->vcodec_context  ) dxva2hwa_free(player->vcodec_context);
+#ifdef ENABLE_AVKCP_SUPPORT
+    if (player->avkcpd) avkcpdemuxer_exit(player->avkcpd);
 #endif
 #ifdef ENABLE_AVKCP_SUPPORT
-    if (player->avkcpd          ) avkcpdemuxer_exit(player->avkcpd);
+    if (player->ffrdpd) ffrdpdemuxer_exit(player->ffrdpd);
 #endif
-#ifdef ENABLE_AVKCP_SUPPORT
-    if (player->ffrdpd          ) ffrdpdemuxer_exit(player->ffrdpd);
-#endif
-    if (player->acodec_context  ) avcodec_close(player->acodec_context);
-    if (player->vcodec_context  ) avcodec_close(player->vcodec_context);
-    if (player->avformat_context) avformat_close_input(&player->avformat_context);
-    if (player->render          ) render_close (player->render);
-    if (player->recorder        ) recorder_free(player->recorder);
 
+    player_prepare_or_free(player, 0);  // free resources
+    recorder_free   (player->recorder); // destroy recorder
     datarate_destroy(player->datarate); // destroy data rate
     pktqueue_destroy(player->pktqueue); // destroy packet queue
 
@@ -880,7 +854,7 @@ void player_play(void *hplayer)
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
     pthread_mutex_lock(&player->lock);
-    player->status = 0;
+    player->status &= PS_CLOSE;
     pthread_mutex_unlock(&player->lock);
     render_pause(player->render, 0);
     datarate_reset(player->datarate);
@@ -956,9 +930,8 @@ int player_record(void *hplayer, char *file)
     PLAYER *player   = (PLAYER*)hplayer;
     void   *recorder = player ? player->recorder : NULL;
     if (!hplayer) return -1;
-    player->recorder = NULL;
-    recorder_free(recorder);
     player->recorder = recorder_init(file, player->avformat_context);
+    recorder_free(recorder);
     return 0;
 }
 
@@ -1048,11 +1021,8 @@ static char* parse_params(const char *str, const char *key, char *val, int len)
     }
 
     for (i=0; i<len; i++) {
-        if (*p == '\\') {
-            p++;
-        } else if (*p == ';' || *p == '\r' || *p == '\n' || *p == '\0') {
-            break;
-        }
+        if (*p == ';' || *p == '\r' || *p == '\n' || *p == '\0') break;
+        else if (*p == '\\') p++;
         val[i] = *p++;
     }
     val[i < len ? i : len - 1] = '\0';

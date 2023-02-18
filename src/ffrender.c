@@ -161,11 +161,8 @@ static void render_setspeed(RENDER *render, int speed)
 // º¯ÊýÊµÏÖ
 void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational frate, int w, int h, CMNVARS *cmnvars)
 {
-    RENDER  *render = (RENDER*)calloc(1, sizeof(RENDER));
-    if (!render) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate render context !\n");
-        exit(0);
-    }
+    RENDER *render = (RENDER*)calloc(1, sizeof(RENDER));
+    if (!render) return NULL;
 
 #ifdef WIN32
     render->surface = surface;
@@ -218,6 +215,7 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
 void render_close(void *hrender)
 {
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
 
     // wait visual effect thread exit
     render->status = RENDER_CLOSE;
@@ -235,9 +233,7 @@ void render_close(void *hrender)
     vdev_destroy(render->vdev);
 
     // free sws context
-    if (render->sws_context) {
-        sws_freeContext(render->sws_context);
-    }
+    if (render->sws_context) sws_freeContext(render->sws_context);
     //-- video --//
 
 #if CONFIG_ENABLE_FFOBJDET
@@ -525,6 +521,7 @@ void render_reset(void *hrender)
 {
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
+    render->status = 0;
     adev_reset(render->adev);
     vdev_reset(render->vdev);
 }
@@ -575,8 +572,8 @@ void render_setparam(void *hrender, int id, void *param)
             render->vol_curvol = vol;
         }
         break;
-    case PARAM_PLAY_SPEED_VALUE: render_setspeed(render, *(int*)param);  break;
-    case PARAM_PLAY_SPEED_TYPE : render->new_speed_type = *(int*)param;  break;
+    case PARAM_PLAY_SPEED_VALUE: render_setspeed(render, *(int*)param); break;
+    case PARAM_PLAY_SPEED_TYPE : render->new_speed_type = *(int*)param; break;
 #if CONFIG_ENABLE_VEFFECT
     case PARAM_VISUAL_EFFECT:
         render->veffect_type = *(int*)param;
@@ -610,11 +607,6 @@ void render_setparam(void *hrender, int id, void *param)
         if (render->new_src_rect.right == 0 && render->new_src_rect.bottom == 0) {
             render->cur_video_w = render->cur_video_h = 0;
         }
-        break;
-    case PARAM_RENDER_STOP:
-        render->status = RENDER_CLOSE;
-        adev_setparam(render->adev, id, param);
-        vdev_setparam(render->vdev, id, param);
         break;
 #if CONFIG_ENABLE_FFOBJDET
     case PARAM_OBJECT_DETECT:
