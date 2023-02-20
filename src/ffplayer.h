@@ -95,6 +95,7 @@ enum {
 
     //++ for adev
     PARAM_ADEV_GET_CONTEXT = 0x2000,
+    PARAM_ADEV_CLOSE,
     //-- for adev
 
     //++ for vdev

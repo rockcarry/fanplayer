@@ -134,5 +134,13 @@ void adev_reset(void *ctxt)
     ReleaseSemaphore(c->bufsem, c->bufnum, NULL);
 }
 
-void adev_setparam(void *ctxt, int id, void *param) {}
+void adev_setparam(void *ctxt, int id, void *param)
+{
+    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
+    if (!ctxt) return;
+    switch (id) {
+    case PARAM_ADEV_CLOSE: c->status |= ADEV_CLOSE; break;
+    }
+}
+
 void adev_getparam(void *ctxt, int id, void *param) {}

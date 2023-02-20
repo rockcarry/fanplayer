@@ -597,7 +597,6 @@ static void* audio_decode_thread_proc(void *param)
         pktqueue_release_packet(player->pktqueue, packet);
     }
 
-    av_frame_unref(&player->aframe);
 #ifdef ANDROID
     JniDetachCurrentThread();
 #endif
@@ -676,7 +675,6 @@ static void* video_decode_thread_proc(void *param)
         pktqueue_release_packet(player->pktqueue, packet);
     }
 
-    av_frame_unref(&player->vframe);
 #ifdef ANDROID
     JniDetachCurrentThread();
 #endif
@@ -821,6 +819,7 @@ void player_close(void *hplayer)
     pthread_mutex_lock(&player->lock);
     player->status |= PS_CLOSE;
     pthread_mutex_unlock(&player->lock);
+    render_setparam(player->render, PARAM_ADEV_CLOSE, NULL);
     render_reset(player->render);
     if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
     if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
