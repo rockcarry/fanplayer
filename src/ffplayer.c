@@ -490,6 +490,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 done:
     // send player init message
     player_send_message(player->cmnvars.winmsg, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, player);
+    if (player->init_params.open_autoplay) player_play(player);
     return ret;
 }
 
@@ -851,7 +852,7 @@ void player_close(void *hplayer)
 void player_play(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
-    if (!hplayer) return;
+    if (!player || !player->avformat_context) return;
     pthread_mutex_lock(&player->lock);
     player->status &= PS_CLOSE;
     pthread_mutex_unlock(&player->lock);
@@ -862,7 +863,7 @@ void player_play(void *hplayer)
 void player_pause(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
-    if (!hplayer) return;
+    if (!player || !player->avformat_context) return;
     pthread_mutex_lock(&player->lock);
     player->status |= PS_R_PAUSE;
     pthread_mutex_unlock(&player->lock);
@@ -1045,6 +1046,7 @@ void player_load_params(PLAYER_INIT_PARAMS *params, char *str)
     params->vdev_render_type    = atoi(parse_params(str, "vdev_render_type"   , value, sizeof(value)) ? value : "0");
     params->adev_render_type    = atoi(parse_params(str, "adev_render_type"   , value, sizeof(value)) ? value : "0");
     params->init_timeout        = atoi(parse_params(str, "init_timeout"       , value, sizeof(value)) ? value : "0");
+    params->open_autoplay       = atoi(parse_params(str, "open_autoplay"      , value, sizeof(value)) ? value : "0");
     params->auto_reconnect      = atoi(parse_params(str, "auto_reconnect"     , value, sizeof(value)) ? value : "0");
     params->rtsp_transport      = atoi(parse_params(str, "rtsp_transport"     , value, sizeof(value)) ? value : "0");
     params->avts_syncmode       = atoi(parse_params(str, "avts_syncmode"      , value, sizeof(value)) ? value : "0");
