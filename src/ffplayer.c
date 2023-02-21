@@ -820,8 +820,7 @@ void player_close(void *hplayer)
     pthread_mutex_lock(&player->lock);
     player->status |= PS_CLOSE;
     pthread_mutex_unlock(&player->lock);
-    render_setparam(player->render, PARAM_ADEV_CLOSE, NULL);
-    render_reset(player->render);
+    render_pause(player->render, 0);
     if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
     if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
     if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait avdemux thread exit

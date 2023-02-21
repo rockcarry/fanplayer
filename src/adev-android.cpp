@@ -190,18 +190,5 @@ void adev_reset(void *ctxt)
     pthread_mutex_unlock(&c->lock);
 }
 
-void adev_setparam(void *ctxt, int id, void *param)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    switch (id) {
-    case PARAM_ADEV_CLOSE:
-        pthread_mutex_lock(&c->lock);
-        c->status |= ADEV_CLOSE;
-        pthread_cond_signal(&c->cond);
-        pthread_mutex_unlock(&c->lock);
-        break;
-    }
-}
-
+void adev_setparam(void *ctxt, int id, void *param) {}
 void adev_getparam(void *ctxt, int id, void *param) {}

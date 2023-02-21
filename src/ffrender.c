@@ -613,9 +613,6 @@ void render_setparam(void *hrender, int id, void *param)
         ffobjdet_enable(render->ffobjdet, *(int*)param);
         break;
 #endif
-    case PARAM_ADEV_CLOSE:
-        adev_setparam(render->adev, id, param);
-        break;
     }
 }
 
