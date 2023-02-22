@@ -11,7 +11,6 @@ extern "C" {
 
 #define ADEV_SAMPLE_RATE  48000
 #define ADEV_CLOSE       (1 << 0)
-#define ADEV_PAUSE       (1 << 1)
 
 //++ adev context common members
 #define ADEV_COMMON_MEMBERS \

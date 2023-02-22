@@ -16,9 +16,8 @@ extern "C" {
 
 // 常量定义
 #define VDEV_CLOSE      (1 << 0)
-#define VDEV_PAUSE      (1 << 1)
-#define VDEV_COMPLETED  (1 << 2)
-#define VDEV_CLEAR      (1 << 3)
+#define VDEV_COMPLETED  (1 << 1)
+#define VDEV_CLEAR      (1 << 2)
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS        \

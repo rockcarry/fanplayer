@@ -52,8 +52,8 @@ static void* audio_render_thread_proc(void *param)
 
     while (!(c->status & ADEV_CLOSE)) {
         pthread_mutex_lock(&c->lock);
-        while ((c->curnum == 0 || (c->status & ADEV_PAUSE)) && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
-        if ((c->status & (ADEV_CLOSE|ADEV_PAUSE)) == 0) {
+        while (c->curnum == 0 && !(c->status & ADEV_CLOSE))  pthread_cond_wait(&c->cond, &c->lock);
+        if (!(c->status & ADEV_CLOSE)) {
             env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
             c->curnum--; c->bufcur = c->pWaveHdr[c->head].data;
             c->cmnvars->apts = c->ppts[c->head];

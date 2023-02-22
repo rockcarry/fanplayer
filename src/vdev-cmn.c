@@ -171,45 +171,42 @@ void vdev_avsync_and_complete(void *ctxt)
     int     tickframe, tickdiff, scdiff, avdiff = -1;
     int64_t tickcur, sysclock;
 
-    if (!(c->status & VDEV_PAUSE)) {
-        //++ play completed ++//
-        if (c->completed_apts != c->cmnvars->apts || c->completed_vpts != c->cmnvars->vpts) {
-            c->completed_apts = c->cmnvars->apts;
-            c->completed_vpts = c->cmnvars->vpts;
-            c->completed_counter = 0;
-            c->status &=~VDEV_COMPLETED;
-        } else if (!c->cmnvars->apktn && !c->cmnvars->apktn && ++c->completed_counter == COMPLETED_COUNTER) {
-            c->status |= VDEV_COMPLETED;
-            player_send_message(c->cmnvars->winmsg, MSG_PLAY_COMPLETED, 0);
-        }
-        //-- play completed --//
-
-        //++ frame rate & av sync control ++//
-        tickframe   = 100 * c->tickframe / c->speed;
-        tickcur     = av_gettime_relative() / 1000;
-        tickdiff    = (int)(tickcur - c->ticklast);
-        c->ticklast = tickcur;
-
-        sysclock= c->cmnvars->start_pts + (tickcur - c->cmnvars->start_tick) * c->speed / 100;
-        scdiff  = (int)(sysclock - c->cmnvars->vpts - c->tickavdiff); // diff between system clock and video pts
-        avdiff  = (int)(c->cmnvars->apts  - c->cmnvars->vpts - c->tickavdiff); // diff between audio and video pts
-        avdiff  = c->cmnvars->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
-
-        if (tickdiff - tickframe >  5) c->ticksleep--;
-        if (tickdiff - tickframe < -5) c->ticksleep++;
-        if (c->cmnvars->vpts >= 0) {
-            if      (avdiff >  500) c->ticksleep -= 3;
-            else if (avdiff >  50 ) c->ticksleep -= 2;
-            else if (avdiff >  30 ) c->ticksleep -= 1;
-            else if (avdiff < -500) c->ticksleep += 3;
-            else if (avdiff < -50 ) c->ticksleep += 2;
-            else if (avdiff < -30 ) c->ticksleep += 1;
-        }
-        if (c->ticksleep < 0) c->ticksleep = 0;
-        //-- frame rate & av sync control --//
-    } else {
-        c->ticksleep = c->tickframe;
+    //++ play completed ++//
+    if (c->completed_apts != c->cmnvars->apts || c->completed_vpts != c->cmnvars->vpts) {
+        c->completed_apts = c->cmnvars->apts;
+        c->completed_vpts = c->cmnvars->vpts;
+        c->completed_counter = 0;
+        c->status &=~VDEV_COMPLETED;
+    } else if (!c->cmnvars->apktn && !c->cmnvars->apktn && ++c->completed_counter == COMPLETED_COUNTER) {
+        c->status |= VDEV_COMPLETED;
+        player_send_message(c->cmnvars->winmsg, MSG_PLAY_COMPLETED, 0);
     }
+    //-- play completed --//
+
+    //++ frame rate & av sync control ++//
+    tickframe   = 100 * c->tickframe / c->speed;
+    tickcur     = av_gettime_relative() / 1000;
+    tickdiff    = (int)(tickcur - c->ticklast);
+    c->ticklast = tickcur;
+
+    sysclock= c->cmnvars->start_pts + (tickcur - c->cmnvars->start_tick) * c->speed / 100;
+    scdiff  = (int)(sysclock - c->cmnvars->vpts - c->tickavdiff); // diff between system clock and video pts
+    avdiff  = (int)(c->cmnvars->apts  - c->cmnvars->vpts - c->tickavdiff); // diff between audio and video pts
+    avdiff  = c->cmnvars->apts <= 0 ? scdiff : avdiff; // if apts is invalid, sync video to system clock
+
+    if (tickdiff - tickframe >  5) c->ticksleep--;
+    if (tickdiff - tickframe < -5) c->ticksleep++;
+    if (c->cmnvars->vpts >= 0) {
+        if      (avdiff >  500) c->ticksleep -= 3;
+        else if (avdiff >  50 ) c->ticksleep -= 2;
+        else if (avdiff >  30 ) c->ticksleep -= 1;
+        else if (avdiff < -500) c->ticksleep += 3;
+        else if (avdiff < -50 ) c->ticksleep += 2;
+        else if (avdiff < -30 ) c->ticksleep += 1;
+    }
+    c->ticksleep = MIN(c->ticksleep, tickframe * 2);
+    c->ticksleep = MAX(c->ticksleep, 0);
+    //-- frame rate & av sync control --//
 
     if (c->ticksleep > 0 && c->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_LIVE_SYNC0) av_usleep(c->ticksleep * 1000);
     av_log(NULL, AV_LOG_INFO, "d: %3d, s: %3d\n", avdiff, c->ticksleep);

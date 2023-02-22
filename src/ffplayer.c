@@ -490,7 +490,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 done:
     // send player init message
     player_send_message(player->cmnvars.winmsg, ret ? MSG_OPEN_FAILED : MSG_OPEN_DONE, player);
-    if (player->init_params.open_autoplay) player_play(player);
+    if (ret == MSG_OPEN_DONE && player->init_params.open_autoplay) player_play(player);
     return ret;
 }
 
