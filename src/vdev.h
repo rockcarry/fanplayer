@@ -92,8 +92,6 @@ void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts);
 void  vdev_unlock  (void *ctxt);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
-void  vdev_pause   (void *ctxt, int pause);
-void  vdev_reset   (void *ctxt);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
 

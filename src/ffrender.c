@@ -324,11 +324,10 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
 
 void render_audio(void *hrender, AVFrame *audio)
 {
-    RENDER *render  = (RENDER*)hrender;
+    RENDER *render = (RENDER*)hrender;
     int     samprate, sampnum;
-    if (!hrender) return;
 
-    if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn) return;
+    if (!render || (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn)) return;
     do {
         if (  render->swr_src_format != audio->format || render->swr_src_samprate != audio->sample_rate || render->swr_src_chlayout != audio->channel_layout
            || render->cur_speed_type != render->new_speed_type || render->cur_speed_value != render->new_speed_value) {
@@ -354,6 +353,7 @@ void render_audio(void *hrender, AVFrame *audio)
         {
             sampnum = render_audio_swresample(render, audio);
         }
+        while ((render->status & RENDER_PAUSE)) av_usleep(10 * 1000);
     } while (sampnum && !(render->status & RENDER_CLOSE));
 }
 
@@ -509,21 +509,13 @@ void render_pause(void *hrender, int pause)
 {
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
-    if (pause) render->status |= RENDER_PAUSE;
-    else       render->status &=~RENDER_PAUSE;
-    adev_pause(render->adev, pause);
-    vdev_pause(render->vdev, pause);
+    switch (pause) {
+    case 0: render->status &=~RENDER_PAUSE; break;
+    case 1: render->status |= RENDER_PAUSE; break;
+    case 2: render->status = RENDER_CLOSE;  break;
+    }
     render->cmnvars->start_tick= av_gettime_relative() / 1000;
     render->cmnvars->start_pts = MAX(render->cmnvars->apts, render->cmnvars->vpts);
-}
-
-void render_reset(void *hrender)
-{
-    RENDER *render = (RENDER*)hrender;
-    if (!hrender) return;
-    render->status = 0;
-    adev_reset(render->adev);
-    vdev_reset(render->vdev);
 }
 
 int render_snapshot(void *hrender, char *file, int w, int h, int waitt)

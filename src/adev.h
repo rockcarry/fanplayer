@@ -34,8 +34,6 @@ typedef struct {
 void* adev_create  (int type, int bufnum, int buflen, CMNVARS *cmnvars);
 void  adev_destroy (void *ctxt);
 void  adev_write   (void *ctxt, uint8_t *buf, int len, int64_t pts);
-void  adev_pause   (void *ctxt, int pause);
-void  adev_reset   (void *ctxt);
 void  adev_setparam(void *ctxt, int id, void *param);
 void  adev_getparam(void *ctxt, int id, void *param);
 

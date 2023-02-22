@@ -117,22 +117,5 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
     c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
 }
 
-void adev_pause(void *ctxt, int pause)
-{
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (!ctxt) return;
-    if (pause) waveOutPause  (c->hWaveOut);
-    else       waveOutRestart(c->hWaveOut);
-}
-
-void adev_reset(void *ctxt)
-{
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (!ctxt) return;
-    waveOutReset(c->hWaveOut);
-    c->head = c->tail = 0;
-    ReleaseSemaphore(c->bufsem, c->bufnum, NULL);
-}
-
 void adev_setparam(void *ctxt, int id, void *param) {}
 void adev_getparam(void *ctxt, int id, void *param) {}

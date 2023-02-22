@@ -47,6 +47,9 @@ static void* audio_render_thread_proc(void *param)
     JNIEnv     *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)param;
 
+    // start audiotrack
+    env->CallVoidMethod(c->jobj_at, c->jmid_at_play);
+
     while (!(c->status & ADEV_CLOSE)) {
         pthread_mutex_lock(&c->lock);
         while ((c->curnum == 0 || (c->status & ADEV_PAUSE)) && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
@@ -116,9 +119,6 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     ctxt->jobj_at  = env->NewGlobalRef(at_obj);
     env->DeleteLocalRef(at_obj);
 
-    // start audiotrack
-    env->CallVoidMethod(ctxt->jobj_at, ctxt->jmid_at_play);
-
     // create mutex & cond
     pthread_mutex_init(&ctxt->lock, NULL);
     pthread_cond_init (&ctxt->cond, NULL);
@@ -165,28 +165,6 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
         c->curnum++; c->ppts[c->tail] = pts; if (++c->tail == c->bufnum) c->tail = 0;
         pthread_cond_signal(&c->cond);
     }
-    pthread_mutex_unlock(&c->lock);
-}
-
-void adev_pause(void *ctxt, int pause)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    pthread_mutex_lock(&c->lock);
-    if (pause) c->status |=  ADEV_PAUSE;
-    else       c->status &= ~ADEV_PAUSE;
-    pthread_cond_signal(&c->cond);
-    pthread_mutex_unlock(&c->lock);
-    get_jni_env()->CallVoidMethod(c->jobj_at, pause ? c->jmid_at_pause : c->jmid_at_play);
-}
-
-void adev_reset(void *ctxt)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    pthread_mutex_lock(&c->lock);
-    c->head = c->tail = c->curnum = c->status = 0;
-    pthread_cond_signal(&c->cond);
     pthread_mutex_unlock(&c->lock);
 }
 

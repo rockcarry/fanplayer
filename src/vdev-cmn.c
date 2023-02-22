@@ -114,20 +114,6 @@ void vdev_setrect(void *ctxt, int x, int y, int w, int h)
     if (c->setrect) c->setrect(c, x, y, w, h);
 }
 
-void vdev_pause(void *ctxt, int pause)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (!ctxt) return;
-    if (pause) c->status |=  VDEV_PAUSE;
-    else       c->status &= ~VDEV_PAUSE;
-}
-
-void vdev_reset(void *ctxt)
-{
-    VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
-    if (!c) return;
-}
-
 void vdev_setparam(void *ctxt, int id, void *param)
 {
     VDEV_COMMON_CTXT *c = (VDEV_COMMON_CTXT*)ctxt;
