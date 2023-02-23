@@ -16,9 +16,8 @@ extern "C" {
 
 // 常量定义
 #define VDEV_CLOSE      (1 << 0)
-#define VDEV_PAUSE      (1 << 1)
-#define VDEV_COMPLETED  (1 << 2)
-#define VDEV_CLEAR      (1 << 3)
+#define VDEV_COMPLETED  (1 << 1)
+#define VDEV_CLEAR      (1 << 2)
 
 //++ vdev context common members
 #define VDEV_COMMON_MEMBERS        \
@@ -92,8 +91,6 @@ void  vdev_destroy (void *ctxt);
 void  vdev_lock    (void *ctxt, uint8_t *buffer[8], int linesize[8], int64_t pts);
 void  vdev_unlock  (void *ctxt);
 void  vdev_setrect (void *ctxt, int x, int y, int w, int h);
-void  vdev_pause   (void *ctxt, int pause);
-void  vdev_reset   (void *ctxt);
 void  vdev_setparam(void *ctxt, int id, void *param);
 void  vdev_getparam(void *ctxt, int id, void *param);
 

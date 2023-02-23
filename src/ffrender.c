@@ -161,11 +161,8 @@ static void render_setspeed(RENDER *render, int speed)
 // º¯ÊýÊµÏÖ
 void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational frate, int w, int h, CMNVARS *cmnvars)
 {
-    RENDER  *render = (RENDER*)calloc(1, sizeof(RENDER));
-    if (!render) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate render context !\n");
-        exit(0);
-    }
+    RENDER *render = (RENDER*)calloc(1, sizeof(RENDER));
+    if (!render) return NULL;
 
 #ifdef WIN32
     render->surface = surface;
@@ -218,6 +215,7 @@ void* render_open(int adevtype, int vdevtype, void *surface, struct AVRational f
 void render_close(void *hrender)
 {
     RENDER *render = (RENDER*)hrender;
+    if (!hrender) return;
 
     // wait visual effect thread exit
     render->status = RENDER_CLOSE;
@@ -235,9 +233,7 @@ void render_close(void *hrender)
     vdev_destroy(render->vdev);
 
     // free sws context
-    if (render->sws_context) {
-        sws_freeContext(render->sws_context);
-    }
+    if (render->sws_context) sws_freeContext(render->sws_context);
     //-- video --//
 
 #if CONFIG_ENABLE_FFOBJDET
@@ -328,11 +324,10 @@ static int render_audio_swresample(RENDER *render, AVFrame *audio)
 
 void render_audio(void *hrender, AVFrame *audio)
 {
-    RENDER *render  = (RENDER*)hrender;
+    RENDER *render = (RENDER*)hrender;
     int     samprate, sampnum;
-    if (!hrender) return;
 
-    if (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn) return;
+    if (!render || (render->cmnvars->init_params->avts_syncmode != AVSYNC_MODE_FILE && render->cmnvars->apktn > render->cmnvars->init_params->audio_bufpktn)) return;
     do {
         if (  render->swr_src_format != audio->format || render->swr_src_samprate != audio->sample_rate || render->swr_src_chlayout != audio->channel_layout
            || render->cur_speed_type != render->new_speed_type || render->cur_speed_value != render->new_speed_value) {
@@ -358,6 +353,7 @@ void render_audio(void *hrender, AVFrame *audio)
         {
             sampnum = render_audio_swresample(render, audio);
         }
+        while ((render->status & RENDER_PAUSE)) av_usleep(10 * 1000);
     } while (sampnum && !(render->status & RENDER_CLOSE));
 }
 
@@ -513,20 +509,13 @@ void render_pause(void *hrender, int pause)
 {
     RENDER *render = (RENDER*)hrender;
     if (!hrender) return;
-    if (pause) render->status |= RENDER_PAUSE;
-    else       render->status &=~RENDER_PAUSE;
-    adev_pause(render->adev, pause);
-    vdev_pause(render->vdev, pause);
+    switch (pause) {
+    case 0: render->status &=~RENDER_PAUSE; break;
+    case 1: render->status |= RENDER_PAUSE; break;
+    case 2: render->status = RENDER_CLOSE;  break;
+    }
     render->cmnvars->start_tick= av_gettime_relative() / 1000;
     render->cmnvars->start_pts = MAX(render->cmnvars->apts, render->cmnvars->vpts);
-}
-
-void render_reset(void *hrender)
-{
-    RENDER *render = (RENDER*)hrender;
-    if (!hrender) return;
-    adev_reset(render->adev);
-    vdev_reset(render->vdev);
 }
 
 int render_snapshot(void *hrender, char *file, int w, int h, int waitt)
@@ -575,8 +564,8 @@ void render_setparam(void *hrender, int id, void *param)
             render->vol_curvol = vol;
         }
         break;
-    case PARAM_PLAY_SPEED_VALUE: render_setspeed(render, *(int*)param);  break;
-    case PARAM_PLAY_SPEED_TYPE : render->new_speed_type = *(int*)param;  break;
+    case PARAM_PLAY_SPEED_VALUE: render_setspeed(render, *(int*)param); break;
+    case PARAM_PLAY_SPEED_TYPE : render->new_speed_type = *(int*)param; break;
 #if CONFIG_ENABLE_VEFFECT
     case PARAM_VISUAL_EFFECT:
         render->veffect_type = *(int*)param;
@@ -611,11 +600,6 @@ void render_setparam(void *hrender, int id, void *param)
             render->cur_video_w = render->cur_video_h = 0;
         }
         break;
-    case PARAM_RENDER_STOP:
-        render->status = RENDER_CLOSE;
-        adev_setparam(render->adev, id, param);
-        vdev_setparam(render->vdev, id, param);
-        break;
 #if CONFIG_ENABLE_FFOBJDET
     case PARAM_OBJECT_DETECT:
         ffobjdet_enable(render->ffobjdet, *(int*)param);
@@ -635,7 +619,7 @@ void render_getparam(void *hrender, int id, void *param)
         if (vdev && vdev->status & VDEV_COMPLETED) {
             *(int64_t*)param = -1; // means completed
         } else {
-            *(int64_t*)param = MAX(render->cmnvars->apts, render->cmnvars->vpts);
+            *(int64_t*)param = render->cmnvars->apts != -1 ? render->cmnvars->apts : render->cmnvars->vpts;
         }
         break;
     case PARAM_AUDIO_VOLUME    : *(int*)param = render->vol_curvol - render->vol_zerodb; break;

@@ -47,12 +47,13 @@ static void* audio_render_thread_proc(void *param)
     JNIEnv     *env = get_jni_env();
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)param;
 
-    while (!(c->status & ADEV_CLOSE)) {
-        if (c->status & ADEV_PAUSE) { usleep(10*1000); continue; }
+    // start audiotrack
+    env->CallVoidMethod(c->jobj_at, c->jmid_at_play);
 
+    while (!(c->status & ADEV_CLOSE)) {
         pthread_mutex_lock(&c->lock);
-        while (c->curnum == 0 && (c->status & ADEV_CLOSE) == 0)  pthread_cond_wait(&c->cond, &c->lock);
-        if ((c->status & ADEV_CLOSE) == 0) {
+        while (c->curnum == 0 && !(c->status & ADEV_CLOSE))  pthread_cond_wait(&c->cond, &c->lock);
+        if (!(c->status & ADEV_CLOSE)) {
             env->CallIntMethod(c->jobj_at, c->jmid_at_write, c->audio_buffer, c->head * c->buflen, c->pWaveHdr[c->head].size);
             c->curnum--; c->bufcur = c->pWaveHdr[c->head].data;
             c->cmnvars->apts = c->ppts[c->head];
@@ -118,9 +119,6 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
     ctxt->jobj_at  = env->NewGlobalRef(at_obj);
     env->DeleteLocalRef(at_obj);
 
-    // start audiotrack
-    env->CallVoidMethod(ctxt->jobj_at, ctxt->jmid_at_play);
-
     // create mutex & cond
     pthread_mutex_init(&ctxt->lock, NULL);
     pthread_cond_init (&ctxt->cond, NULL);
@@ -170,42 +168,5 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
     pthread_mutex_unlock(&c->lock);
 }
 
-void adev_pause(void *ctxt, int pause)
-{
-    if (!ctxt) return;
-    JNIEnv *env = get_jni_env();
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    if (pause) {
-        c->status |=  ADEV_PAUSE;
-        env->CallVoidMethod(c->jobj_at, c->jmid_at_pause);
-    } else {
-        c->status &= ~ADEV_PAUSE;
-        env->CallVoidMethod(c->jobj_at, c->jmid_at_play );
-    }
-}
-
-void adev_reset(void *ctxt)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    pthread_mutex_lock(&c->lock);
-    c->head = c->tail = c->curnum = c->status = 0;
-    pthread_cond_signal(&c->cond);
-    pthread_mutex_unlock(&c->lock);
-}
-
-void adev_setparam(void *ctxt, int id, void *param)
-{
-    if (!ctxt) return;
-    ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    switch (id) {
-    case PARAM_RENDER_STOP:
-        pthread_mutex_lock(&c->lock);
-        c->status |= ADEV_CLOSE;
-        pthread_cond_signal(&c->cond);
-        pthread_mutex_unlock(&c->lock);
-        break;
-    }
-}
-
+void adev_setparam(void *ctxt, int id, void *param) {}
 void adev_getparam(void *ctxt, int id, void *param) {}

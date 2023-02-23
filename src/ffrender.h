@@ -18,7 +18,6 @@ void render_audio   (void *hrender, struct AVFrame *audio);
 void render_video   (void *hrender, struct AVFrame *video);
 void render_setrect (void *hrender, int type, int x, int y, int w, int h);
 void render_pause   (void *hrender, int pause);
-void render_reset   (void *hrender);
 int  render_snapshot(void *hplayer, char *file, int w, int h, int waitt);
 void render_setparam(void *hrender, int id, void *param);
 void render_getparam(void *hrender, int id, void *param);

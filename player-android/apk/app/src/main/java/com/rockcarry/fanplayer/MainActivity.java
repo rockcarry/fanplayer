@@ -27,7 +27,12 @@ import android.widget.SeekBar;
 import android.widget.Toast;
 import android.util.Log;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
+
 public class MainActivity extends Activity {
+    private static final String TAG = "fanplayer";
     private static final String PLAYER_INIT_PARAMS = "video_hwaccel=1;init_timeout=2000;auto_reconnect=2000;audio_bufpktn=4;video_bufpktn=1;rtsp_transport=2;";
     private static final String PLAYER_SHARED_PREFS= "fanplayer_shared_prefs";
     private static final String KEY_PLAYER_OPEN_URL= "key_player_open_url";
@@ -50,6 +55,21 @@ public class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        try {
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(getApplicationInfo().packageName, PackageManager.GET_PERMISSIONS);
+            if (packageInfo.requestedPermissions != null) {
+                for (String permission : packageInfo.requestedPermissions) {
+                    Log.v(TAG, "Checking permissions for: " + permission);
+                    if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(packageInfo.requestedPermissions, 1);
+                    }
+                }
+            }
+        } catch (NameNotFoundException e) {
+            Log.e(TAG, "Unable to load package's permissions", e);
+        }
+
         setContentView(R.layout.main);
         mSharedPrefs = getSharedPreferences(PLAYER_SHARED_PREFS, Context.MODE_PRIVATE);
 

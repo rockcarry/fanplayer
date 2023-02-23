@@ -61,7 +61,7 @@ EXTRA_LDFLAGS="-L$PREFIX_DIR/lib"
 
 #++ build openssl ++#
 if [ ! -d openssl ]; then
-    git clone https://github.com.cnpmjs.org/openssl/openssl.git
+    git clone https://github.com/openssl/openssl.git
 fi
 cd openssl
 git checkout .
@@ -157,7 +157,7 @@ cd -
 #-- build ffmpeg --#
 
 #++ build fanplayer_jni ++#
-${CROSS_PREFIX}gcc --sysroot=$SYSROOT -Wall -fPIC -fno-strict-aliasing -shared -Os -o $PWD/libfanplayer_jni.so \
+${CROSS_PREFIX}gcc --sysroot=$SYSROOT -Wall -Wno-deprecated-declarations -fPIC -fno-strict-aliasing -shared -Os -o $PWD/libfanplayer_jni.so \
 -I$ANDROID_NDK_HOME/sources/cxx-stl/stlport/stlport -I$PWD -I$PWD/_install/include -I$PWD/../../src -I$PWD/../../avkcpdemuxer -I$PWD/../../ffrdpdemuxer \
 -L$ANDROID_NDK_HOME/sources/cxx-stl/stlport/libs/$JNI_DIR \
 -DANDROID -DNDEBUG -DENABLE_AVKCP_SUPPORT -DENABLE_FFRDP_SUPPORT -DCONFIG_ENABLE_AES256 \
