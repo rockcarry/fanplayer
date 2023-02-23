@@ -42,6 +42,7 @@ typedef struct {
     int              vstream_index;
     AVRational       vstream_timebase;
     AVFrame          vframe;
+    AVRational       vfrate;
 
     void            *pktqueue; // pktqueue
     void            *render;   // render
@@ -344,7 +345,6 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     AVInputFormat *fmt    = NULL;
     //-- for avdevice
 
-    AVRational    vrate   = { 20, 1 };
     AVDictionary *opts    = NULL;
     int           ret     = -1;
 
@@ -448,8 +448,8 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 
     // for video
     if (player->vstream_index != -1) {
-        vrate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
-        if (vrate.num / vrate.den > 100) { vrate.num = 20; vrate.den = 1; }
+        player->vfrate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
+        if (player->vfrate.num / player->vfrate.den > 100) { player->vfrate.num = 20; player->vfrate.den = 1; }
         player->init_params.video_vwidth = player->init_params.video_owidth  = player->vcodec_context->width;
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
         vfilter_graph_init(player);
@@ -462,7 +462,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 
     // open render
     player->render = render_open(player->init_params.adev_render_type, player->init_params.vdev_render_type,
-        player->cmnvars.winmsg, vrate, player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
+        player->cmnvars.winmsg, player->vfrate, player->init_params.video_owidth, player->init_params.video_oheight, &player->cmnvars);
 
     if (player->vstream_index == -1) {
         int effect = VISUAL_EFFECT_WAVEFORM;
@@ -478,7 +478,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     }
 
     // for player init params
-    player->init_params.video_frame_rate     = vrate.num / vrate.den;
+    player->init_params.video_frame_rate     = player->vfrate.num / player->vfrate.den;
     player->init_params.video_stream_total   = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
     player->init_params.audio_channels       = player->acodec_context ? av_get_channel_layout_nb_channels(player->acodec_context->channel_layout) : 0;
     player->init_params.audio_sample_rate    = player->acodec_context ? player->acodec_context->sample_rate : 0;
@@ -772,6 +772,7 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 #ifdef ANDROID
     player->cmnvars.winmsg = JniRequestWinObj(win);
 #endif
+    player->vfrate.num = 20, player->vfrate.den = 1;
     //-- for player_prepare
 
     if (0) {
@@ -861,7 +862,7 @@ void player_play(void *hplayer)
 void player_pause(void *hplayer)
 {
     PLAYER *player = (PLAYER*)hplayer;
-    if (!player || !player->avformat_context) return;
+    if (!player) return;
     pthread_mutex_lock(&player->lock);
     player->status |= PS_R_PAUSE;
     pthread_mutex_unlock(&player->lock);
@@ -878,8 +879,7 @@ void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
 
 void player_seek(void *hplayer, int64_t ms, int type)
 {
-    PLAYER    *player = (PLAYER*)hplayer;
-    AVRational frate;
+    PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
 
     if (player->status & (PS_F_SEEK | player->seek_req)) {
@@ -893,8 +893,7 @@ void player_seek(void *hplayer, int64_t ms, int type)
         render_setparam(player->render, PARAM_RENDER_STEPFORWARD, NULL);
         return;
     case SEEK_STEP_BACKWARD:
-        frate = player->avformat_context->streams[player->vstream_index]->r_frame_rate;
-        player->seek_dest = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS) - 1000 * frate.den / frate.num - 1;
+        player->seek_dest = av_rescale_q(player->seek_vpts, player->vstream_timebase, TIMEBASE_MS) - 1000 * player->vfrate.den / player->vfrate.num - 1;
         player->seek_pos  = player->seek_vpts + av_rescale_q(ms, TIMEBASE_MS, player->vstream_timebase);
         player->seek_diff = 0;
         player->seek_sidx = player->vstream_index;
