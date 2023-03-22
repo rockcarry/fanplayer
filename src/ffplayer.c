@@ -64,7 +64,6 @@ typedef struct {
     int64_t          seek_vpts;
     int              seek_diff;
     int              seek_sidx;
-    int              ismp3file;
 
     // player common vars
     CMNVARS          cmnvars;
@@ -619,10 +618,7 @@ static void* video_decode_thread_proc(void *param)
         //-- when video decode pause --//
 
         // some mp3 contain only one video frame
-        if (player->ismp3file && player->vframe.width && player->vframe.height && player->vframe.data) {
-            render_video(player->render, &player->vframe);
-            av_usleep(100 * 1000); continue;
-        }
+        if (!packet && player->vframe.width && player->vframe.height && player->vframe.data) render_video(player->render, &player->vframe);
 
         // dequeue video packet
         if (!(packet = pktqueue_video_dequeue(player->pktqueue))) continue;
@@ -747,11 +743,6 @@ void* player_open(char *file, void *win, PLAYER_INIT_PARAMS *params)
 
     pthread_mutex_init(&player->lock, NULL); // init lock
     player->status = (PS_A_PAUSE | PS_V_PAUSE | PS_R_PAUSE); // make sure player paused
-
-    if (1) { // if file is mp3 file
-        size_t len = strlen(file);
-        player->ismp3file = len > 4 && strcasecmp(file + len - 4, ".mp3") == 0;
-    }
 
     // create packet queue
     player->pktqueue = pktqueue_create(0, &player->cmnvars);

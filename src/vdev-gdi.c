@@ -24,8 +24,14 @@ static void* video_render_thread_proc(void *param)
     VDEVGDICTXT  *c = (VDEVGDICTXT*)param;
 
     while (!(c->status & VDEV_CLOSE)) {
+        struct timespec ts;
+        int    ret = 0;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 100 * 1000 * 1000;
+        ts.tv_sec  += ts.tv_nsec / 1000000000;
+        ts.tv_nsec %= 1000000000;
         pthread_mutex_lock(&c->mutex);
-        while (c->size <= 0 && (c->status & VDEV_CLOSE) == 0) pthread_cond_wait(&c->cond, &c->mutex);
+        while (c->size <= 0 && (c->status & VDEV_CLOSE) == 0 && ret != ETIMEDOUT) ret = pthread_cond_timedwait(&c->cond, &c->mutex, &ts);
         if (c->size > 0) {
             c->size--;
             if (c->ppts[c->head] != -1) {

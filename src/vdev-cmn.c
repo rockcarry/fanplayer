@@ -61,6 +61,7 @@ void* vdev_create(int type, void *surface, int bufnum, int w, int h, int ftime, 
     c->rrect.bottom= MAX(h, 1);
     c->vrect.right = MAX(w, 1);
     c->vrect.bottom= MAX(h, 1);
+    c->speed       = 100;
     c->tickframe   = ftime;
     c->ticksleep   = ftime;
     c->cmnvars     = cmnvars;
