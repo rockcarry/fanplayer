@@ -117,7 +117,7 @@ static int ffrdpc_callback(void *ctxt, int type, char *rbuf, int rbsize, int rbh
         parse_params(avinfo, "vps"     , temp, sizeof(temp)); ffrdpd->vpsspsppslen  = hexstr2buf(ffrdpd->vpsspsppsbuf, sizeof(ffrdpd->vpsspsppsbuf), temp);
         parse_params(avinfo, "sps"     , temp, sizeof(temp)); ffrdpd->vpsspsppslen += hexstr2buf(ffrdpd->vpsspsppsbuf + ffrdpd->vpsspsppslen, sizeof(ffrdpd->vpsspsppsbuf) - ffrdpd->vpsspsppslen, temp);
         parse_params(avinfo, "pps"     , temp, sizeof(temp)); ffrdpd->vpsspsppslen += hexstr2buf(ffrdpd->vpsspsppsbuf + ffrdpd->vpsspsppslen, sizeof(ffrdpd->vpsspsppsbuf) - ffrdpd->vpsspsppslen, temp);
-        if (strstr(ffrdpd->aenctype, "alaw") == ffrdpd->aenctype) { ffrdpd->channels = 1; ffrdpd->samprate = 8000; }
+        if (strstr(ffrdpd->aenctype, "alaw") == ffrdpd->aenctype) { ffrdpd->channels = 1; }
         if (strstr(ffrdpd->aenctype, "aac" ) == ffrdpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_AAC     );
         if (strstr(ffrdpd->aenctype, "alaw") == ffrdpd->aenctype) acodec = avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
         if (strstr(ffrdpd->venctype, "h264") == ffrdpd->venctype) vcodec = avcodec_find_decoder(AV_CODEC_ID_H264    );
