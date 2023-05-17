@@ -178,7 +178,7 @@ void vdev_avsync_and_complete(void *ctxt)
         c->completed_vpts = c->cmnvars->vpts;
         c->completed_counter = 0;
         c->status &=~VDEV_COMPLETED;
-    } else if (!c->cmnvars->apktn && !c->cmnvars->apktn && ++c->completed_counter == COMPLETED_COUNTER) {
+    } else if (!c->cmnvars->apktn && !c->cmnvars->vpktn && ++c->completed_counter == COMPLETED_COUNTER) {
         c->status |= VDEV_COMPLETED;
         player_send_message(c->cmnvars->winmsg, MSG_PLAY_COMPLETED, 0);
     }

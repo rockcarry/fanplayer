@@ -698,6 +698,7 @@ static void* av_demux_thread_proc(void *param)
                 player->status |= PS_RECONNECT;
                 pthread_mutex_unlock(&player->lock);
             }
+            av_usleep(20 * 1000);
         } else {
             player->read_timelast = av_gettime_relative();
             // audio
