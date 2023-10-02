@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: fanplayer
+Description: fanplayer library
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lfanplayer
+Cflags: -I${includedir}
