@@ -23,7 +23,7 @@ static int open_file_dialog(HWND hwnd, char *name, int len)
     ofn.nMaxFile        = len;
     ofn.lpstrFileTitle  = NULL;
     ofn.lpstrInitialDir = NULL;
-    ofn.lpstrTitle      = "open file";
+    ofn.lpstrTitle      = "Open File";
     ofn.Flags           = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_LONGNAMES | OFN_PATHMUSTEXIST;
     ofn.lpstrDefExt     = NULL;
     return GetOpenFileName(&ofn) ? 0 : -1;
@@ -61,6 +61,7 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
             surf->data    = bmp ? bmp->pdata : NULL;
             surf->stride  = bmp ? bmp->width * 4 : 0;
             surf->format  = SURFACE_FMT_RGB32;
+            surf->cdepth  = 32;
         }
         break;
     case PLAYER_VDEV_UNLOCK:
@@ -84,13 +85,14 @@ int main(int argc, char *argv[])
 
 #ifdef WITH_LIBAVDEV
     myapp.adev   = adev_init(48000, 2, 48000 / 20, 5);
-    myapp.vdev   = vdev_init(640, 480, NULL, NULL, NULL);
+    myapp.vdev   = vdev_init(640, 480, "resizable", NULL, NULL);
+    vdev_set(myapp.vdev, "title", "fanplayer");
 #endif
 
     myapp.player = player_init(file, NULL, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
-    while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) sleep(1);
+    while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { sleep(1); }
 #endif
 
     player_exit(myapp.player);

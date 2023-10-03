@@ -15,7 +15,7 @@ enum {
 };
 
 typedef struct {
-    int w, h, stride, format;
+    int w, h, stride, format, cdepth;
     void *data;
 } SURFACE;
 

@@ -575,9 +575,14 @@ void player_seek(void *ctx, int64_t ms)
 
 void player_set(void *ctx, char *key, void *val)
 {
+    if (!ctx) return;
+    PLAYER *player = ctx;
+    render_set(player->ffrender, key, val);
 }
 
 long player_get(void *ctx, char *key, void *val)
 {
-    return 0;
+    if (!ctx) return 0;
+    PLAYER *player = ctx;
+    return render_get(player->ffrender, key, val);
 }

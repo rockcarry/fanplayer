@@ -10,6 +10,10 @@
 #define DEF_PLAY_SPEED 100
 
 typedef struct {
+    #define FLAG_STRETCH (1 << 0)
+    #define FLAG_UPDATE  (1 << 1)
+    int                flags;
+
     // swresampler & swscaler
     struct SwrContext *swr_context;
     struct SwsContext *sws_context;
@@ -32,6 +36,7 @@ typedef struct {
     int                sws_dst_pixfmt;
     int                sws_dst_width;
     int                sws_dst_height;
+    int                sws_dst_offset;
     int                sws_scale_type;
 
     int64_t            apts, vpts, tick_start, tick_adjust, frame_count;
@@ -111,7 +116,7 @@ void render_video(void *ctx, AVFrame *video)
     SURFACE surface;
     render->callback(render->cbctx, PLAYER_VDEV_LOCK, &surface, sizeof(surface));
 
-    if (  render->sws_src_width != video->width || render->sws_src_height != video->height || render->sws_src_pixfmt != video->format
+    if ( (render->flags & FLAG_UPDATE) || render->sws_src_width != video->width || render->sws_src_height != video->height || render->sws_src_pixfmt != video->format
        || render->sws_dst_width != surface.w || render->sws_dst_height != surface.h || render->sws_dst_pixfmt != surface.format || render->sws_context == NULL)
     {
         render->sws_src_width  = video->width;
@@ -121,12 +126,32 @@ void render_video(void *ctx, AVFrame *video)
         render->sws_dst_height = surface.h;
         render->sws_dst_pixfmt = surface.format;
         if (render->sws_context) sws_freeContext(render->sws_context);
-        render->sws_context = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
-                render->sws_dst_width, render->sws_dst_height, render->sws_dst_pixfmt, render->sws_scale_type, 0, 0, 0);
+
+        int dstw, dsth, dstx, dsty;
+        if (render->flags & FLAG_STRETCH) {
+            dstw = surface.w, dsth = surface.h;
+        } else {
+            if (video->width * surface.h > video->height * surface.w) {
+                dstw = surface.w;
+                dsth = surface.w * video->height / video->width;
+            } else {
+                dstw = surface.h * video->width / video->height;
+                dsth = surface.h;
+            }
+        }
+        dstx = (surface.w - dstw) / 2;
+        dsty = (surface.h - dsth) / 2;
+        render->sws_dst_offset = dsty * surface.stride + dstx * surface.cdepth / 8;
+        render->sws_context    = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
+            dstw, dsth, render->sws_dst_pixfmt, render->sws_scale_type, 0, 0, 0);
+        if (render->flags & FLAG_UPDATE) {
+            render->flags &= ~FLAG_UPDATE;
+            memset(surface.data, 0, surface.stride * surface.h);
+        }
     }
 
     if (render->sws_context && surface.data) {
-        AVFrame dstpic = { .data[0] = surface.data, .linesize[0] = surface.stride };
+        AVFrame dstpic = { .data[0] = (uint8_t*)surface.data + render->sws_dst_offset, .linesize[0] = surface.stride };
         sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
     }
     render->callback(render->cbctx, PLAYER_VDEV_UNLOCK, NULL, 0);
@@ -152,15 +177,21 @@ void render_set(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx) return;
-    if      (strcmp(key, "speed") == 0) render->new_speed_value = (long)val;
-    else if (strcmp(key, "frate") == 0) render->frate = *(AVRational*)val;
+    if      (strcmp(key, "speed"  ) == 0) render->new_speed_value = (long)val;
+    else if (strcmp(key, "frate"  ) == 0) render->frate = *(AVRational*)val;
+    else if (strcmp(key, "stretch") == 0) {
+        if ((long)val) render->flags |= FLAG_STRETCH;
+        else render->flags &= ~FLAG_STRETCH;
+        render->flags |= FLAG_UPDATE;
+    }
 }
 
 long render_get(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx) return 0;
-    if (strcmp(key, "speed") == 0) return (long)render->cur_speed_value;
-    if (strcmp(key, "frate") == 0) return (long)&render->frate;
+    if (strcmp(key, "speed"  ) == 0) return (long)render->cur_speed_value;
+    if (strcmp(key, "frate"  ) == 0) return (long)&render->frate;
+    if (strcmp(key, "stretch") == 0) return (long)!!(render->flags & FLAG_STRETCH);
     return 0;
 }
