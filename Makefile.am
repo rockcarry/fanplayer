@@ -21,7 +21,8 @@ endif
 CFLAGS += -Os -g -Wall -Werror -Wno-deprecated-declarations -funwind-tables -ffunction-sections -fdata-sections
 
 if WIN32
-CFLAGS += -DWIN32
+CFLAGS  += -DWIN32 -mwindows
+LDFLAGS += -lcomdlg32
 endif
 
 if LINUX

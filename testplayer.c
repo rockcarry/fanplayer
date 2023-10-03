@@ -10,6 +10,28 @@
 #include "libavdev/idev.h"
 #endif
 
+#ifdef WIN32
+#include <windows.h>
+static int open_file_dialog(HWND hwnd, char *name, int len)
+{
+    OPENFILENAME ofn = {};
+    ofn.lStructSize     = sizeof(ofn);
+    ofn.hwndOwner       = hwnd;
+    ofn.lpstrFilter     = "AVI Files (*.avi)\0*.avi\0FLV Files (*.flv)\0*.flv\0MP4 Files (*.mp4)\0*.mp4\0All Files (*.*)\0*.*\0\0";
+    ofn.nFilterIndex    = 3;
+    ofn.lpstrFile       = name;
+    ofn.nMaxFile        = len;
+    ofn.lpstrFileTitle  = NULL;
+    ofn.lpstrInitialDir = NULL;
+    ofn.lpstrTitle      = "open file";
+    ofn.Flags           = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_LONGNAMES | OFN_PATHMUSTEXIST;
+    ofn.lpstrDefExt     = NULL;
+    return GetOpenFileName(&ofn) ? 0 : -1;
+}
+#else
+static int open_file_dialog(HWND hwnd, char *name, int len) { return -1; }
+#endif
+
 typedef struct {
     void *adev;
     void *vdev;
@@ -51,15 +73,21 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
 
 int main(int argc, char *argv[])
 {
-    MYAPP myapp = {};
-    if (argc < 2) return 0;
+    MYAPP myapp     = {};
+    char  file[256] = "test.mp4";
+
+    if (argc < 2) {
+        if (open_file_dialog(NULL, file, sizeof(file)) != 0) return 0;
+    } else {
+        strncpy(file, argv[1], sizeof(file) - 1);
+    }
 
 #ifdef WITH_LIBAVDEV
     myapp.adev   = adev_init(48000, 2, 48000 / 20, 5);
     myapp.vdev   = vdev_init(640, 480, NULL, NULL, NULL);
 #endif
 
-    myapp.player = player_init(argv[1], NULL, my_player_cb, &myapp);
+    myapp.player = player_init(file, NULL, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
     while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) sleep(1);
