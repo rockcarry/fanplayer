@@ -398,6 +398,7 @@ static void* audio_decode_thread_proc(void *param)
                 }
                 //-- for seek operation
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
+                while ((player->status & PS_R_PAUSE) && !(player->status & PS_CLOSE)) av_usleep(10 * 1000);
             }
 
             packet->data += consumed;
@@ -445,7 +446,9 @@ static void* video_decode_thread_proc(void *param)
                     }
                 }
                 //-- for seek operation
-                if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe);
+                do {
+                    if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe);
+                } while ((player->status & PS_R_PAUSE) && !(player->status & PS_CLOSE));
             }
 
             packet->data += packet->size;
