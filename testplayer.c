@@ -125,13 +125,21 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
 int main(int argc, char *argv[])
 {
     MYAPP myapp     = {};
-    char  file[256] = "test.mp4";
+    char  url[256]  = "test.mp4";
+    char *initparams= NULL;
+    int   i;
 
     if (argc < 2) {
-        if (open_file_dialog(NULL, file, sizeof(file)) != 0) return 0;
+        if (open_file_dialog(NULL, url, sizeof(url)) != 0) return 0;
     } else {
-        strncpy(file, argv[1], sizeof(file) - 1);
+        for (i = 1; i < argc; i++) {
+            if (strstr(argv[i], "--init_params=") == argv[i]) initparams = argv[i] + sizeof("--init_params=") - 1;
+            else strncpy(url, argv[i], sizeof(url) - 1);
+        }
     }
+
+    printf("url   : %s\n", url       );
+    printf("params: %s\n", initparams);
 
 #ifdef WITH_LIBAVDEV
     myapp.adev   = adev_init(48000, 2, 48000 / 20, 5);
@@ -142,7 +150,7 @@ int main(int argc, char *argv[])
     idev_set(myapp.idev, "callback", my_videv_cb);
 #endif
 
-    myapp.player = player_init(file, NULL, my_player_cb, &myapp);
+    myapp.player = player_init(url, NULL, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
     while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { sleep(1); }

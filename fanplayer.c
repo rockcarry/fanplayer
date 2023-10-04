@@ -103,6 +103,30 @@ typedef struct {
 
 static const AVRational TIMEBASE_MS = { 1, 1000 };
 
+static char* parse_params(char *str, char *key, char *val, int len)
+{
+    if (!str) return NULL;
+    char *p = strstr(str, key);
+    int   i;
+
+    if (!p) return NULL;
+    p += strlen(key);
+    if (*p == '\0') return NULL;
+
+    while (1) {
+        if (*p != ' ' && *p != '=' && *p != ':') break;
+        p++;
+    }
+
+    for (i = 0; i < len; i++) {
+        if (*p == ';' || *p == '\r' || *p == '\n' || *p == '\0') break;
+        if (*p == '\\') p++;
+        val[i] = *p++;
+    }
+    val[i < len ? i : len - 1] = '\0';
+    return val;
+}
+
 static void avlog_callback(void *ptr, int level, const char *fmt, va_list vl) {
     if (level <= av_log_get_level()) vprintf(fmt, vl);
 }
@@ -510,6 +534,22 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
 
     player->callback = callback ? callback : player_callback;
     player->cbctx    = cbctx;
+
+    char strval[256] = "";
+    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
+    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
+    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_thread_count = atoi(parse_params(params, "video_thread_count", strval, sizeof(strval)) ? strval : "0");
+    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
+    player->video_bufpktn      = atoi(parse_params(params, "video_bufpktn"     , strval, sizeof(strval)) ? strval : "0");
+    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->audio_bufpktn      = atoi(parse_params(params, "audio_bufpktn"     , strval, sizeof(strval)) ? strval : "0");
+    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
+    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
+    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
+    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    player->avts_syncmode      = atoi(parse_params(params, "avts_syncmode"     , strval, sizeof(strval)) ? strval : "0");
 
     // av register all
     av_register_all();
