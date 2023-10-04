@@ -46,8 +46,12 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
     MYAPP *app = cbctx;
     switch (msg) {
     case DEV_MSG_KEY_EVENT:
-        if (param1 && param2 == ' ') {
-            player_play(app->player, (app->playing = !app->playing));
+        if (param1) {
+            switch (param2) {
+            case ' ': player_play(app->player, (app->playing = !app->playing)); break;
+            case 189: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) - 10)); break;
+            case 187: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) + 10)); break;
+            }
         }
         break;
     case DEV_MSG_MOUSE_LBUTTON_D:

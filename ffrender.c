@@ -6,7 +6,7 @@
 #include "libswresample/swresample.h"
 #include "libswscale/swscale.h"
 
-#define DEF_FRAME_RATE 25
+#define DEF_FRAME_RATE 20
 #define DEF_PLAY_SPEED 100
 
 typedef struct {
@@ -93,12 +93,12 @@ void render_audio(void *ctx, AVFrame *audio)
     }
 
     if (render->swr_context) {
-        frate   = render->frate.num / render->frate.den;
+        frate   = (int64_t)render->frate.num * render->cur_speed_value / ((int64_t)render->frate.den * DEF_PLAY_SPEED);
         frate   = frate > DEF_FRAME_RATE ? frate : DEF_FRAME_RATE;
-        sampnum = (render->adev_samprate * DEF_PLAY_SPEED) / (frate * render->cur_speed_value);
+        sampnum = render->adev_samprate / frate;
         do {
             sampnum = swr_convert(render->swr_context, (uint8_t**)&out, sampnum, (const uint8_t**)audio->extended_data, audio->nb_samples);
-            audio->extended_data = NULL;
+            audio->extended_data = NULL, audio->nb_samples = 0;
             if (sampnum) {
                 render->apts = audio->pts + 1000 * samptotal * render->cur_speed_value / (render->adev_samprate * DEF_PLAY_SPEED);
                 render->callback(render->cbctx, PLAYER_ADEV_BUFFER, render->adev_buf, sampnum * adev_channels * sizeof(int16_t));
@@ -177,8 +177,16 @@ void render_set(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx) return;
-    if      (strcmp(key, "speed"  ) == 0) render->new_speed_value = (long)val;
-    else if (strcmp(key, "frate"  ) == 0) render->frate = *(AVRational*)val;
+    if (strcmp(key, "speed") == 0) {
+        int n = (long)val;
+        n = n < 300 ? n : 300;
+        n = n > 10  ? n : 10;
+        render->new_speed_value = n;
+        render->tick_start      = 0;
+        render->frame_count     = 0;
+        printf("speed: %d\n", n);
+    }
+    else if (strcmp(key, "frate") == 0) render->frate = *(AVRational*)val;
     else if (strcmp(key, "stretch") == 0) {
         if ((long)val) render->flags |= FLAG_STRETCH;
         else render->flags &= ~FLAG_STRETCH;
