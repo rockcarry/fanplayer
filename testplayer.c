@@ -50,6 +50,14 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
             player_play(app->player, (app->playing = !app->playing));
         }
         break;
+    case DEV_MSG_MOUSE_LBUTTON_D:
+        if (param2 > vdev_get(app->vdev, "height", NULL) - 6) {
+            uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
+            player_seek(app->player, duration * param1 / vdev_get(app->vdev, "width", NULL));
+        } else {
+            player_play(app->player, (app->playing = !app->playing));
+        }
+        break;
     }
     return 0;
 }
@@ -95,6 +103,7 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
                 uint32_t position = player_get(app->player, PARAM_MEDIA_POSITION, NULL);
                 uint32_t w = surf->w * position / duration;
                 bar(bmp, 0, surf->h, w, 3, 0xFF8800);
+                bar(bmp, w, surf->h, surf->w - w, 3, 0);
             }
         }
         break;

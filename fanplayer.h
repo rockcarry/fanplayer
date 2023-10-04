@@ -47,8 +47,8 @@ void  player_seek(void *ctx, int64_t ms);
 #define PARAM_PLAY_SPEED    "speed"
 #define PARAM_VIDEO_STRETCH "stretch"
 
-void  player_set (void *ctx, char *key, void *val);
-long  player_get (void *ctx, char *key, void *val);
+void player_set(void *ctx, char *key, void *val);
+long player_get(void *ctx, char *key, void *val);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
