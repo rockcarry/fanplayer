@@ -127,6 +127,13 @@ static int player_callback(void *cbctx, int msg, void *buf, int len)
     return 0;
 }
 
+static void player_update_status(PLAYER *player, int clear, int set)
+{
+    pthread_mutex_lock(&player->lock);
+    player->status = (player->status & ~clear) | set;
+    pthread_mutex_unlock(&player->lock);
+}
+
 static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
     AVCodec *decoder = NULL;
     int     idx = -1, cur = -1, i;
@@ -188,9 +195,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
 static int get_stream_total(PLAYER *player, enum AVMediaType type) {
     int total, i;
     for (total = 0, i = 0; i < (int)player->avformat_context->nb_streams; i++) {
-        if (player->avformat_context->streams[i]->codec->codec_type == type) {
-            total++;
-        }
+        if (player->avformat_context->streams[i]->codec->codec_type == type) total++;
     }
     return total;
 }
@@ -255,7 +260,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
         if (avformat_open_input(&player->avformat_context, player->url, NULL, &opts) != 0) { // if failed, no need call avformat_free_context
             if (player->auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", player->url);
-                av_usleep(100*1000);
+                av_usleep(100 * 1000);
             } else {
                 av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", player->url);
                 goto done;
@@ -320,16 +325,13 @@ static int handle_fseek_or_reconnect(PLAYER *player)
     if (player->astream_index != -1) { PAUSE_REQ |= PS_A_PAUSE; PAUSE_ACK |= PS_A_PAUSE << 16; }
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
 
-
     // set audio & video decoding pause flags
-    pthread_mutex_lock(&player->lock);
-    player->status |= PAUSE_REQ | player->seek_req;
-    pthread_mutex_unlock(&player->lock);
+    player_update_status(player, 0, PAUSE_REQ|player->seek_req);
 
     // wait for pause done
     while ((player->status & PAUSE_ACK) != PAUSE_ACK) {
         if (player->status & PS_CLOSE) return 0;
-        av_usleep(20*1000);
+        av_usleep(20 * 1000);
     }
 
     if (!player->avformat_context || (player->status & PS_RECONNECT)) {
@@ -345,9 +347,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
     pktqueue_reset(player->pktqueue); // reset pktqueue
 
     // make audio & video decoding thread resume
-    pthread_mutex_lock(&player->lock);
-    if (ret == 0) player->status &= ~(PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK);
-    pthread_mutex_unlock(&player->lock);
+    player_update_status(player, ret == 0 ? (PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK) : 0, 0);
     return ret;
 }
 
@@ -360,10 +360,8 @@ static void* audio_decode_thread_proc(void *param)
     while (!(player->status & PS_CLOSE)) {
         //++ when audio decode pause ++//
         if (player->status & PS_A_PAUSE) {
-            pthread_mutex_lock(&player->lock);
-            player->status |= (PS_A_PAUSE << 16);
-            pthread_mutex_unlock(&player->lock);
-            av_usleep(20*1000); continue;
+            player_update_status(player, 0, (PS_A_PAUSE << 16));
+            av_usleep(20 * 1000); continue;
         }
         //-- when audio decode pause --//
 
@@ -389,14 +387,12 @@ static void* audio_decode_thread_proc(void *param)
                 //++ for seek operation
                 if (player->status & PS_A_SEEK) {
                     if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
-                        pthread_mutex_lock(&player->lock);
-                        player->status &= ~PS_A_SEEK;
-                        pthread_mutex_unlock(&player->lock);
+                        player_update_status(player, PS_A_SEEK, 0);
                     }
                 }
                 //-- for seek operation
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
-                while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_SEEK))) av_usleep(20 * 1000);
+                while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
 
             packet->data += consumed;
@@ -418,10 +414,8 @@ static void* video_decode_thread_proc(void *param)
     while (!(player->status & PS_CLOSE)) {
         //++ when video decode pause ++//
         if (player->status & PS_V_PAUSE) {
-            pthread_mutex_lock(&player->lock);
-            player->status |= (PS_V_PAUSE << 16);
-            pthread_mutex_unlock(&player->lock);
-            av_usleep(20*1000); continue;
+            player_update_status(player, 0, (PS_V_PAUSE << 16));
+            av_usleep(20 * 1000); continue;
         }
         //-- when video decode pause --//
 
@@ -438,9 +432,7 @@ static void* video_decode_thread_proc(void *param)
                 //++ for seek operation
                 if (player->status & PS_V_SEEK) {
                     if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
-                        pthread_mutex_lock(&player->lock);
-                        player->status &= ~PS_V_SEEK;
-                        pthread_mutex_unlock(&player->lock);
+                        player_update_status(player, PS_V_SEEK, 0);
                     }
                 }
                 //-- for seek operation
@@ -464,7 +456,6 @@ static void* av_demux_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-    int       retv   = 0;
 
     while (!(player->status & PS_CLOSE)) {
         if (handle_fseek_or_reconnect(player) != 0) {
@@ -473,26 +464,16 @@ static void* av_demux_thread_proc(void *param)
         }
         if ((packet = pktqueue_request_packet(player->pktqueue)) == NULL) continue;
 
-        retv = av_read_frame(player->avformat_context, packet);
+        int retv = av_read_frame(player->avformat_context, packet);
         if (retv < 0) {
             pktqueue_release_packet(player->pktqueue, packet);
             if (player->auto_reconnect > 0 && av_gettime_relative() - player->read_timelast > player->auto_reconnect * 1000) {
-                pthread_mutex_lock(&player->lock);
-                player->status |= PS_RECONNECT;
-                pthread_mutex_unlock(&player->lock);
+                player_update_status(player, 0, PS_RECONNECT);
             }
         } else {
             player->read_timelast = av_gettime_relative();
-            // audio
-            if (packet->stream_index == player->astream_index) {
-                pktqueue_audio_enqueue(player->pktqueue, packet);
-            }
-
-            // video
-            if (packet->stream_index == player->vstream_index) {
-                pktqueue_video_enqueue(player->pktqueue, packet);
-            }
-
+            if (packet->stream_index == player->astream_index) pktqueue_audio_enqueue(player->pktqueue, packet); // audio
+            if (packet->stream_index == player->vstream_index) pktqueue_video_enqueue(player->pktqueue, packet); // video
             if (  packet->stream_index != player->astream_index
                && packet->stream_index != player->vstream_index) {
                 pktqueue_release_packet(player->pktqueue, packet);
@@ -536,9 +517,7 @@ void player_exit(void *ctx)
     PLAYER *player = ctx;
 
     player->read_timeout = 0; // set read_timeout to 0
-    pthread_mutex_lock(&player->lock);
-    player->status |= PS_CLOSE;
-    pthread_mutex_unlock(&player->lock);
+    player_update_status(player, 0, PS_CLOSE);
     if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
     if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
     if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait avdemux thread exit
@@ -569,9 +548,7 @@ void player_seek(void *ctx, int64_t ms)
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
     player->seek_diff = 100;
     player->seek_sidx = -1;
-    pthread_mutex_lock(&player->lock);
-    player->status |= PS_F_SEEK;
-    pthread_mutex_unlock(&player->lock);
+    player_update_status(player, 0, PS_F_SEEK);
 }
 
 void player_set(void *ctx, char *key, void *val)
