@@ -236,6 +236,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 {
     AVDictionary *opts = NULL;
     int           ret  = -1;
+    char vsize[64], frate[64];
 
     if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
     if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
@@ -261,12 +262,10 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
         if (player->avts_syncmode == AVSYNC_MODE_AUTO) player->avts_syncmode = AVSYNC_MODE_FILE;
     }
     if (player->video_vwidth != 0 && player->video_vheight != 0) {
-        char vsize[64];
         sprintf(vsize, "%dx%d", player->video_vwidth, player->video_vheight);
         av_dict_set(&opts, "video_size", vsize, 0);
     }
     if (player->video_frame_rate != 0) {
-        char frate[64];
         sprintf(frate, "%d", player->video_frame_rate);
         av_dict_set(&opts, "framerate" , frate, 0);
     }
@@ -354,7 +353,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
     if (player->vstream_index != -1) { PAUSE_REQ |= PS_V_PAUSE; PAUSE_ACK |= PS_V_PAUSE << 16; }
 
     // set audio & video decoding pause flags
-    player_update_status(player, 0, PAUSE_REQ|player->seek_req);
+    player_update_status(player, PAUSE_ACK, PAUSE_REQ);
 
     // wait for pause done
     while ((player->status & PAUSE_ACK) != PAUSE_ACK) {
@@ -373,9 +372,10 @@ static int handle_fseek_or_reconnect(PLAYER *player)
     }
 
     pktqueue_reset(player->pktqueue); // reset pktqueue
+    render_set(player->ffrender, "reset", (void*)-1); // reset render
 
     // make audio & video decoding thread resume
-    player_update_status(player, ret == 0 ? (PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK) : 0, 0);
+    if (ret == 0) player_update_status(player, PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK, (player->status & PS_F_SEEK) ? player->seek_req : 0);
     return ret;
 }
 
@@ -399,7 +399,6 @@ static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-    int64_t   apts;
 
     while (!(player->status & PS_CLOSE)) {
         //++ when audio decode pause ++//
@@ -413,32 +412,15 @@ static void* audio_decode_thread_proc(void *param)
         if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) { check_play_completed(player, 0); continue; }
 
         //++ decode audio packet ++//
-        apts = AV_NOPTS_VALUE;
         while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
             int gotaudio = 0, consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
-            if (consumed < 0) {
-                av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n");
-                break;
-            }
+            if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n"); break; }
             if (gotaudio) {
-                AVRational tb_sample_rate = { 1, player->acodec_context->sample_rate };
-                if (apts == AV_NOPTS_VALUE) {
-                    apts  = av_rescale_q(player->aframe.pts, player->astream_timebase, tb_sample_rate);
-                } else {
-                    apts += player->aframe.nb_samples;
-                }
-                player->aframe.pts = av_rescale_q(apts, tb_sample_rate, TIMEBASE_MS);
-                //++ for seek operation
-                if (player->status & PS_A_SEEK) {
-                    if (player->seek_dest - player->aframe.pts <= player->seek_diff) {
-                        player_update_status(player, PS_A_SEEK, 0);
-                    }
-                }
-                //-- for seek operation
+                player->aframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->aframe), player->astream_timebase, TIMEBASE_MS);
+                if ( (player->status & PS_A_SEEK) && player->seek_dest - player->aframe.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
                 while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
-
             packet->data += consumed;
             packet->size -= consumed;
         }
@@ -471,20 +453,12 @@ static void* video_decode_thread_proc(void *param)
             int gotvideo = 0, consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);;
             if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n"); break; }
             if (gotvideo) {
-                player->vframe.height = player->vcodec_context->height; // when using dxva2 hardware hwaccel, the frame heigh may incorrect, so we need fix it
-                player->vframe.pts    = av_rescale_q(av_frame_get_best_effort_timestamp(&player->vframe), player->vstream_timebase, TIMEBASE_MS);
-                //++ for seek operation
-                if (player->status & PS_V_SEEK) {
-                    if (player->seek_dest - player->vframe.pts <= player->seek_diff) {
-                        player_update_status(player, PS_V_SEEK, 0);
-                    }
-                }
-                //-- for seek operation
+                player->vframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->vframe), player->vstream_timebase, TIMEBASE_MS);
+                if ((player->status & PS_V_SEEK) && player->seek_dest - player->vframe.pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
                 do {
                     if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe);
                 } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_SEEK)));
             }
-
             packet->data += packet->size;
             packet->size -= packet->size;
         }
@@ -516,12 +490,9 @@ static void* av_demux_thread_proc(void *param)
             }
         } else {
             player->read_timelast = av_gettime_relative();
-            if (packet->stream_index == player->astream_index) pktqueue_audio_enqueue(player->pktqueue, packet); // audio
-            if (packet->stream_index == player->vstream_index) pktqueue_video_enqueue(player->pktqueue, packet); // video
-            if (  packet->stream_index != player->astream_index
-               && packet->stream_index != player->vstream_index) {
-                pktqueue_release_packet(player->pktqueue, packet);
-            }
+            if      (packet->stream_index == player->astream_index) pktqueue_audio_enqueue (player->pktqueue, packet); // audio
+            else if (packet->stream_index == player->vstream_index) pktqueue_video_enqueue (player->pktqueue, packet); // video
+            else                                                    pktqueue_release_packet(player->pktqueue, packet); // other
         }
     }
     return NULL;
@@ -594,6 +565,7 @@ void player_play(void *ctx, int play)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
+    if (play) render_set(player->ffrender, "reset", (void*)-1);
     pthread_mutex_lock(&player->lock);
     if (play) player->status &= PS_CLOSE;
     else      player->status |= PS_R_PAUSE;

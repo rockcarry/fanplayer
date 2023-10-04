@@ -155,14 +155,13 @@ void render_video(void *ctx, AVFrame *video)
         sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
     }
     render->callback(render->cbctx, PLAYER_VDEV_UNLOCK, NULL, 0);
-    render->vpts = video->pts;
 
     int64_t tick_cur   = av_gettime_relative() / 1000;
     int64_t tick_avdiff= render->apts - render->vpts;
     render->tick_start = render->tick_start ? render->tick_start : tick_cur;
-    int64_t tick_next  = render->tick_start + render->frame_count * 1000 * DEF_PLAY_SPEED * render->frate.den / ((int64_t)render->frate.num * render->new_speed_value);
+    int64_t tick_next  = render->tick_start + (++render->frame_count * 1000 * DEF_PLAY_SPEED * render->frate.den) / ((int64_t)render->frate.num * render->new_speed_value);
     int64_t tick_sleep = tick_next - tick_cur;
-    render->frame_count++;
+    (render->vpts != video->pts) ? (render->vpts = video->pts) : (tick_avdiff = 0);
 
     if      (tick_avdiff > 50 ) render->tick_adjust -= 2;
     else if (tick_avdiff > 20 ) render->tick_adjust -= 1;
@@ -177,15 +176,14 @@ void render_set(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx) return;
-    if (strcmp(key, "speed") == 0) {
+    if (strcmp(key, "speed") == 0 || strcmp(key, "reset") == 0) {
         int n = (long)val;
         n = n < 300 ? n : 300;
         n = n > 10  ? n : 10;
-        render->new_speed_value = n;
-        render->tick_start      = 0;
-        render->frame_count     = 0;
-        render->tick_adjust     = 0;
-        printf("speed: %d\n", n);
+        if ((long)val != -1) render->new_speed_value = n;
+        render->tick_start  = 0;
+        render->frame_count = 0;
+        render->tick_adjust = 0;
     }
     else if (strcmp(key, "frate") == 0) render->frate = *(AVRational*)val;
     else if (strcmp(key, "stretch") == 0) {
