@@ -297,7 +297,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     player->start_time = player->avformat_context->start_time * 1000 / AV_TIME_BASE;
 
     // for player init params
-    player->video_frame_rate   = player->vfrate.num / player->vfrate.den;
+    player->video_frame_rate   = player->vstream_index != -1 ? player->vfrate.num / player->vfrate.den : 0;
     player->video_stream_total = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
     player->audio_channels     = player->acodec_context ? av_get_channel_layout_nb_channels(player->acodec_context->channel_layout) : 0;
     player->audio_sample_rate  = player->acodec_context ? player->acodec_context->sample_rate : 0;

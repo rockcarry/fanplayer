@@ -17,8 +17,8 @@ static int open_file_dialog(HWND hwnd, char *name, int len)
     OPENFILENAME ofn = {};
     ofn.lStructSize     = sizeof(ofn);
     ofn.hwndOwner       = hwnd;
-    ofn.lpstrFilter     = "AVI Files (*.avi)\0*.avi\0FLV Files (*.flv)\0*.flv\0MP4 Files (*.mp4)\0*.mp4\0All Files (*.*)\0*.*\0\0";
-    ofn.nFilterIndex    = 3;
+    ofn.lpstrFilter     = "AVI Files (*.avi)\0*.avi\0FLV Files (*.flv)\0*.flv\0MP3 Files (*.mp3)\0*.mp3\0MP4 Files (*.mp4)\0*.mp4\0All Files (*.*)\0*.*\0\0";
+    ofn.nFilterIndex    = 4;
     ofn.lpstrFile       = name;
     ofn.nMaxFile        = len;
     ofn.lpstrFileTitle  = NULL;

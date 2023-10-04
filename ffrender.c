@@ -127,24 +127,26 @@ void render_video(void *ctx, AVFrame *video)
         render->sws_dst_pixfmt = surface.format;
         if (render->sws_context) sws_freeContext(render->sws_context);
 
-        int dstw, dsth, dstx, dsty;
-        if (render->flags & FLAG_STRETCH) {
-            dstw = surface.w, dsth = surface.h;
-        } else {
-            if (video->width * surface.h > video->height * surface.w) {
-                dstw = surface.w, dsth = surface.w * video->height / video->width;
+        if (video->width && video->height) {
+            int dstw, dsth, dstx, dsty;
+            if (render->flags & FLAG_STRETCH) {
+                dstw = surface.w, dsth = surface.h;
             } else {
-                dsth = surface.h, dstw = surface.h * video->width  / video->height;
+                if (video->width * surface.h > video->height * surface.w) {
+                    dstw = surface.w, dsth = surface.w * video->height / video->width;
+                } else {
+                    dsth = surface.h, dstw = surface.h * video->width  / video->height;
+                }
             }
-        }
-        dstx = (surface.w - dstw) / 2;
-        dsty = (surface.h - dsth) / 2;
-        render->sws_dst_offset = dsty * surface.stride + dstx * (surface.cdepth / 8);
-        render->sws_context    = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
-            dstw, dsth, render->sws_dst_pixfmt, render->sws_scale_type, 0, 0, 0);
-        if (render->flags & FLAG_UPDATE) {
-            render->flags &= ~FLAG_UPDATE;
-            memset(surface.data, 0, surface.stride * surface.h);
+            dstx = (surface.w - dstw) / 2;
+            dsty = (surface.h - dsth) / 2;
+            render->sws_dst_offset = dsty * surface.stride + dstx * (surface.cdepth / 8);
+            render->sws_context    = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
+                dstw, dsth, render->sws_dst_pixfmt, render->sws_scale_type, 0, 0, 0);
+            if (render->flags & FLAG_UPDATE) {
+                render->flags &= ~FLAG_UPDATE;
+                memset(surface.data, 0, surface.stride * surface.h);
+            }
         }
     }
 
