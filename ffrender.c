@@ -125,7 +125,7 @@ void render_video(void *ctx, AVFrame *video)
         render->sws_dst_width  = surface.w;
         render->sws_dst_height = surface.h;
         render->sws_dst_pixfmt = surface.format;
-        if (render->sws_context) sws_freeContext(render->sws_context);
+        if (render->sws_context) { sws_freeContext(render->sws_context); render->sws_context = NULL; }
 
         if (video->width && video->height) {
             int dstw, dsth, dstx, dsty;
@@ -133,9 +133,9 @@ void render_video(void *ctx, AVFrame *video)
                 dstw = surface.w, dsth = surface.h;
             } else {
                 if (video->width * surface.h > video->height * surface.w) {
-                    dstw = surface.w, dsth = surface.w * video->height / video->width;
+                    dstw = surface.w & ~7, dsth = (surface.w * video->height / video->width ) & ~7;
                 } else {
-                    dsth = surface.h, dstw = surface.h * video->width  / video->height;
+                    dsth = surface.h & ~7, dstw = (surface.h * video->width  / video->height) & ~7;
                 }
             }
             dstx = (surface.w - dstw) / 2;
@@ -184,6 +184,7 @@ void render_set(void *ctx, char *key, void *val)
         render->new_speed_value = n;
         render->tick_start      = 0;
         render->frame_count     = 0;
+        render->tick_adjust     = 0;
         printf("speed: %d\n", n);
     }
     else if (strcmp(key, "frate") == 0) render->frate = *(AVRational*)val;
