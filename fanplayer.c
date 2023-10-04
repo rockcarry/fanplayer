@@ -53,6 +53,7 @@ typedef struct {
     #define PS_V_SEEK     (1 << 5)  // seek video
     #define PS_RECONNECT  (1 << 6)  // reconnect
     #define PS_CLOSE      (1 << 7)  // close flag
+    #define PS_COMPLETED  (1 << 8)  // play completed
     int              status;
     int              seek_req ;
     int64_t          seek_pos ;
@@ -69,6 +70,9 @@ typedef struct {
     int64_t          read_timelast;
     int64_t          read_timeout;
     int64_t          start_time;
+
+    int  a_completed_cnt;
+    int  v_completed_cnt;
 
     int  video_vwidth;             // wr video actual width
     int  video_vheight;            // wr video actual height
@@ -351,6 +355,22 @@ static int handle_fseek_or_reconnect(PLAYER *player)
     return ret;
 }
 
+static void check_play_completed(PLAYER *player, int av)
+{
+    #define MAX_COMPLETED_COUNT 20
+    if (!(player->status & PS_COMPLETED) && player->avformat_context->duration != (1ull << 63)) {
+        if (av) {
+            if (player->v_completed_cnt < MAX_COMPLETED_COUNT) player->v_completed_cnt++;
+            if (player->a_completed_cnt == MAX_COMPLETED_COUNT && player->v_completed_cnt == MAX_COMPLETED_COUNT) {
+                player->status |= PS_COMPLETED;
+                player_send_message(player, PLAYER_PLAY_COMPLETED, NULL, 0);
+            }
+        } else {
+            if (player->a_completed_cnt < MAX_COMPLETED_COUNT) player->a_completed_cnt++;
+        }
+    }
+}
+
 static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
@@ -366,7 +386,7 @@ static void* audio_decode_thread_proc(void *param)
         //-- when audio decode pause --//
 
         // dequeue audio packet
-        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) continue;
+        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) { check_play_completed(player, 0); continue; }
 
         //++ decode audio packet ++//
         apts = AV_NOPTS_VALUE;
@@ -420,7 +440,7 @@ static void* video_decode_thread_proc(void *param)
         //-- when video decode pause --//
 
         // dequeue video packet
-        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) { render_video(player->ffrender, &player->vframe); continue; }
+        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe); continue; }
 
         //++ decode video packet ++//
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
@@ -548,7 +568,9 @@ void player_seek(void *ctx, int64_t ms)
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
     player->seek_diff = 100;
     player->seek_sidx = -1;
-    player_update_status(player, 0, PS_F_SEEK);
+    player->a_completed_cnt = 0;
+    player->v_completed_cnt = 0;
+    player_update_status(player, PS_COMPLETED, PS_F_SEEK);
 }
 
 void player_set(void *ctx, char *key, void *val)

@@ -84,6 +84,9 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     case PLAYER_OPEN_SUCCESS:
         player_play(app->player, (app->playing = 1));
         break;
+    case PLAYER_PLAY_COMPLETED:
+        printf("play completed !\n");
+        break;
     case PLAYER_ADEV_SAMPRATE:
         return 48000;
     case PLAYER_ADEV_CHANNELS:
