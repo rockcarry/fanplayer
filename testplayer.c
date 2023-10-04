@@ -55,6 +55,16 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
 }
 #endif
 
+static void bar(BMP *bmp, int x, int y, int w, int h, int c)
+{
+    uint32_t *p = (uint32_t*)bmp->pdata + y * bmp->width + x;
+    int  i, j;
+    for (i = 0; i < h; i++) {
+        for (j = 0; j < w; j++) *p++ = c;
+        p += bmp->width - w;
+    }
+}
+
 static int my_player_cb(void *cbctx, int msg, void *buf, int len)
 {
     MYAPP *app = cbctx;
@@ -79,6 +89,13 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
             surf->stride  = bmp ? bmp->width * 4 : 0;
             surf->format  = SURFACE_FMT_RGB32;
             surf->cdepth  = 32;
+            if (surf->h > 3) {
+                surf->h -= 3;
+                uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
+                uint32_t position = player_get(app->player, PARAM_MEDIA_POSITION, NULL);
+                uint32_t w = surf->w * position / duration;
+                bar(bmp, 0, surf->h, w, 3, 0xFF8800);
+            }
         }
         break;
     case PLAYER_VDEV_UNLOCK:

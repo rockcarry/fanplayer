@@ -39,6 +39,14 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx);
 void  player_exit(void *ctx);
 void  player_play(void *ctx, int play);
 void  player_seek(void *ctx, int64_t ms);
+
+#define PARAM_MEDIA_DURATION ((char*)0)
+#define PARAM_MEDIA_POSITION ((char*)1)
+#define PARAM_VIDEO_WIDTH    ((char*)2)
+#define PARAM_VIDEO_HEIGHT   ((char*)3)
+#define PARAM_PLAY_SPEED    "speed"
+#define PARAM_VIDEO_STRETCH "stretch"
+
 void  player_set (void *ctx, char *key, void *val);
 long  player_get (void *ctx, char *key, void *val);
 

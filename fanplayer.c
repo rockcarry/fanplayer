@@ -587,5 +587,15 @@ long player_get(void *ctx, char *key, void *val)
 {
     if (!ctx) return 0;
     PLAYER *player = ctx;
+    switch ((long)key) {
+    case (int)PARAM_MEDIA_DURATION:
+        return player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1;
+    case (int)PARAM_MEDIA_POSITION:
+        return (uint32_t)(render_get(player->ffrender, key, NULL) - player->start_time);
+    case (int)PARAM_VIDEO_WIDTH:
+        return player->vcodec_context ? player->video_owidth  : 0;
+    case (int)PARAM_VIDEO_HEIGHT:
+        return player->vcodec_context ? player->video_oheight : 0;
+    }
     return render_get(player->ffrender, key, val);
 }

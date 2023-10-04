@@ -132,16 +132,14 @@ void render_video(void *ctx, AVFrame *video)
             dstw = surface.w, dsth = surface.h;
         } else {
             if (video->width * surface.h > video->height * surface.w) {
-                dstw = surface.w;
-                dsth = surface.w * video->height / video->width;
+                dstw = surface.w, dsth = surface.w * video->height / video->width;
             } else {
-                dstw = surface.h * video->width / video->height;
-                dsth = surface.h;
+                dsth = surface.h, dstw = surface.h * video->width  / video->height;
             }
         }
         dstx = (surface.w - dstw) / 2;
         dsty = (surface.h - dsth) / 2;
-        render->sws_dst_offset = dsty * surface.stride + dstx * surface.cdepth / 8;
+        render->sws_dst_offset = dsty * surface.stride + dstx * (surface.cdepth / 8);
         render->sws_context    = sws_getContext(render->sws_src_width, render->sws_src_height, render->sws_src_pixfmt,
             dstw, dsth, render->sws_dst_pixfmt, render->sws_scale_type, 0, 0, 0);
         if (render->flags & FLAG_UPDATE) {
@@ -190,6 +188,7 @@ long render_get(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx) return 0;
+    if (key == PARAM_MEDIA_POSITION) return (uint32_t)(render->apts > render->vpts ? render->apts : render->vpts);
     if (strcmp(key, "speed"  ) == 0) return (long)render->cur_speed_value;
     if (strcmp(key, "frate"  ) == 0) return (long)&render->frate;
     if (strcmp(key, "stretch") == 0) return (long)!!(render->flags & FLAG_STRETCH);
