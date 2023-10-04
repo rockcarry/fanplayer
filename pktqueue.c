@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include "pktqueue.h"
 #include "libavutil/log.h"
+#include "libavutil/time.h"
 
 #define DEF_PKT_QUEUE_SIZE 256 // important!! size must be a power of 2
 
@@ -30,16 +31,12 @@ typedef struct {
 void* pktqueue_create(int size)
 {
     PKTQUEUE *ppq;
-    int       i  ;
+    int       i;
 
     size = size ? size : DEF_PKT_QUEUE_SIZE;
     ppq  = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE) + size * sizeof(AVPacket) + 3 * size * sizeof(AVPacket*));
-    if (!ppq) {
-        av_log(NULL, AV_LOG_ERROR, "failed to allocate pktqueue context !\n");
-        exit(0);
-    }
+    if (!ppq) return NULL;
 
-    // alloc buffer & semaphore
     ppq->fncur  = ppq->asize = ppq->vsize = ppq->fsize = size;
     ppq->bpkts  = (AVPacket* )((uint8_t*)ppq + sizeof(PKTQUEUE));
     ppq->fpkts  = (AVPacket**)((uint8_t*)ppq->bpkts + size * sizeof(AVPacket ));
@@ -47,36 +44,28 @@ void* pktqueue_create(int size)
     ppq->vpkts  = (AVPacket**)((uint8_t*)ppq->apkts + size * sizeof(AVPacket*));
     pthread_mutex_init(&ppq->lock, NULL);
     pthread_cond_init (&ppq->cond, NULL);
-
-    // init fpkts
-    for (i=0; i<ppq->fsize; i++) {
-        ppq->fpkts[i] = &ppq->bpkts[i];
-    }
+    for (i = 0; i < ppq->fsize; i++) ppq->fpkts[i] = &ppq->bpkts[i];
     return ppq;
 }
 
 void pktqueue_destroy(void *ctx)
 {
+    if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     int       i;
-
-    // unref all packets
-    for (i=0; i<ppq->fsize; i++) av_packet_unref(&ppq->bpkts[i]);
-
-    // close
+    for (i = 0; i < ppq->fsize; i++) av_packet_unref(&ppq->bpkts[i]);
     pthread_mutex_destroy(&ppq->lock);
     pthread_cond_destroy (&ppq->cond);
-
-    // free
     free(ppq);
 }
 
 void pktqueue_reset(void *ctx)
 {
+    if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     int       i;
     pthread_mutex_lock(&ppq->lock);
-    for (i=0; i<ppq->fsize; i++) {
+    for (i = 0; i < ppq->fsize; i++) {
         ppq->fpkts[i] = &ppq->bpkts[i];
         ppq->apkts[i] = NULL;
         ppq->vpkts[i] = NULL;
@@ -92,6 +81,7 @@ void pktqueue_reset(void *ctx)
 
 AVPacket* pktqueue_request_packet(void *ctx)
 {
+    if (!ctx) { av_usleep(20 * 1000); return NULL; }
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     AVPacket *pkt = NULL;
     struct timespec ts;
@@ -114,6 +104,7 @@ AVPacket* pktqueue_request_packet(void *ctx)
 
 void pktqueue_release_packet(void *ctx, AVPacket *pkt)
 {
+    if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     struct timespec ts;
     int ret = 0;
@@ -133,6 +124,7 @@ void pktqueue_release_packet(void *ctx, AVPacket *pkt)
 
 void pktqueue_audio_enqueue(void *ctx, AVPacket *pkt)
 {
+    if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     pthread_mutex_lock(&ppq->lock);
     while (ppq->ancur == ppq->asize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
@@ -147,6 +139,7 @@ void pktqueue_audio_enqueue(void *ctx, AVPacket *pkt)
 
 AVPacket* pktqueue_audio_dequeue(void *ctx)
 {
+    if (!ctx) { av_usleep(20 * 1000); return NULL; }
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     AVPacket *pkt = NULL;
     struct timespec ts;
@@ -169,6 +162,7 @@ AVPacket* pktqueue_audio_dequeue(void *ctx)
 
 void pktqueue_video_enqueue(void *ctx, AVPacket *pkt)
 {
+    if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     pthread_mutex_lock(&ppq->lock);
     while (ppq->vncur == ppq->vsize && (ppq->status & TS_STOP) == 0) pthread_cond_wait(&ppq->cond, &ppq->lock);
@@ -183,6 +177,7 @@ void pktqueue_video_enqueue(void *ctx, AVPacket *pkt)
 
 AVPacket* pktqueue_video_dequeue(void *ctx)
 {
+    if (!ctx) { av_usleep(20 * 1000); return NULL; }
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
     AVPacket *pkt = NULL;
     struct timespec ts;

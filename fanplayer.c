@@ -55,11 +55,9 @@ typedef struct {
     #define PS_CLOSE      (1 << 7)  // close flag
     #define PS_COMPLETED  (1 << 8)  // play completed
     int              status;
-    int              seek_req ;
     int64_t          seek_pos ;
     int64_t          seek_dest;
     int              seek_diff;
-    int              seek_sidx;
 
     pthread_mutex_t  lock;
     pthread_t        avdemux_thread;
@@ -164,7 +162,7 @@ static void player_update_status(PLAYER *player, int clear, int set)
 
 static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
     AVCodec *decoder = NULL;
-    int     idx = -1, cur = -1, i;
+    int idx = -1, cur = -1, i;
 
     if (sel == -1) return -1;
     for (i=0; i<(int)player->avformat_context->nb_streams; i++) {
@@ -272,8 +270,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 
     while (1) {
         // allocate avformat_context
-        player->avformat_context = avformat_alloc_context();
-        if (!player->avformat_context) goto done;
+        if (!(player->avformat_context = avformat_alloc_context())) goto done;
 
         // setup interrupt_callback
         player->avformat_context->interrupt_callback.callback = interrupt_callback;
@@ -285,27 +282,23 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
         player->read_timeout  = player->init_timeout ? player->init_timeout * 1000 : -1;
 
         if (avformat_open_input(&player->avformat_context, player->url, NULL, &opts) != 0) { // if failed, no need call avformat_free_context
+            av_usleep(100 * 1000);
             if (player->auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
                 av_log(NULL, AV_LOG_INFO, "retry to open url: %s ...\n", player->url);
-                av_usleep(100 * 1000);
             } else {
-                av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", player->url);
-                goto done;
+                av_log(NULL, AV_LOG_ERROR, "failed to open url: %s !\n", player->url); goto done;
             }
         } else { av_log(NULL, AV_LOG_INFO, "successed to open url: %s !\n", player->url); break; }
     }
 
     // find stream info
     if (avformat_find_stream_info(player->avformat_context, NULL) < 0) {
-        av_log(NULL, AV_LOG_ERROR, "failed to find stream info !\n");
-        goto done;
+        av_log(NULL, AV_LOG_ERROR, "failed to find stream info !\n"); goto done;
     }
 
     // set current audio & video stream
     player->astream_index = -1; init_stream(player, AVMEDIA_TYPE_AUDIO, player->audio_stream_cur);
     player->vstream_index = -1; init_stream(player, AVMEDIA_TYPE_VIDEO, player->video_stream_cur);
-    if (player->astream_index != -1) player->seek_req |= PS_A_SEEK;
-    if (player->vstream_index != -1) player->seek_req |= PS_V_SEEK;
 
     // for audio
     if (player->astream_index != -1) {
@@ -361,21 +354,21 @@ static int handle_fseek_or_reconnect(PLAYER *player)
         av_usleep(20 * 1000);
     }
 
-    if (!player->avformat_context || (player->status & PS_RECONNECT)) {
+    if (!player->avformat_context || (player->status & PS_RECONNECT)) { // do reconnect
         if (ret == 0) player_send_message(player, PLAYER_STREAM_DISCONNECT, NULL, 0);
         ret = player_prepare_or_free(player, 1);
         if (ret == 0) player_send_message(player, PLAYER_STREAM_CONNECTED , NULL, 0);
-    } else {
-        av_seek_frame(player->avformat_context, player->seek_sidx, player->seek_pos, AVSEEK_FLAG_BACKWARD);
+    } else { // do seek
+        av_seek_frame(player->avformat_context, -1, player->seek_pos, AVSEEK_FLAG_BACKWARD);
         if (player->astream_index != -1) avcodec_flush_buffers(player->acodec_context);
         if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
     }
 
-    pktqueue_reset(player->pktqueue); // reset pktqueue
+    pktqueue_reset(player->pktqueue);                 // reset pktqueue
     render_set(player->ffrender, "reset", (void*)-1); // reset render
 
     // make audio & video decoding thread resume
-    if (ret == 0) player_update_status(player, PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK, (player->status & PS_F_SEEK) ? player->seek_req : 0);
+    if (ret == 0) player_update_status(player, PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK, (player->status & PS_F_SEEK) ? (PS_A_SEEK|PS_V_SEEK) : 0);
     return ret;
 }
 
@@ -401,17 +394,16 @@ static void* audio_decode_thread_proc(void *param)
     AVPacket *packet = NULL;
 
     while (!(player->status & PS_CLOSE)) {
-        //++ when audio decode pause ++//
+        // handle audio decode pause
         if (player->status & PS_A_PAUSE) {
             player_update_status(player, 0, (PS_A_PAUSE << 16));
             av_usleep(20 * 1000); continue;
         }
-        //-- when audio decode pause --//
 
         // dequeue audio packet
-        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) { check_play_completed(player, 0); continue; }
+        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) { check_play_completed(player, 0); av_usleep(20 * 1000); continue; }
 
-        //++ decode audio packet ++//
+        // decode audio packet
         while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
             int gotaudio = 0, consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
             if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n"); break; }
@@ -419,12 +411,11 @@ static void* audio_decode_thread_proc(void *param)
                 player->aframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->aframe), player->astream_timebase, TIMEBASE_MS);
                 if ( (player->status & PS_A_SEEK) && player->seek_dest - player->aframe.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
-                while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_SEEK))) av_usleep(20 * 1000);
+                while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_PAUSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
             packet->data += consumed;
             packet->size -= consumed;
         }
-        //-- decode audio packet --//
 
         // release packet
         pktqueue_release_packet(player->pktqueue, packet);
@@ -438,17 +429,16 @@ static void* video_decode_thread_proc(void *param)
     AVPacket *packet = NULL;
 
     while (!(player->status & PS_CLOSE)) {
-        //++ when video decode pause ++//
+        // handle video decode pause
         if (player->status & PS_V_PAUSE) {
             player_update_status(player, 0, (PS_V_PAUSE << 16));
             av_usleep(20 * 1000); continue;
         }
-        //-- when video decode pause --//
 
         // dequeue video packet
         if (!(packet = pktqueue_video_dequeue(player->pktqueue))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe); continue; }
 
-        //++ decode video packet ++//
+        // decode video packet
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
             int gotvideo = 0, consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);;
             if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n"); break; }
@@ -457,12 +447,11 @@ static void* video_decode_thread_proc(void *param)
                 if ((player->status & PS_V_SEEK) && player->seek_dest - player->vframe.pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
                 do {
                     if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe);
-                } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_SEEK)));
+                } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_PAUSE|PS_V_SEEK)));
             }
             packet->data += packet->size;
             packet->size -= packet->size;
         }
-        //-- decode video packet --//
 
         // release packet
         pktqueue_release_packet(player->pktqueue, packet);
@@ -478,12 +467,11 @@ static void* av_demux_thread_proc(void *param)
     while (!(player->status & PS_CLOSE)) {
         if (handle_fseek_or_reconnect(player) != 0) {
             if (!player->auto_reconnect) break;
-            av_usleep(20 * 1000); continue;
+            continue;
         }
         if ((packet = pktqueue_request_packet(player->pktqueue)) == NULL) continue;
 
-        int retv = av_read_frame(player->avformat_context, packet);
-        if (retv < 0) {
+        if (av_read_frame(player->avformat_context, packet) < 0) {
             pktqueue_release_packet(player->pktqueue, packet);
             if (player->auto_reconnect > 0 && av_gettime_relative() - player->read_timelast > player->auto_reconnect * 1000) {
                 player_update_status(player, 0, PS_RECONNECT);
@@ -531,7 +519,7 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     av_log_set_callback(avlog_callback);
 
     strncpy(player->url, url, sizeof(player->url) - 1);
-    player->status   = (PS_A_PAUSE | PS_V_PAUSE | PS_R_PAUSE); // make sure player paused
+    player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
     player->ffrender = render_init(NULL, player->callback, player->cbctx);
     player->pktqueue = pktqueue_create(0);
 
@@ -578,8 +566,7 @@ void player_seek(void *ctx, int64_t ms)
     PLAYER *player = ctx;
     player->seek_dest =  player->start_time + ms;
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
-    player->seek_diff = 100;
-    player->seek_sidx = -1;
+    player->seek_diff = 50;
     player->a_completed_cnt = 0;
     player->v_completed_cnt = 0;
     player_update_status(player, PS_COMPLETED, PS_F_SEEK);
