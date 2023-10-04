@@ -178,8 +178,6 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
         //-- open codec
         break;
 
-    case AVMEDIA_TYPE_SUBTITLE:
-        return -1; // todo...
     default:
         return -1;
     }
@@ -398,7 +396,7 @@ static void* audio_decode_thread_proc(void *param)
                 }
                 //-- for seek operation
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
-                while ((player->status & PS_R_PAUSE) && !(player->status & PS_CLOSE)) av_usleep(10 * 1000);
+                while ((player->status & PS_R_PAUSE) && !(player->status & PS_CLOSE)) av_usleep(20 * 1000);
             }
 
             packet->data += consumed;
@@ -428,7 +426,7 @@ static void* video_decode_thread_proc(void *param)
         //-- when video decode pause --//
 
         // dequeue video packet
-        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) continue;
+        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) { render_video(player->ffrender, &player->vframe); continue; }
 
         //++ decode video packet ++//
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
