@@ -101,9 +101,9 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
             surf->w       = bmp ? bmp->width : 0;
             surf->h       = bmp ? bmp->height: 0;
             surf->data    = bmp ? bmp->pdata : NULL;
-            surf->stride  = bmp ? bmp->width * 4 : 0;
-            surf->format  = SURFACE_FMT_RGB32;
-            surf->cdepth  = 32;
+            surf->stride  = bmp ? bmp->stride: 0;
+            surf->format  = bmp ? bmp->pixfmt: SURFACE_FMT_RGB32;
+            surf->cdepth  = bmp ? bmp->cdepth: 32;
             if (surf->h > 3) {
                 surf->h -= 3;
                 uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
