@@ -18,7 +18,7 @@ if DISABLE_SHARED
 fanplayer_LDFLAGS = --static
 endif
 
-CFLAGS += -Os -g -Wall -Werror -Wno-deprecated-declarations -funwind-tables -ffunction-sections -fdata-sections
+CFLAGS += -Os -g -Wall -Werror -funwind-tables -ffunction-sections -fdata-sections
 
 if WIN32
 CFLAGS  += -DWIN32 -mwindows

@@ -71,7 +71,6 @@ typedef struct {
     int  video_frame_rate;         // wr 视频帧率
     int  video_stream_total;       // r  视频流总数
     int  video_stream_cur;         // wr 当前视频流
-    int  video_thread_count;       // wr 视频解码线程数
     int  video_codecid;            // wr 视频解码器的 codecid
 
     int  audio_channels;           // r  音频通道数
@@ -151,66 +150,43 @@ static void player_update_status(PLAYER *player, int clear, int set)
 
 static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
     AVCodec *decoder = NULL;
-    int idx = -1, cur = -1, i;
-
-    if (sel == -1) return -1;
-    for (i=0; i<(int)player->avformat_context->nb_streams; i++) {
-        if (player->avformat_context->streams[i]->codec->codec_type == type) {
-            idx = i; if (++cur == sel) break;
-        }
-    }
-    if (idx == -1) return -1;
+    int idx = av_find_best_stream(player->avformat_context, type, sel, -1, &decoder, 0);
+    if (idx < 0) return -1;
 
     switch (type) {
     case AVMEDIA_TYPE_AUDIO:
         // get new acodec_context & astream_timebase
-        player->acodec_context   = player->avformat_context->streams[idx]->codec;
+        player->acodec_context   = avcodec_alloc_context3(decoder);
         player->astream_timebase = player->avformat_context->streams[idx]->time_base;
-
-        // reopen codec
-        decoder = avcodec_find_decoder(player->acodec_context->codec_id);
+        avcodec_parameters_to_context(player->acodec_context, player->avformat_context->streams[idx]->codecpar);
+        // open codec
         if (decoder && avcodec_open2(player->acodec_context, decoder, NULL) == 0) {
             player->astream_index = idx;
         } else {
             av_log(NULL, AV_LOG_WARNING, "failed to find or open decoder for audio !\n");
         }
         break;
-
     case AVMEDIA_TYPE_VIDEO:
         // get new vcodec_context & vstream_timebase
-        player->vcodec_context   = player->avformat_context->streams[idx]->codec;
+        player->vcodec_context   = avcodec_alloc_context3(decoder);
         player->vstream_timebase = player->avformat_context->streams[idx]->time_base;
-
-        //++ open codec
-        if (!decoder) {
-            //+ try to set video decoding thread count
-            if (player->video_thread_count > 0) {
-                player->vcodec_context->thread_count = player->video_thread_count;
-            }
-            //- try to set video decoding thread count
-            decoder = avcodec_find_decoder(player->vcodec_context->codec_id);
-            if (decoder && avcodec_open2(player->vcodec_context, decoder, NULL) == 0) {
-                player->vstream_index = idx;
-            } else {
-                av_log(NULL, AV_LOG_WARNING, "failed to find or open decoder for video !\n");
-            }
-            // get the actual video decoding thread count
-            player->video_thread_count = player->vcodec_context->thread_count;
+        avcodec_parameters_to_context(player->vcodec_context, player->avformat_context->streams[idx]->codecpar);
+        if (decoder && avcodec_open2(player->vcodec_context, decoder, NULL) == 0) {
+            player->vstream_index = idx;
+        } else {
+            av_log(NULL, AV_LOG_WARNING, "failed to find or open decoder for video !\n");
         }
-        //-- open codec
         break;
-
     default:
         return -1;
     }
-
     return 0;
 }
 
 static int get_stream_total(PLAYER *player, enum AVMediaType type) {
     int total, i;
     for (total = 0, i = 0; i < (int)player->avformat_context->nb_streams; i++) {
-        if (player->avformat_context->streams[i]->codec->codec_type == type) total++;
+        if (player->avformat_context->streams[i]->codecpar->codec_type == type) total++;
     }
     return total;
 }
@@ -225,9 +201,9 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     int           ret  = -1;
     char vsize[64], frate[64];
 
-    if (player->acodec_context  ) { avcodec_close(player->acodec_context); player->acodec_context = NULL; }
-    if (player->vcodec_context  ) { avcodec_close(player->vcodec_context); player->vcodec_context = NULL; }
-    if (player->avformat_context) { avformat_close_input(&player->avformat_context); }
+    if (player->acodec_context  ) avcodec_free_context(&player->acodec_context  );
+    if (player->vcodec_context  ) avcodec_free_context(&player->vcodec_context  );
+    if (player->avformat_context) avformat_close_input(&player->avformat_context);
     av_frame_unref(&player->aframe); player->aframe.pts = -1;
     av_frame_unref(&player->vframe); player->vframe.pts = -1;
     if (!prepare) return 0;
@@ -387,17 +363,14 @@ static void* audio_decode_thread_proc(void *param)
         if (!(packet = pktqueue_audio_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 0); av_usleep(20 * 1000); continue; }
 
         // decode audio packet
-        while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
-            int gotaudio = 0, consumed = avcodec_decode_audio4(player->acodec_context, &player->aframe, &gotaudio, packet);
-            if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding audio.\n"); break; }
-            if (gotaudio) {
+        int ret = avcodec_send_packet(player->acodec_context, packet);
+        while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
+            if ((ret = avcodec_receive_frame(player->acodec_context, &player->aframe)) == 0) {
                 player->aframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->aframe), player->astream_timebase, TIMEBASE_MS);
                 if ( (player->status & PS_A_SEEK) && player->seek_dest - player->aframe.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe, npkt);
                 while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_PAUSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
-            packet->data += consumed;
-            packet->size -= consumed;
         }
 
         // release packet
@@ -422,18 +395,15 @@ static void* video_decode_thread_proc(void *param)
         if (!(packet = pktqueue_video_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe, npkt); continue; }
 
         // decode video packet
-        while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
-            int gotvideo = 0, consumed = avcodec_decode_video2(player->vcodec_context, &player->vframe, &gotvideo, packet);;
-            if (consumed < 0) { av_log(NULL, AV_LOG_WARNING, "an error occurred during decoding video.\n"); break; }
-            if (gotvideo) {
+        int ret = avcodec_send_packet(player->vcodec_context, packet);
+        while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
+            if ((ret = avcodec_receive_frame(player->vcodec_context, &player->vframe)) == 0) {
                 player->vframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->vframe), player->vstream_timebase, TIMEBASE_MS);
                 if ((player->status & PS_V_SEEK) && player->seek_dest - player->vframe.pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
                 do {
                     if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe, npkt);
                 } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_PAUSE|PS_V_SEEK)));
             }
-            packet->data += packet->size;
-            packet->size -= packet->size;
         }
 
         // release packet
@@ -478,17 +448,16 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     player->cbctx    = cbctx;
 
     char strval[256] = "";
-    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
-    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
-    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_thread_count = atoi(parse_params(params, "video_thread_count", strval, sizeof(strval)) ? strval : "0");
-    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
-    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
-    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
-    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
-    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0" );
+    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0" );
+    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0" );
+    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "-1");
+    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0" );
+    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "-1");
+    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0" );
+    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0" );
+    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0" );
+    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0" );
 
     // av register all
     av_register_all();
