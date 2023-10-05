@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
     idev_set(myapp.idev, "callback", my_videv_cb);
 #endif
 
-    myapp.player = player_init(url, NULL, my_player_cb, &myapp);
+    myapp.player = player_init(url, initparams, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
     while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { sleep(1); }

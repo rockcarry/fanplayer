@@ -20,6 +20,13 @@ typedef struct {
 } SURFACE;
 
 enum {
+    AVSYNC_MODE_AUTO,  // auto
+    AVSYNC_MODE_FILE,  // file mode
+    AVSYNC_MODE_LIVE_SYNC0, // live mode, without avts sync
+    AVSYNC_MODE_LIVE_SYNC1, // live mode, with avts sync
+};
+
+enum {
     PLAYER_ADEV_SAMPRATE,
     PLAYER_ADEV_CHANNELS,
     PLAYER_ADEV_BUFFER,

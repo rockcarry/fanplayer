@@ -137,7 +137,7 @@ void pktqueue_audio_enqueue(void *ctx, AVPacket *pkt)
     pthread_mutex_unlock(&ppq->lock);
 }
 
-AVPacket* pktqueue_audio_dequeue(void *ctx)
+AVPacket* pktqueue_audio_dequeue(void *ctx, int *npkt)
 {
     if (!ctx) { av_usleep(20 * 1000); return NULL; }
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
@@ -156,6 +156,7 @@ AVPacket* pktqueue_audio_dequeue(void *ctx)
         pthread_cond_signal(&ppq->cond);
         av_log(NULL, AV_LOG_INFO, "apktn: %d\n", ppq->ancur);
     }
+    *npkt = ppq->ancur;
     pthread_mutex_unlock(&ppq->lock);
     return pkt;
 }
@@ -175,7 +176,7 @@ void pktqueue_video_enqueue(void *ctx, AVPacket *pkt)
     pthread_mutex_unlock(&ppq->lock);
 }
 
-AVPacket* pktqueue_video_dequeue(void *ctx)
+AVPacket* pktqueue_video_dequeue(void *ctx, int *npkt)
 {
     if (!ctx) { av_usleep(20 * 1000); return NULL; }
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
@@ -194,6 +195,7 @@ AVPacket* pktqueue_video_dequeue(void *ctx)
         pthread_cond_signal(&ppq->cond);
         av_log(NULL, AV_LOG_INFO, "vpktn: %d\n", ppq->vncur);
     }
+    *npkt = ppq->vncur;
     pthread_mutex_unlock(&ppq->lock);
     return pkt;
 }

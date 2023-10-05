@@ -14,13 +14,6 @@
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 
-enum {
-    AVSYNC_MODE_AUTO,  // 自动
-    AVSYNC_MODE_FILE,  // 文件播放模式
-    AVSYNC_MODE_LIVE_SYNC0, // 直播模式，放弃音视频同步
-    AVSYNC_MODE_LIVE_SYNC1, // 直播模式，做音视频同步
-};
-
 typedef struct {
     // format
     AVFormatContext *avformat_context;
@@ -80,19 +73,16 @@ typedef struct {
     int  video_stream_cur;         // wr 当前视频流
     int  video_thread_count;       // wr 视频解码线程数
     int  video_codecid;            // wr 视频解码器的 codecid
-    int  video_bufpktn;            // wr 视频 pkt 缓冲数
 
     int  audio_channels;           // r  音频通道数
     int  audio_sample_rate;        // r  音频采样率
     int  audio_stream_total;       // r  音频流总数
     int  audio_stream_cur;         // wr 当前音频流
-    int  audio_bufpktn;            // wr 音频 pkt 缓冲数
 
     int  init_timeout;             // w  播放器初始化超时，单位 ms，打开网络流媒体时设置用来防止卡死
     int  open_autoplay;            // w  播放器打开后自动播放
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
-    int  avts_syncmode;            // wr 音视频时间戳同步模式，0 - 自动，1 - 文件播放模式，2 - 直播模式，做音视频同步，3 - 直播模式，放弃音视频同步
 
     // save url
     char  url[PATH_MAX];
@@ -116,7 +106,7 @@ static char* parse_params(char *str, char *key, char *val, int len)
     }
 
     for (i = 0; i < len; i++) {
-        if (*p == ';' || *p == '\r' || *p == '\n' || *p == '\0') break;
+        if (*p == ',' || *p == ';' || *p == '\r' || *p == '\n' || *p == '\0') break;
         if (*p == '\\') p++;
         val[i] = *p++;
     }
@@ -252,11 +242,6 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
         av_dict_set(&opts, "buffer_size"    , "1048576", 0);
         av_dict_set(&opts, "fpsprobesize"   , "2"      , 0);
         av_dict_set(&opts, "analyzeduration", "5000000", 0);
-        if (player->avts_syncmode == AVSYNC_MODE_AUTO) {
-            player->avts_syncmode = memcmp(player->url, "rtmp://", 7) == 0 ? AVSYNC_MODE_LIVE_SYNC1 : AVSYNC_MODE_LIVE_SYNC0;
-        }
-    } else {
-        if (player->avts_syncmode == AVSYNC_MODE_AUTO) player->avts_syncmode = AVSYNC_MODE_FILE;
     }
     if (player->video_vwidth != 0 && player->video_vheight != 0) {
         sprintf(vsize, "%dx%d", player->video_vwidth, player->video_vheight);
@@ -390,7 +375,7 @@ static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-
+    int       npkt;
     while (!(player->status & PS_CLOSE)) {
         // handle audio decode pause
         if (player->status & PS_A_PAUSE) {
@@ -399,7 +384,7 @@ static void* audio_decode_thread_proc(void *param)
         }
 
         // dequeue audio packet
-        if (!(packet = pktqueue_audio_dequeue(player->pktqueue))) { check_play_completed(player, 0); av_usleep(20 * 1000); continue; }
+        if (!(packet = pktqueue_audio_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 0); av_usleep(20 * 1000); continue; }
 
         // decode audio packet
         while (packet->size > 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
@@ -408,7 +393,7 @@ static void* audio_decode_thread_proc(void *param)
             if (gotaudio) {
                 player->aframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->aframe), player->astream_timebase, TIMEBASE_MS);
                 if ( (player->status & PS_A_SEEK) && player->seek_dest - player->aframe.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
-                if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe);
+                if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe, npkt);
                 while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_PAUSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
             packet->data += consumed;
@@ -425,7 +410,7 @@ static void* video_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-
+    int       npkt;
     while (!(player->status & PS_CLOSE)) {
         // handle video decode pause
         if (player->status & PS_V_PAUSE) {
@@ -434,7 +419,7 @@ static void* video_decode_thread_proc(void *param)
         }
 
         // dequeue video packet
-        if (!(packet = pktqueue_video_dequeue(player->pktqueue))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe); continue; }
+        if (!(packet = pktqueue_video_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe, npkt); continue; }
 
         // decode video packet
         while (packet->size > 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
@@ -444,7 +429,7 @@ static void* video_decode_thread_proc(void *param)
                 player->vframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->vframe), player->vstream_timebase, TIMEBASE_MS);
                 if ((player->status & PS_V_SEEK) && player->seek_dest - player->vframe.pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
                 do {
-                    if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe);
+                    if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe, npkt);
                 } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_PAUSE|PS_V_SEEK)));
             }
             packet->data += packet->size;
@@ -499,14 +484,11 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
     player->video_thread_count = atoi(parse_params(params, "video_thread_count", strval, sizeof(strval)) ? strval : "0");
     player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
-    player->video_bufpktn      = atoi(parse_params(params, "video_bufpktn"     , strval, sizeof(strval)) ? strval : "0");
     player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->audio_bufpktn      = atoi(parse_params(params, "audio_bufpktn"     , strval, sizeof(strval)) ? strval : "0");
     player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
     player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
     player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
     player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
-    player->avts_syncmode      = atoi(parse_params(params, "avts_syncmode"     , strval, sizeof(strval)) ? strval : "0");
 
     // av register all
     av_register_all();
@@ -518,8 +500,11 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
 
     strncpy(player->url, url, sizeof(player->url) - 1);
     player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
-    player->ffrender = render_init(NULL, player->callback, player->cbctx);
     player->pktqueue = pktqueue_create(0);
+    player->ffrender = render_init(NULL, player->callback, player->cbctx);
+    render_set(player->ffrender, "avts_sync_mode", (void*)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, "audio_buf_npkt", (void*)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, "video_buf_npkt", (void*)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
 
     pthread_mutex_init(&player->lock, NULL); // init lock
     pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);

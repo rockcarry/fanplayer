@@ -16,10 +16,10 @@ AVPacket* pktqueue_request_packet(void *ctx); // request a packet
 void      pktqueue_release_packet(void *ctx, AVPacket *pkt); // release a packet
 
 void      pktqueue_audio_enqueue (void *ctx, AVPacket *pkt); // enqueue a packet to audio-queue
-AVPacket* pktqueue_audio_dequeue (void *ctx); // dequeue a audio packet from audio-queue
+AVPacket* pktqueue_audio_dequeue (void *ctx, int *npkt);     // dequeue a audio packet from audio-queue
 
 void      pktqueue_video_enqueue (void *ctx, AVPacket *pkt); // enqueue a packet to video-queue
-AVPacket* pktqueue_video_dequeue (void *ctx); // dequeue a audio packet from video-queue
+AVPacket* pktqueue_video_dequeue (void *ctx, int *npkt);     // dequeue a audio packet from video-queue
 
 #ifdef __cplusplus
 }
