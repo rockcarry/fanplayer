@@ -18,7 +18,6 @@ typedef struct {
     struct SwrContext *swr_context;
     struct SwsContext *sws_context;
 
-    AVRational         frate;
     int                cur_speed_value;
     int                new_speed_value;
 
@@ -39,8 +38,7 @@ typedef struct {
     int                sws_dst_offset;
     int                sws_scale_type;
 
-    int64_t            apts, vpts, tick_start, tick_adjust, frame_count;
-
+    int64_t            frate_num, frate_den, apts, vpts, tick_start, tick_adjust, frame_count;
     PFN_PLAYER_CB      callback;
     void              *cbctx;
 } RENDER;
@@ -51,8 +49,8 @@ void* render_init(char *type, PFN_PLAYER_CB callback, void *cbctx)
     if (!render) return NULL;
     render->sws_scale_type  = SWS_FAST_BILINEAR;
     render->new_speed_value = DEF_PLAY_SPEED;
-    render->frate.num       = DEF_FRAME_RATE;
-    render->frate.den       = 1;
+    render->frate_num       = 1000;
+    render->frate_den       = 1000 / DEF_FRAME_RATE;
     render->callback        = callback;
     render->cbctx           = cbctx;
     return render;
@@ -93,7 +91,7 @@ void render_audio(void *ctx, AVFrame *audio)
     }
 
     if (render->swr_context) {
-        frate   = (int64_t)render->frate.num * render->cur_speed_value / ((int64_t)render->frate.den * DEF_PLAY_SPEED);
+        frate   = (render->frate_num * render->cur_speed_value) / (render->frate_den * DEF_PLAY_SPEED);
         frate   = frate > DEF_FRAME_RATE ? frate : DEF_FRAME_RATE;
         sampnum = render->adev_samprate / frate;
         do {
@@ -157,11 +155,13 @@ void render_video(void *ctx, AVFrame *video)
     render->callback(render->cbctx, PLAYER_VDEV_UNLOCK, NULL, 0);
 
     int64_t tick_cur   = av_gettime_relative() / 1000;
-    int64_t tick_avdiff= render->apts - render->vpts;
+    int64_t tick_avdiff=(render->apts && render->vpts != video->pts) ? render->apts - video->pts : 0;
     render->tick_start = render->tick_start ? render->tick_start : tick_cur;
-    int64_t tick_next  = render->tick_start + (++render->frame_count * 1000 * DEF_PLAY_SPEED * render->frate.den) / ((int64_t)render->frate.num * render->new_speed_value);
+    render->frate_num += (render->vpts && video->pts > render->vpts) ? 1000 : 0;
+    render->frate_den += (render->vpts && video->pts > render->vpts) ? video->pts - render->vpts : 0;
+    render->vpts       = video->pts;
+    int64_t tick_next  = render->tick_start + (++render->frame_count * DEF_PLAY_SPEED * 1000 * render->frate_den) / (render->new_speed_value * render->frate_num);
     int64_t tick_sleep = tick_next - tick_cur;
-    (render->vpts != video->pts) ? (render->vpts = video->pts) : (tick_avdiff = 0);
 
     if      (tick_avdiff > 50 ) render->tick_adjust -= 2;
     else if (tick_avdiff > 20 ) render->tick_adjust -= 1;
@@ -181,11 +181,8 @@ void render_set(void *ctx, char *key, void *val)
         n = n < 300 ? n : 300;
         n = n > 10  ? n : 10;
         if ((long)val != -1) render->new_speed_value = n;
-        render->tick_start  = 0;
-        render->frame_count = 0;
-        render->tick_adjust = 0;
+        render->vpts = render->frame_count = render->tick_start = render->tick_adjust = 0;
     }
-    else if (strcmp(key, "frate") == 0) render->frate = *(AVRational*)val;
     else if (strcmp(key, "stretch") == 0) {
         if ((long)val) render->flags |= FLAG_STRETCH;
         else render->flags &= ~FLAG_STRETCH;
@@ -199,7 +196,6 @@ long render_get(void *ctx, char *key, void *val)
     if (!ctx) return 0;
     if (key == PARAM_MEDIA_POSITION) return (uint32_t)(render->apts > render->vpts ? render->apts : render->vpts);
     if (strcmp(key, "speed"  ) == 0) return (long)render->cur_speed_value;
-    if (strcmp(key, "frate"  ) == 0) return (long)&render->frate;
     if (strcmp(key, "stretch") == 0) return (long)!!(render->flags & FLAG_STRETCH);
     return 0;
 }
