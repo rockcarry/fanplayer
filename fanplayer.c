@@ -22,13 +22,11 @@ typedef struct {
     AVCodecContext  *acodec_context;
     int              astream_index;
     AVRational       astream_timebase;
-    AVFrame          aframe;
 
     // video
     AVCodecContext  *vcodec_context;
     int              vstream_index;
     AVRational       vstream_timebase;
-    AVFrame          vframe;
 
     void            *pktqueue; // pktqueue
     void            *ffrender; // ffrender
@@ -204,8 +202,6 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     if (player->acodec_context  ) avcodec_free_context(&player->acodec_context  );
     if (player->vcodec_context  ) avcodec_free_context(&player->vcodec_context  );
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
-    av_frame_unref(&player->aframe); player->aframe.pts = -1;
-    av_frame_unref(&player->vframe); player->vframe.pts = -1;
     if (!prepare) return 0;
 
     // open input file
@@ -270,11 +266,12 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     }
 
     // for video
-    AVRational vfrate = { .num = 0, .den = 1 };
+    AVRational vfrate = { .num = 1, .den = 1 };
     if (player->vstream_index != -1) {
         vfrate = player->avformat_context->streams[player->vstream_index]->avg_frame_rate;
         player->video_vwidth  = player->video_owidth  = player->vcodec_context->width;
         player->video_vheight = player->video_oheight = player->vcodec_context->height;
+        if (vfrate.den == 0) vfrate.den = 1;
     }
 
     // calculate start_time
@@ -351,6 +348,7 @@ static void* audio_decode_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
+    AVFrame   frame  = {};
     int       npkt;
     while (!(player->status & PS_CLOSE)) {
         // handle audio decode pause
@@ -365,10 +363,10 @@ static void* audio_decode_thread_proc(void *param)
         // decode audio packet
         int ret = avcodec_send_packet(player->acodec_context, packet);
         while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
-            if ((ret = avcodec_receive_frame(player->acodec_context, &player->aframe)) == 0) {
-                player->aframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->aframe), player->astream_timebase, TIMEBASE_MS);
-                if ( (player->status & PS_A_SEEK) && player->seek_dest - player->aframe.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
-                if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &player->aframe, npkt);
+            if ((ret = avcodec_receive_frame(player->acodec_context, &frame)) == 0) {
+                frame.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&frame), player->astream_timebase, TIMEBASE_MS);
+                if ( (player->status & PS_A_SEEK) && player->seek_dest - frame.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
+                if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &frame, npkt);
                 while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_PAUSE|PS_A_SEEK))) av_usleep(20 * 1000);
             }
         }
@@ -376,14 +374,16 @@ static void* audio_decode_thread_proc(void *param)
         // release packet
         pktqueue_release_packet(player->pktqueue, packet);
     }
+    av_frame_unref(&frame);
     return NULL;
 }
 
 static void* video_decode_thread_proc(void *param)
 {
-    PLAYER   *player = (PLAYER*)param;
-    AVPacket *packet = NULL;
-    int       npkt;
+    PLAYER   *player  = (PLAYER*)param;
+    AVPacket *packet  = NULL;
+    AVFrame   frame[2]= {};
+    int       npkt, idx = 0;
     while (!(player->status & PS_CLOSE)) {
         // handle video decode pause
         if (player->status & PS_V_PAUSE) {
@@ -392,23 +392,26 @@ static void* video_decode_thread_proc(void *param)
         }
 
         // dequeue video packet
-        if (!(packet = pktqueue_video_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 1); render_video(player->ffrender, &player->vframe, npkt); continue; }
+        if (!(packet = pktqueue_video_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 1); render_video(player->ffrender, &frame[idx], npkt); continue; }
 
         // decode video packet
         int ret = avcodec_send_packet(player->vcodec_context, packet);
         while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
-            if ((ret = avcodec_receive_frame(player->vcodec_context, &player->vframe)) == 0) {
-                player->vframe.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&player->vframe), player->vstream_timebase, TIMEBASE_MS);
-                if ((player->status & PS_V_SEEK) && player->seek_dest - player->vframe.pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
+            if ((ret = avcodec_receive_frame(player->vcodec_context, &frame[idx])) == 0) {
+                frame[idx].pts = av_rescale_q(av_frame_get_best_effort_timestamp(&frame[idx]), player->vstream_timebase, TIMEBASE_MS);
+                if ((player->status & PS_V_SEEK) && player->seek_dest - frame[idx].pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
                 do {
-                    if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &player->vframe, npkt);
+                    if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &frame[idx], npkt);
                 } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_PAUSE|PS_V_SEEK)));
             }
+            idx = (idx + 1) % 2;
         }
 
         // release packet
         pktqueue_release_packet(player->pktqueue, packet);
     }
+    av_frame_unref(&(frame[0]));
+    av_frame_unref(&(frame[1]));
     return NULL;
 }
 
@@ -416,7 +419,6 @@ static void* av_demux_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
-
     while (!(player->status & PS_CLOSE)) {
         if (handle_fseek_or_reconnect(player) != 0) {
             if (!player->auto_reconnect) break;

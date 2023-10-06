@@ -28,6 +28,7 @@ cd ffmpeg-3.4.13
 --enable-decoder=h264 \
 --enable-decoder=hevc \
 --enable-decoder=mjpeg \
+--enable-decoder=png \
 --enable-decoder=mp3 \
 --enable-decoder=aac \
 --enable-decoder=pcm_alaw \
@@ -45,13 +46,13 @@ cd ffmpeg-3.4.13
 --enable-version3 \
 --enable-nonfree  \
 --enable-dxva2    \
+--enable-d3d11va  \
 --disable-openssl \
 --disable-iconv   \
 --disable-bzlib   \
 --disable-lzma    \
 --disable-sdl2    \
 --disable-xlib    \
---disable-zlib    \
 --extra-cflags="-I$TOPDIR/_install/include" \
 --extra-ldflags="-L$TOPDIR/_install/lib"
 

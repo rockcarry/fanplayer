@@ -109,6 +109,7 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
                 uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
                 uint32_t position = player_get(app->player, PARAM_MEDIA_POSITION, NULL);
                 uint32_t w = surf->w * position / duration;
+                w = w < surf->w ? w : surf->w;
                 bar(bmp, 0, surf->h, w, 3, 0xFF8800);
                 bar(bmp, w, surf->h, surf->w - w, 3, 0);
             }
