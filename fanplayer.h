@@ -44,7 +44,6 @@ typedef int (*PFN_PLAYER_CB)(void *cbctx, int msg, void *buf, int len);
 
 void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx);
 void  player_exit(void *ctx);
-void  player_play(void *ctx, int play);
 void  player_seek(void *ctx, int64_t ms);
 
 #define PARAM_MEDIA_DURATION ((char*)0)

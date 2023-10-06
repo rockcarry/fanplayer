@@ -41,6 +41,7 @@ cd ffmpeg-3.4.13
 --enable-demuxer=mov \
 --enable-demuxer=rtp \
 --enable-demuxer=rtsp \
+--enable-muxer=mp4 \
 --enable-asm \
 --enable-gpl \
 --enable-version3 \

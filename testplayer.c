@@ -48,18 +48,19 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
     case DEV_MSG_KEY_EVENT:
         if (param1) {
             switch (param2) {
-            case ' ': player_play(app->player, (app->playing = !app->playing)); break;
+            case ' ': player_set(app->player, "play", (void*)(!player_get(app->player, "play", NULL))); break;
+            case 'R': player_set(app->player, "record_start", (void*)(!player_get(app->player, "record_start", NULL))); break;
+            case 'S': player_set(app->player, "stretch", (void*)(!player_get(app->player, "stretch", NULL))); break;
             case 189: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) - 10)); break;
             case 187: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) + 10)); break;
             }
         }
         break;
+    case DEV_MSG_MOUSE_MOVE:
     case DEV_MSG_MOUSE_LBUTTON_D:
-        if (param2 > vdev_get(app->vdev, "height", NULL) - 6) {
+        if (param3 & 1) { // mouse lbutton down or drag
             uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
             player_seek(app->player, duration * param1 / vdev_get(app->vdev, "width", NULL));
-        } else {
-            player_play(app->player, (app->playing = !app->playing));
         }
         break;
     }
@@ -82,7 +83,7 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     MYAPP *app = cbctx;
     switch (msg) {
     case PLAYER_OPEN_SUCCESS:
-        player_play(app->player, (app->playing = 1));
+        player_set(app->player, "play", (void*)1);
         break;
     case PLAYER_PLAY_COMPLETED:
         printf("play completed !\n");

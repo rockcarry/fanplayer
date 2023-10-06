@@ -6,6 +6,7 @@
 #endif
 
 #include "pktqueue.h"
+#include "recorder.h"
 #include "ffrender.h"
 #include "fanplayer.h"
 
@@ -29,6 +30,7 @@ typedef struct {
     AVRational       vstream_timebase;
 
     void            *pktqueue; // pktqueue
+    void            *recorder; // recorder
     void            *ffrender; // ffrender
 
     PFN_PLAYER_CB    callback;
@@ -44,6 +46,7 @@ typedef struct {
     #define PS_RECONNECT  (1 << 6)  // reconnect
     #define PS_CLOSE      (1 << 7)  // close flag
     #define PS_COMPLETED  (1 << 8)  // play completed
+    #define PS_RECORD     (1 << 9)  // enable recorder
     int              status;
     int64_t          seek_pos ;
     int64_t          seek_dest;
@@ -81,8 +84,8 @@ typedef struct {
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
 
-    // save url
-    char  url[PATH_MAX];
+    char  rec[PATH_MAX]; // record file
+    char  url[PATH_MAX]; // open url
 } PLAYER;
 
 static const AVRational TIMEBASE_MS = { 1, 1000 };
@@ -191,6 +194,17 @@ static int get_stream_total(PLAYER *player, enum AVMediaType type) {
 
 static void player_send_message(PLAYER *player, int msg, void *buf, int len) {
     player->callback(player->cbctx, msg, buf, len);
+}
+
+static void player_play(void *ctx, int play)
+{
+    if (!ctx) return;
+    PLAYER *player = ctx;
+    if (play) render_set(player->ffrender, "reset", (void*)-1);
+    pthread_mutex_lock(&player->lock);
+    if (play) player->status &= PS_CLOSE;
+    else      player->status |= PS_R_PAUSE;
+    pthread_mutex_unlock(&player->lock);
 }
 
 static int player_prepare_or_free(PLAYER *player, int prepare)
@@ -335,7 +349,8 @@ static void check_play_completed(PLAYER *player, int av)
         if (av) {
             if (player->v_completed_cnt < MAX_COMPLETED_COUNT) player->v_completed_cnt++;
             if (player->a_completed_cnt == MAX_COMPLETED_COUNT && player->v_completed_cnt == MAX_COMPLETED_COUNT) {
-                player->status |= PS_COMPLETED;
+                player_update_status(player, PS_RECORD, PS_COMPLETED);
+                recorder_free(player->recorder); player->recorder = NULL;
                 player_send_message(player, PLAYER_PLAY_COMPLETED, NULL, 0);
             }
         } else {
@@ -426,6 +441,12 @@ static void* av_demux_thread_proc(void *param)
         }
         if ((packet = pktqueue_request_packet(player->pktqueue)) == NULL) continue;
 
+        if (player->recorder == NULL && (player->status & PS_RECORD)) {
+            player->recorder = recorder_init(player->rec, player->avformat_context);
+        } else if (player->recorder != NULL && !(player->status & PS_RECORD)) {
+            recorder_free(player->recorder); player->recorder = NULL;
+        }
+
         if (av_read_frame(player->avformat_context, packet) < 0) {
             pktqueue_release_packet(player->pktqueue, packet);
             if (player->auto_reconnect > 0 && av_gettime_relative() - player->read_timelast > player->auto_reconnect * 1000) {
@@ -433,6 +454,7 @@ static void* av_demux_thread_proc(void *param)
             }
         } else {
             player->read_timelast = av_gettime_relative();
+            recorder_packet(player->recorder, packet);
             if      (packet->stream_index == player->astream_index) pktqueue_audio_enqueue (player->pktqueue, packet); // audio
             else if (packet->stream_index == player->vstream_index) pktqueue_video_enqueue (player->pktqueue, packet); // video
             else                                                    pktqueue_release_packet(player->pktqueue, packet); // other
@@ -476,6 +498,7 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     render_set(player->ffrender, "avts_sync_mode", (void*)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
     render_set(player->ffrender, "audio_buf_npkt", (void*)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
     render_set(player->ffrender, "video_buf_npkt", (void*)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
+    strcpy(player->rec, "record.mp4");
 
     pthread_mutex_init(&player->lock, NULL); // init lock
     pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
@@ -496,22 +519,12 @@ void player_exit(void *ctx)
     if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait avdemux thread exit
     pthread_mutex_destroy(&player->lock);
 
+    recorder_free   (player->recorder);
     pktqueue_destroy(player->pktqueue);
     render_exit(player->ffrender);
 
     avformat_network_deinit(); // deinit network
     free(player);
-}
-
-void player_play(void *ctx, int play)
-{
-    if (!ctx) return;
-    PLAYER *player = ctx;
-    if (play) render_set(player->ffrender, "reset", (void*)-1);
-    pthread_mutex_lock(&player->lock);
-    if (play) player->status &= PS_CLOSE;
-    else      player->status |= PS_R_PAUSE;
-    pthread_mutex_unlock(&player->lock);
 }
 
 void player_seek(void *ctx, int64_t ms)
@@ -530,7 +543,16 @@ void player_set(void *ctx, char *key, void *val)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
-    render_set(player->ffrender, key, val);
+    if (strcmp(key, "play") == 0) {
+        player_play(player, (long)val);
+    } else if (strcmp(key, "record_start") == 0) {
+        if ((long)val) player->status |=  PS_RECORD;
+        else           player->status &= ~PS_RECORD;
+    } else if (strcmp(key, "record_file") == 0) {
+        strncpy(player->rec, val, sizeof(player->rec) - 1);
+    } else {
+        render_set(player->ffrender, key, val);
+    }
 }
 
 long player_get(void *ctx, char *key, void *val)
@@ -547,5 +569,8 @@ long player_get(void *ctx, char *key, void *val)
     case (int)PARAM_VIDEO_HEIGHT:
         return player->vcodec_context ? player->video_oheight : 0;
     }
+    if (strcmp(key, "play"        ) == 0) return  !(player->status & PS_R_PAUSE);
+    if (strcmp(key, "record_start") == 0) return !!(player->status & PS_RECORD );
+    if (strcmp(key, "record_file" ) == 0) return (long)player->rec;
     return render_get(player->ffrender, key, val);
 }
