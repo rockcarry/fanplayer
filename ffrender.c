@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <pthread.h>
+#include "snapshot.h"
 #include "ffrender.h"
 
 #include "libavutil/time.h"
@@ -10,8 +11,9 @@
 #define DEF_PLAY_SPEED 100
 
 typedef struct {
-    #define FLAG_STRETCH (1 << 0)
-    #define FLAG_UPDATE  (1 << 1)
+    #define FLAG_STRETCH  (1 << 0)
+    #define FLAG_UPDATE   (1 << 1)
+    #define FLAG_SNAPSHOT (1 << 2)
     int                flags;
 
     // swresampler & swscaler
@@ -44,6 +46,8 @@ typedef struct {
     int64_t            frate_num, frate_den, apts, vpts, tick_start, tick_adjust, frame_count;
     PFN_PLAYER_CB      callback;
     void              *cbctx;
+
+    char snapshot[PATH_MAX];
 } RENDER;
 
 void* render_init(char *type, PFN_PLAYER_CB callback, void *cbctx)
@@ -157,6 +161,11 @@ void render_video(void *ctx, AVFrame *video, int npkt)
         }
     }
 
+    if (render->flags & FLAG_SNAPSHOT) {
+        render->flags &= ~FLAG_SNAPSHOT;
+        take_snapshot(render->snapshot, 0, 0, video);
+    }
+
     if (render->sws_context && surface.data) {
         AVFrame dstpic = { .data[0] = (uint8_t*)surface.data + render->sws_dst_offset, .linesize[0] = surface.stride };
         sws_scale(render->sws_context, (const uint8_t**)video->data, video->linesize, 0, render->sws_src_height, dstpic.data, dstpic.linesize);
@@ -199,6 +208,10 @@ void render_set(void *ctx, char *key, void *val)
         if ((long)val) render->flags |= FLAG_STRETCH;
         else render->flags &= ~FLAG_STRETCH;
         render->flags |= FLAG_UPDATE;
+    }
+    else if (strcmp(key, "snapshot") == 0 && val) {
+        strncpy(render->snapshot, val, sizeof(render->snapshot) - 1);
+        render->flags |= FLAG_SNAPSHOT;
     }
     else if (strcmp(key, "avts_sync_mode") == 0) render->avts_sync_mode = (long)val;
     else if (strcmp(key, "audio_buf_npkt") == 0) render->audio_buf_npkt = (long)val;

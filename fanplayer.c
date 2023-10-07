@@ -505,7 +505,6 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     render_set(player->ffrender, "avts_sync_mode", (void*)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
     render_set(player->ffrender, "audio_buf_npkt", (void*)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
     render_set(player->ffrender, "video_buf_npkt", (void*)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
-    strcpy(player->rec, "record.mp4");
 
     pthread_mutex_init(&player->lock, NULL); // init lock
     pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
@@ -553,11 +552,13 @@ void player_set(void *ctx, char *key, void *val)
     PLAYER *player = ctx;
     if (strcmp(key, "play") == 0) {
         player_play(player, (long)val);
-    } else if (strcmp(key, "record_start") == 0) {
-        if ((long)val) player->status |=  PS_RECORD;
-        else           player->status &= ~PS_RECORD;
-    } else if (strcmp(key, "record_file") == 0) {
-        strncpy(player->rec, val, sizeof(player->rec) - 1);
+    } else if (strcmp(key, "record") == 0) {
+        if ((long)val) {
+            strncpy(player->rec, val, sizeof(player->rec) - 1);
+            player->status |=  PS_RECORD;
+        } else {
+            player->status &= ~PS_RECORD;
+        }
     } else {
         render_set(player->ffrender, key, val);
     }
@@ -579,8 +580,7 @@ long player_get(void *ctx, char *key, void *val)
     case (int)PARAM_VIDEO_HEIGHT:
         return player->vcodec_context ? player->video_oheight : 0;
     }
-    if (strcmp(key, "play"        ) == 0) return  !(player->status & PS_R_PAUSE);
-    if (strcmp(key, "record_start") == 0) return !!(player->status & PS_RECORD );
-    if (strcmp(key, "record_file" ) == 0) return (long)player->rec;
+    if (strcmp(key, "play"  ) == 0) return !(player->status & PS_R_PAUSE);
+    if (strcmp(key, "record") == 0) return (long)((player->status & PS_RECORD) ? player->rec : NULL);
     return render_get(player->ffrender, key, val);
 }

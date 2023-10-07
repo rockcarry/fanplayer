@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include "fanplayer.h"
 
 #ifdef WITH_LIBAVDEV
@@ -43,18 +44,37 @@ typedef struct {
 } MYAPP;
 
 #ifdef WITH_LIBAVDEV
+static char* gen_file_name(char *name, int len, char *ext)
+{
+    time_t tt = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &tt);
+    snprintf(name, len, "rec-%d-%02d-%02d-%02d%02d%02d.%s", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, ext);
+    return name;
+}
+
 static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, uint32_t param3)
 {
     MYAPP *app = cbctx;
+    char   file[256];
     switch (msg) {
     case DEV_MSG_KEY_EVENT:
         if (param1) {
             switch (param2) {
-            case ' ': player_set(app->player, "play", (void*)(!player_get(app->player, "play", NULL))); break;
-            case 'R': player_set(app->player, "record_start", (void*)(!player_get(app->player, "record_start", NULL))); break;
+            case ' ': player_set(app->player, "play"   , (void*)(!player_get(app->player, "play"   , NULL))); break;
             case 'S': player_set(app->player, "stretch", (void*)(!player_get(app->player, "stretch", NULL))); break;
-            case 189: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) - 10)); break;
-            case 187: player_set(app->player, "speed", (void*)(player_get(app->player, "speed", NULL) + 10)); break;
+            case 189: player_set(app->player, "speed"  , (void*)( player_get(app->player, "speed"  , NULL) - 10)); break;
+            case 187: player_set(app->player, "speed"  , (void*)( player_get(app->player, "speed"  , NULL) + 10)); break;
+            case 'R':
+                if (player_get(app->player, "record", NULL)) {
+                    player_set(app->player, "record", NULL);
+                } else {
+                    player_set(app->player, "record", gen_file_name(file, sizeof(file), "avi"));
+                }
+                break;
+            case 'P':
+                player_set(app->player, "snapshot", gen_file_name(file, sizeof(file), "png"));
+                break;
             }
         }
         break;

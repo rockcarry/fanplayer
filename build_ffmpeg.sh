@@ -23,7 +23,11 @@ cd ffmpeg-3.4.13
 --disable-encoders \
 --disable-muxers   \
 --disable-hwaccels \
+--enable-encoder=mjpeg \
+--enable-encoder=png \
 --enable-muxer=mp4 \
+--enable-muxer=flv \
+--enable-muxer=avi \
 --enable-asm \
 --enable-gpl \
 --enable-version3 \

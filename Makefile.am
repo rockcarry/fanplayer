@@ -2,10 +2,10 @@ AUTOMAKE_OPTIONS = foreign
 
 fanplayerincludedir = $(includedir)/fanplayer
 nobase_fanplayerinclude_HEADERS = fanplayer.h
-noinst_HEADERS = ffrender.h pktqueue.h recorder.h
+noinst_HEADERS = ffrender.h pktqueue.h recorder.h snapshot.h
 
 lib_LTLIBRARIES = libfanplayer.la
-libfanplayer_la_SOURCES = ffrender.c pktqueue.c recorder.c fanplayer.c
+libfanplayer_la_SOURCES = ffrender.c pktqueue.c recorder.c snapshot.c fanplayer.c
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = fanplayer.pc
