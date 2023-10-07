@@ -151,8 +151,13 @@ static void player_update_status(PLAYER *player, int clear, int set)
 
 static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
     AVCodec *decoder = NULL;
-    int idx = av_find_best_stream(player->avformat_context, type, sel, -1, &decoder, 0);
-    if (idx < 0) return -1;
+    int      idx = -1, cur = -1, i;
+    for (i = 0; i < player->avformat_context->nb_streams; i++) {
+        if (player->avformat_context->streams[i]->codecpar->codec_type == type) {
+            idx = i; if (++cur == sel) break;
+        }
+    }
+    if (idx == -1) return -1;
 
     switch (type) {
     case AVMEDIA_TYPE_AUDIO:
@@ -161,6 +166,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
         player->astream_timebase = player->avformat_context->streams[idx]->time_base;
         avcodec_parameters_to_context(player->acodec_context, player->avformat_context->streams[idx]->codecpar);
         // open codec
+        decoder = avcodec_find_decoder(player->acodec_context->codec_id);
         if (decoder && avcodec_open2(player->acodec_context, decoder, NULL) == 0) {
             player->astream_index = idx;
         } else {
@@ -172,6 +178,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
         player->vcodec_context   = avcodec_alloc_context3(decoder);
         player->vstream_timebase = player->avformat_context->streams[idx]->time_base;
         avcodec_parameters_to_context(player->vcodec_context, player->avformat_context->streams[idx]->codecpar);
+        decoder = avcodec_find_decoder(player->vcodec_context->codec_id);
         if (decoder && avcodec_open2(player->vcodec_context, decoder, NULL) == 0) {
             player->vstream_index = idx;
         } else {
@@ -472,16 +479,16 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     player->cbctx    = cbctx;
 
     char strval[256] = "";
-    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0" );
-    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0" );
-    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0" );
-    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "-1");
-    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0" );
-    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "-1");
-    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0" );
-    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0" );
-    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0" );
-    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0" );
+    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
+    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
+    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
+    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
+    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
+    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
+    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
 
     // av register all
     av_register_all();
@@ -531,6 +538,7 @@ void player_seek(void *ctx, int64_t ms)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
+    if (player->status & (PS_F_SEEK|PS_A_SEEK|PS_V_SEEK)) { av_log(NULL, AV_LOG_WARNING, "seek busy !\n"); return; }
     player->seek_dest =  player->start_time + ms;
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
     player->seek_diff = 50;
@@ -558,12 +566,14 @@ void player_set(void *ctx, char *key, void *val)
 long player_get(void *ctx, char *key, void *val)
 {
     if (!ctx) return 0;
-    PLAYER *player = ctx;
+    PLAYER  *player = ctx;
+    uint32_t position;
     switch ((long)key) {
     case (int)PARAM_MEDIA_DURATION:
         return player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1;
     case (int)PARAM_MEDIA_POSITION:
-        return (uint32_t)(render_get(player->ffrender, key, NULL) - player->start_time);
+        position = render_get(player->ffrender, key, NULL);
+        return position > player->start_time ? position - player->start_time : position;
     case (int)PARAM_VIDEO_WIDTH:
         return player->vcodec_context ? player->video_owidth  : 0;
     case (int)PARAM_VIDEO_HEIGHT:

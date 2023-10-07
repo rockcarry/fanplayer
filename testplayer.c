@@ -8,6 +8,8 @@
 #include "libavdev/adev.h"
 #include "libavdev/vdev.h"
 #include "libavdev/idev.h"
+#define ADEV_FRAME_SIZE (48000 / 20)
+#define ADEV_FRAME_NUM   8
 #endif
 
 #ifdef WIN32
@@ -93,7 +95,9 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     case PLAYER_ADEV_CHANNELS:
         return 2;
 #ifdef WITH_LIBAVDEV
-    case PLAYER_ADEV_BUFFER:
+    case PLAYER_ADEV_FRAMENUM:
+        return ADEV_FRAME_NUM / 2;
+    case PLAYER_ADEV_WRITE:
         adev_play(app->adev, buf, len, 100);
         break;
     case PLAYER_VDEV_LOCK: {
@@ -144,8 +148,8 @@ int main(int argc, char *argv[])
     printf("params: %s\n", initparams);
 
 #ifdef WITH_LIBAVDEV
-    myapp.adev   = adev_init(48000, 2, 48000 / 20, 5);
-    myapp.vdev   = vdev_init(640, 480, "resizable", my_videv_cb, &myapp);
+    myapp.adev   = adev_init(48000, 2, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
+    myapp.vdev   = vdev_init(1024, 600, "resizable", my_videv_cb, &myapp);
     myapp.idev   = (void*)vdev_get(myapp.vdev, "idev", NULL);
     vdev_set(myapp.vdev, "title", "fanplayer");
     idev_set(myapp.idev, "cbctx"   , &myapp);
@@ -155,7 +159,7 @@ int main(int argc, char *argv[])
     myapp.player = player_init(url, initparams, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
-    while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { sleep(1); }
+    while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { usleep(100 * 1000); }
 #endif
 
     player_exit(myapp.player);
