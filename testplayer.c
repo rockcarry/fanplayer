@@ -90,7 +90,6 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
     }
     return 0;
 }
-#endif
 
 static void bar(BMP *bmp, int x, int y, int w, int h, int c)
 {
@@ -101,6 +100,7 @@ static void bar(BMP *bmp, int x, int y, int w, int h, int c)
         p += bmp->width - w;
     }
 }
+#endif
 
 static int my_player_cb(void *cbctx, int msg, void *buf, int len)
 {
@@ -112,11 +112,11 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     case PLAYER_PLAY_COMPLETED:
         printf("play completed !\n");
         break;
+#ifdef WITH_LIBAVDEV
     case PLAYER_ADEV_SAMPRATE:
         return ADEV_SAMPRATE;
     case PLAYER_ADEV_CHANNELS:
         return ADEV_CHANNELS;
-#ifdef WITH_LIBAVDEV
     case PLAYER_AVSYNC_DELTA:
         return 1000 * ADEV_FRAME_SIZE * ADEV_FRAME_NUM / ADEV_SAMPRATE;
     case PLAYER_ADEV_WRITE:
