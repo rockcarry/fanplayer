@@ -63,10 +63,10 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
     case DEV_MSG_KEY_EVENT:
         if (param1) {
             switch (param2) {
-            case ' ': player_set(app->player, "play"   , (void*)(!player_get(app->player, "play"   , NULL))); break;
-            case 'S': player_set(app->player, "stretch", (void*)(!player_get(app->player, "stretch", NULL))); break;
-            case 189: player_set(app->player, "speed"  , (void*)( player_get(app->player, "speed"  , NULL) - 10)); break;
-            case 187: player_set(app->player, "speed"  , (void*)( player_get(app->player, "speed"  , NULL) + 10)); break;
+            case ' ': player_set(app->player, "play"   , (void*)(intptr_t)(!player_get(app->player, "play"   , NULL))); break;
+            case 'S': player_set(app->player, "stretch", (void*)(intptr_t)(!player_get(app->player, "stretch", NULL))); break;
+            case 189: player_set(app->player, "speed"  , (void*)(intptr_t)( player_get(app->player, "speed"  , NULL) - 10)); break;
+            case 187: player_set(app->player, "speed"  , (void*)(intptr_t)( player_get(app->player, "speed"  , NULL) + 10)); break;
             case 'R':
                 if (player_get(app->player, "record", NULL)) {
                     player_set(app->player, "record", NULL);
@@ -82,9 +82,9 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
         break;
     case DEV_MSG_MOUSE_MOVE:
     case DEV_MSG_MOUSE_LBUTTON_D:
-        if (param2 > vdev_get(app->vdev, "height", NULL) - 16 && param3 & 1) { // mouse lbutton down or drag
-            uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-            player_seek(app->player, duration * param1 / vdev_get(app->vdev, "width", NULL), 0);
+        if (param2 > (intptr_t)vdev_get(app->vdev, "height", NULL) - 16 && param3 & 1) { // mouse lbutton down or drag
+            uint32_t duration = (intptr_t)player_get(app->player, PARAM_MEDIA_DURATION, NULL);
+            player_seek(app->player, duration * param1 / (intptr_t)vdev_get(app->vdev, "width", NULL), 0);
         }
         break;
     }
@@ -125,16 +125,16 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     case PLAYER_VDEV_LOCK: {
             BMP     *bmp  = vdev_lock(app->vdev);
             SURFACE *surf = buf;
-            surf->w       = bmp ? bmp->width : 0;
-            surf->h       = bmp ? bmp->height: 0;
-            surf->data    = bmp ? bmp->pdata : NULL;
-            surf->stride  = bmp ? bmp->stride: 0;
-            surf->format  = bmp ? bmp->pixfmt: SURFACE_FMT_RGB32;
-            surf->cdepth  = bmp ? bmp->cdepth: 32;
+            surf->w       = bmp ? bmp->width  : 0;
+            surf->h       = bmp ? bmp->height : 0;
+            surf->data    = bmp ? bmp->pdata  : NULL;
+            surf->stride  = bmp ? bmp->stride : 0;
+            surf->format  = bmp ? bmp->pixfmt : SURFACE_FMT_RGB32;
+            surf->cdepth  = bmp ? bmp->cdepth : 32;
             if (surf->h > 3) {
                 surf->h -= 3;
-                uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-                uint32_t position = player_get(app->player, PARAM_MEDIA_POSITION, NULL);
+                uint32_t duration = (intptr_t)player_get(app->player, PARAM_MEDIA_DURATION, NULL);
+                uint32_t position = (intptr_t)player_get(app->player, PARAM_MEDIA_POSITION, NULL);
                 uint32_t w = surf->w * position / duration;
                 w = w < surf->w ? w : surf->w;
                 bar(bmp, 0, surf->h, w, 3, 0xFF8800);

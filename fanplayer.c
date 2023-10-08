@@ -554,9 +554,9 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
     player->pktqueue = pktqueue_create(0);
     player->ffrender = render_init(NULL, player->callback, player->cbctx);
-    render_set(player->ffrender, "avts_sync_mode", (void*)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
-    render_set(player->ffrender, "audio_buf_npkt", (void*)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
-    render_set(player->ffrender, "video_buf_npkt", (void*)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, "avts_sync_mode", (void*)(intptr_t)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, "audio_buf_npkt", (void*)(intptr_t)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, "video_buf_npkt", (void*)(intptr_t)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
 
     pthread_mutex_init(&player->lock, NULL); // init lock
     pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
@@ -609,9 +609,9 @@ void player_set(void *ctx, char *key, void *val)
     if (!ctx) return;
     PLAYER *player = ctx;
     if (strcmp(key, "play") == 0) {
-        player_play(player, (long)val);
+        player_play(player, (intptr_t)val);
     } else if (strcmp(key, "record") == 0) {
-        if ((long)val) {
+        if ((intptr_t)val) {
             strncpy(player->rec, val, sizeof(player->rec) - 1);
             player->status |=  PS_RECORD;
         } else {
@@ -622,23 +622,23 @@ void player_set(void *ctx, char *key, void *val)
     }
 }
 
-long player_get(void *ctx, char *key, void *val)
+void* player_get(void *ctx, char *key, void *val)
 {
     if (!ctx) return 0;
     PLAYER  *player = ctx;
     uint32_t position;
-    switch ((long)key) {
-    case (int)PARAM_MEDIA_DURATION:
-        return player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1;
-    case (int)PARAM_MEDIA_POSITION:
-        position = render_get(player->ffrender, key, NULL);
-        return position > player->start_time ? position - player->start_time : position;
-    case (int)PARAM_VIDEO_WIDTH:
-        return player->vcodec_context ? player->video_owidth  : 0;
-    case (int)PARAM_VIDEO_HEIGHT:
-        return player->vcodec_context ? player->video_oheight : 0;
+    switch ((intptr_t)key) {
+    case (intptr_t)PARAM_MEDIA_DURATION:
+        return (void*)(intptr_t)(player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1);
+    case (intptr_t)PARAM_MEDIA_POSITION:
+        position = (intptr_t)render_get(player->ffrender, key, NULL);
+        return (void*)(intptr_t)(position > player->start_time ? position - player->start_time : position);
+    case (intptr_t)PARAM_VIDEO_WIDTH:
+        return (void*)(intptr_t)(player->vcodec_context ? player->video_owidth  : 0);
+    case (intptr_t)PARAM_VIDEO_HEIGHT:
+        return (void*)(intptr_t)(player->vcodec_context ? player->video_oheight : 0);
     }
-    if (strcmp(key, "play"  ) == 0) return !(player->status & PS_R_PAUSE);
-    if (strcmp(key, "record") == 0) return (long)((player->status & PS_RECORD) ? player->rec : NULL);
+    if (strcmp(key, "play"  ) == 0) return (void*)(intptr_t)!(player->status & PS_R_PAUSE);
+    if (strcmp(key, "record") == 0) return (void*)(intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
     return render_get(player->ffrender, key, val);
 }

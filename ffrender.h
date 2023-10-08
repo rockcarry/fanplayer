@@ -13,7 +13,7 @@ void render_exit (void *ctx);
 void render_audio(void *ctx, struct AVFrame *audio, int npkt);
 void render_video(void *ctx, struct AVFrame *video, int npkt);
 void render_set  (void *ctx, char *key, void *val);
-long render_get  (void *ctx, char *key, void *val);
+void*render_get  (void *ctx, char *key, void *val);
 
 #ifdef __cplusplus
 }
