@@ -9,7 +9,9 @@
 #include "libavdev/adev.h"
 #include "libavdev/vdev.h"
 #include "libavdev/idev.h"
-#define ADEV_FRAME_SIZE (48000 / 20)
+#define ADEV_SAMPRATE    48000
+#define ADEV_CHANNELS    2
+#define ADEV_FRAME_SIZE (ADEV_SAMPRATE / 20)
 #define ADEV_FRAME_NUM   8
 #endif
 
@@ -111,12 +113,12 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
         printf("play completed !\n");
         break;
     case PLAYER_ADEV_SAMPRATE:
-        return 48000;
+        return ADEV_SAMPRATE;
     case PLAYER_ADEV_CHANNELS:
-        return 2;
+        return ADEV_CHANNELS;
 #ifdef WITH_LIBAVDEV
-    case PLAYER_ADEV_FRAMENUM:
-        return ADEV_FRAME_NUM / 2;
+    case PLAYER_AVSYNC_DELTA:
+        return 1000 * ADEV_FRAME_SIZE * ADEV_FRAME_NUM / ADEV_SAMPRATE;
     case PLAYER_ADEV_WRITE:
         adev_play(app->adev, buf, len, 100);
         break;
@@ -167,7 +169,7 @@ int main(int argc, char *argv[])
     printf("params: %s\n", initparams);
 
 #ifdef WITH_LIBAVDEV
-    myapp.adev   = adev_init(48000, 2, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
+    myapp.adev   = adev_init(ADEV_SAMPRATE, ADEV_CHANNELS, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
     myapp.vdev   = vdev_init(1024, 600, "resizable", my_videv_cb, &myapp);
     myapp.idev   = (void*)vdev_get(myapp.vdev, "idev", NULL);
     vdev_set(myapp.vdev, "title", "fanplayer");

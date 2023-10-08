@@ -87,8 +87,8 @@ void render_audio(void *ctx, AVFrame *audio, int npkt)
     int16_t *out = render->swr_dst_buf;
     int adev_samprate = render->callback(render->cbctx, PLAYER_ADEV_SAMPRATE, NULL, 0);
     int adev_channels = render->callback(render->cbctx, PLAYER_ADEV_CHANNELS, NULL, 0);
-    int adev_framenum = render->callback(render->cbctx, PLAYER_ADEV_FRAMENUM, NULL, 0);
-    int delta, frate, sampnum, samptotal = 0;
+    int avsync_delta  = render->callback(render->cbctx, PLAYER_AVSYNC_DELTA , NULL, 0) * DEF_FRAME_RATE / render->new_speed_value;
+    int frate, sampnum, samptotal = 0;
 
     if (  render->swr_src_format != audio->format || render->swr_src_samprate != audio->sample_rate || render->swr_src_chlayout != audio->channel_layout
        || render->adev_samprate != adev_samprate || render->adev_channels != adev_channels || render->cur_speed_value != render->new_speed_value || !render->swr_context) {
@@ -109,12 +109,11 @@ void render_audio(void *ctx, AVFrame *audio, int npkt)
         frate   = (render->frate_num * render->cur_speed_value) / (render->frate_den * DEF_PLAY_SPEED);
         frate   = frate > DEF_FRAME_RATE ? frate : DEF_FRAME_RATE;
         sampnum = render->adev_samprate / frate;
-        delta   = 1000 * sampnum * adev_framenum / audio->sample_rate;
         do {
             sampnum = swr_convert(render->swr_context, (uint8_t**)&out, sampnum, (const uint8_t**)audio->extended_data, audio->nb_samples);
             audio->extended_data = NULL, audio->nb_samples = 0;
             if (sampnum) {
-                render->apts = audio->pts + 1000 * samptotal * render->cur_speed_value / (render->adev_samprate * DEF_PLAY_SPEED) - delta;
+                render->apts = audio->pts + 1000 * samptotal * render->cur_speed_value / (render->adev_samprate * DEF_PLAY_SPEED) - avsync_delta;
                 if (render->avts_sync_mode < AVSYNC_MODE_LIVE_SYNC0 || render->audio_buf_npkt >= npkt) {
                     render->callback(render->cbctx, PLAYER_ADEV_WRITE, out, sampnum * adev_channels * sizeof(int16_t));
                 }
