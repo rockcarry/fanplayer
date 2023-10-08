@@ -80,9 +80,9 @@ static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, u
         break;
     case DEV_MSG_MOUSE_MOVE:
     case DEV_MSG_MOUSE_LBUTTON_D:
-        if (param3 & 1) { // mouse lbutton down or drag
+        if (param2 > vdev_get(app->vdev, "height", NULL) - 16 && param3 & 1) { // mouse lbutton down or drag
             uint32_t duration = player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-            player_seek(app->player, duration * param1 / vdev_get(app->vdev, "width", NULL));
+            player_seek(app->player, duration * param1 / vdev_get(app->vdev, "width", NULL), 0);
         }
         break;
     }
@@ -151,17 +151,16 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
 int main(int argc, char *argv[])
 {
     MYAPP myapp     = {};
-    char  url[256]  = "test.mp4";
+    char  url[256]  = "";
     char *initparams= NULL;
     int   i;
 
-    if (argc < 2) {
+    for (i = 1; i < argc; i++) {
+        if (strstr(argv[i], "--init_params=") == argv[i]) initparams = argv[i] + sizeof("--init_params=") - 1;
+        else strncpy(url, argv[i], sizeof(url) - 1);
+    }
+    if (strlen(url) == 0) {
         if (open_file_dialog(NULL, url, sizeof(url)) != 0) return 0;
-    } else {
-        for (i = 1; i < argc; i++) {
-            if (strstr(argv[i], "--init_params=") == argv[i]) initparams = argv[i] + sizeof("--init_params=") - 1;
-            else strncpy(url, argv[i], sizeof(url) - 1);
-        }
     }
 
     printf("url   : %s\n", url       );

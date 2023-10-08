@@ -4,7 +4,7 @@ set -e
 
 TOPDIR=$PWD
 
-cd ffmpeg-3.4.13
+cd ffmpeg-4.3.6
 
 ./configure \
 --pkg-config=pkg-config \
@@ -22,7 +22,6 @@ cd ffmpeg-3.4.13
 --disable-avfilter \
 --disable-encoders \
 --disable-muxers   \
---disable-hwaccels \
 --enable-encoder=mjpeg \
 --enable-encoder=png \
 --enable-muxer=mp4 \
@@ -32,8 +31,6 @@ cd ffmpeg-3.4.13
 --enable-gpl \
 --enable-version3 \
 --enable-nonfree  \
---enable-dxva2    \
---enable-d3d11va  \
 --disable-openssl \
 --disable-iconv   \
 --disable-bzlib   \
@@ -43,7 +40,7 @@ cd ffmpeg-3.4.13
 --extra-cflags="-I$TOPDIR/_install/include" \
 --extra-ldflags="-L$TOPDIR/_install/lib"
 
-make -j2 && make install
+make -j8 && make install
 cd -
 
 echo done

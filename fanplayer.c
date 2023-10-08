@@ -12,6 +12,7 @@
 
 #include "libavutil/avutil.h"
 #include "libavutil/time.h"
+#include "libavutil/hwcontext.h"
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 
@@ -84,6 +85,12 @@ typedef struct {
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
 
+    char         hwdec_str[32];
+    int          hwdec_type;
+    int          hwdec_fmt;
+    AVBufferRef *hwdec_devctx;
+    void        *hwdec_get_format_sw;
+
     char  rec[PATH_MAX]; // record file
     char  url[PATH_MAX]; // open url
 } PLAYER;
@@ -149,24 +156,43 @@ static void player_update_status(PLAYER *player, int clear, int set)
     pthread_mutex_unlock(&player->lock);
 }
 
+static enum AVPixelFormat find_fmt_by_hw_type(const enum AVHWDeviceType type)
+{
+    switch (type) {
+    case AV_HWDEVICE_TYPE_VAAPI       : return AV_PIX_FMT_VAAPI;
+    case AV_HWDEVICE_TYPE_DXVA2       : return AV_PIX_FMT_DXVA2_VLD;
+    case AV_HWDEVICE_TYPE_D3D11VA     : return AV_PIX_FMT_D3D11;
+    case AV_HWDEVICE_TYPE_VDPAU       : return AV_PIX_FMT_VDPAU;
+    case AV_HWDEVICE_TYPE_VIDEOTOOLBOX: return AV_PIX_FMT_VIDEOTOOLBOX;
+    default:                            return AV_PIX_FMT_NONE;
+    }
+}
+
+static enum AVPixelFormat get_format_hw(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
+{
+    PLAYER *player = ctx->opaque;
+    const enum AVPixelFormat *p;
+    for (p = pix_fmts; *p != -1; p++) {
+        if (*p == player->hwdec_fmt) return *p;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
 static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
-    AVCodec *decoder = NULL;
-    int      idx = -1, cur = -1, i;
+    int idx = -1, cur = -1, ret, i;
     for (i = 0; i < player->avformat_context->nb_streams; i++) {
         if (player->avformat_context->streams[i]->codecpar->codec_type == type) {
             idx = i; if (++cur == sel) break;
         }
     }
     if (idx == -1) return -1;
+    AVCodec *decoder = avcodec_find_decoder(player->avformat_context->streams[i]->codecpar->codec_id);
 
     switch (type) {
     case AVMEDIA_TYPE_AUDIO:
-        // get new acodec_context & astream_timebase
         player->acodec_context   = avcodec_alloc_context3(decoder);
         player->astream_timebase = player->avformat_context->streams[idx]->time_base;
         avcodec_parameters_to_context(player->acodec_context, player->avformat_context->streams[idx]->codecpar);
-        // open codec
-        decoder = avcodec_find_decoder(player->acodec_context->codec_id);
         if (decoder && avcodec_open2(player->acodec_context, decoder, NULL) == 0) {
             player->astream_index = idx;
         } else {
@@ -174,11 +200,18 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
         }
         break;
     case AVMEDIA_TYPE_VIDEO:
-        // get new vcodec_context & vstream_timebase
         player->vcodec_context   = avcodec_alloc_context3(decoder);
         player->vstream_timebase = player->avformat_context->streams[idx]->time_base;
         avcodec_parameters_to_context(player->vcodec_context, player->avformat_context->streams[idx]->codecpar);
-        decoder = avcodec_find_decoder(player->vcodec_context->codec_id);
+
+        if (player->hwdec_fmt != -1) { // for hwdec
+            player->hwdec_get_format_sw        = player->vcodec_context->get_format;
+            player->vcodec_context->opaque     = player;
+            player->vcodec_context->get_format = get_format_hw;
+            ret = av_hwdevice_ctx_create(&player->hwdec_devctx, player->hwdec_type, NULL, NULL, 0);
+            if (ret >= 0) player->vcodec_context->hw_device_ctx = av_buffer_ref(player->hwdec_devctx);
+        }
+
         if (decoder && avcodec_open2(player->vcodec_context, decoder, NULL) == 0) {
             player->vstream_index = idx;
         } else {
@@ -192,7 +225,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
 }
 
 static int get_stream_total(PLAYER *player, enum AVMediaType type) {
-    int total, i;
+    int  total, i;
     for (total = 0, i = 0; i < (int)player->avformat_context->nb_streams; i++) {
         if (player->avformat_context->streams[i]->codecpar->codec_type == type) total++;
     }
@@ -223,6 +256,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     if (player->acodec_context  ) avcodec_free_context(&player->acodec_context  );
     if (player->vcodec_context  ) avcodec_free_context(&player->vcodec_context  );
     if (player->avformat_context) avformat_close_input(&player->avformat_context);
+    if (player->hwdec_devctx    ) av_buffer_unref     (&player->hwdec_devctx    );
     if (!prepare) return 0;
 
     // open input file
@@ -386,7 +420,7 @@ static void* audio_decode_thread_proc(void *param)
         int ret = avcodec_send_packet(player->acodec_context, packet);
         while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
             if ((ret = avcodec_receive_frame(player->acodec_context, &frame)) == 0) {
-                frame.pts = av_rescale_q(av_frame_get_best_effort_timestamp(&frame), player->astream_timebase, TIMEBASE_MS);
+                frame.pts = av_rescale_q(frame.best_effort_timestamp, player->astream_timebase, TIMEBASE_MS);
                 if ( (player->status & PS_A_SEEK) && player->seek_dest - frame.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
                 if (!(player->status & PS_A_SEEK)) render_audio(player->ffrender, &frame, npkt);
                 while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_A_PAUSE|PS_A_SEEK))) av_usleep(20 * 1000);
@@ -417,11 +451,22 @@ static void* video_decode_thread_proc(void *param)
         if (!(packet = pktqueue_video_dequeue(player->pktqueue, &npkt))) { check_play_completed(player, 1); render_video(player->ffrender, &frame[idx], npkt); continue; }
 
         // decode video packet
-        int ret = avcodec_send_packet(player->vcodec_context, packet);
+decode: int ret = avcodec_send_packet(player->vcodec_context, packet);
+        if (ret == -1 && player->vcodec_context->hw_device_ctx) { // if hardware decode failed fallback to software decode
+            player->vcodec_context->get_format    = player->hwdec_get_format_sw;
+            player->vcodec_context->hw_device_ctx = NULL;
+            goto decode;
+        }
         while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
             if ((ret = avcodec_receive_frame(player->vcodec_context, &frame[idx])) == 0) {
-                frame[idx].pts = av_rescale_q(av_frame_get_best_effort_timestamp(&frame[idx]), player->vstream_timebase, TIMEBASE_MS);
+                frame[idx].pts = av_rescale_q(frame[idx].best_effort_timestamp, player->vstream_timebase, TIMEBASE_MS);
                 if ((player->status & PS_V_SEEK) && player->seek_dest - frame[idx].pts <= player->seek_diff) player_update_status(player, PS_V_SEEK, 0);
+                else if (frame[idx].format == player->hwdec_fmt) {
+                    if (av_hwframe_transfer_data(&(frame[(idx + 1) % 2]), &(frame[idx]), 0) >= 0) {
+                        frame[(idx + 1) % 2].pts = frame[idx].pts;
+                        idx = (idx + 1) % 2;
+                    }
+                }
                 do {
                     if (!(player->status & PS_V_SEEK)) render_video(player->ffrender, &frame[idx], npkt);
                 } while ((player->status & PS_R_PAUSE) && !(player->status & (PS_CLOSE|PS_V_PAUSE|PS_V_SEEK)));
@@ -477,22 +522,29 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
 
     player->callback = callback ? callback : player_callback;
     player->cbctx    = cbctx;
+    player->hwdec_fmt= AV_PIX_FMT_NONE;
 
     char strval[256] = "";
-    player->video_vwidth       = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
-    player->video_vheight      = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
-    player->video_frame_rate   = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_stream_cur   = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_codecid      = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
-    player->audio_stream_cur   = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->init_timeout       = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
-    player->open_autoplay      = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
-    player->auto_reconnect     = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
-    player->rtsp_transport     = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    player->video_vwidth     = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
+    player->video_vheight    = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
+    player->video_frame_rate = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_stream_cur = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_codecid    = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
+    player->audio_stream_cur = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->init_timeout     = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
+    player->open_autoplay    = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
+    player->auto_reconnect   = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
+    player->rtsp_transport   = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    parse_params(params, "hwdec_str", player->hwdec_str, sizeof(player->hwdec_str));
 
-    // av register all
-    av_register_all();
+    // init network
     avformat_network_init();
+
+    // for hwdec
+    if (strlen(player->hwdec_str) > 0) {
+        player->hwdec_type = av_hwdevice_find_type_by_name(player->hwdec_str);
+        player->hwdec_fmt  = find_fmt_by_hw_type(player->hwdec_type);
+    }
 
     // setup log
     av_log_set_level   (AV_LOG_WARNING);
@@ -533,11 +585,17 @@ void player_exit(void *ctx)
     free(player);
 }
 
-void player_seek(void *ctx, int64_t ms)
+void player_seek(void *ctx, int64_t ms, int type)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
     if (player->status & (PS_F_SEEK|PS_A_SEEK|PS_V_SEEK)) { av_log(NULL, AV_LOG_WARNING, "seek busy !\n"); return; }
+    switch (type) {
+    case SEEK_STEP_FORWARD:
+        break;
+    case SEEK_STEP_BACKWARD:
+        break;
+    }
     player->seek_dest =  player->start_time + ms;
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
     player->seek_diff = 50;

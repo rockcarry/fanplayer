@@ -10,6 +10,13 @@
 #define DEF_FRAME_RATE 20
 #define DEF_PLAY_SPEED 100
 
+enum {
+    AVSYNC_MODE_AUTO,  // auto
+    AVSYNC_MODE_FILE,  // file mode
+    AVSYNC_MODE_LIVE_SYNC0, // live mode, without avts sync
+    AVSYNC_MODE_LIVE_SYNC1, // live mode, with avts sync
+};
+
 typedef struct {
     #define FLAG_STRETCH  (1 << 0)
     #define FLAG_UPDATE   (1 << 1)
