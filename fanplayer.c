@@ -504,6 +504,7 @@ static void* av_demux_thread_proc(void *param)
             if (player->auto_reconnect > 0 && av_gettime_relative() - player->read_timelast > player->auto_reconnect * 1000) {
                 player_update_status(player, 0, PS_RECONNECT);
             }
+            av_usleep(20 * 1000);
         } else {
             player->read_timelast = av_gettime_relative();
             recorder_packet(player->recorder, packet);
