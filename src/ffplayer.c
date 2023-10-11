@@ -635,7 +635,8 @@ static void* video_decode_thread_proc(void *param)
                 player_send_message(player->cmnvars.winmsg, MSG_VIDEO_RESIZED, 0);
             }
             if (gotvideo) {
-                player->vframe.height = player->vcodec_context->height; // when using dxva2 hardware hwaccel, the frame heigh may incorrect, so we need fix it
+                player->vframe.width  = player->vcodec_context->width ; // when using dxva2 hardware hwaccel, the frame w&h may incorrect, so we need fix it
+                player->vframe.height = player->vcodec_context->height;
                 vfilter_graph_input(player, &player->vframe);
                 do {
                     if (vfilter_graph_output(player, &player->vframe) < 0) break;
