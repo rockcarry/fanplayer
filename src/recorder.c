@@ -1,19 +1,20 @@
-// 包含头文件
 #include <pthread.h>
 #include "recorder.h"
 
-// 内部类型定义
-typedef struct
-{
+typedef struct {
+    #define FLAG_GOT_KEYFRAME (1 << 0)
+    int            flags;
     AVFormatContext *ifc;
     AVFormatContext *ofc;
+    int  *stream_mapping;
     pthread_mutex_t lock;
 } RECORDER;
 
-// 函数实现
 void* recorder_init(char *filename, AVFormatContext *ifc)
 {
-    RECORDER *recorder;
+    RECORDER *recorder     = NULL;
+    int       stream_index = 0;
+    AVStream *is, *os;
     int       ret, i;
 
     // check params invalid
@@ -21,9 +22,7 @@ void* recorder_init(char *filename, AVFormatContext *ifc)
 
     // allocate context for recorder
     recorder = (RECORDER*)calloc(1, sizeof(RECORDER));
-    if (!recorder) {
-        return NULL;
-    }
+    if (!recorder) return NULL;
 
     // save input avformat context
     recorder->ifc = ifc;
@@ -35,24 +34,34 @@ void* recorder_init(char *filename, AVFormatContext *ifc)
         goto failed;
     }
 
-    for (i=0; i<(int)ifc->nb_streams; i++) {
-        AVStream *is = ifc->streams[i];
-        AVStream *os = avformat_new_stream(recorder->ofc, is->codec->codec);
+    recorder->stream_mapping = av_mallocz_array(ifc->nb_streams, sizeof(int));
+    if (!recorder->stream_mapping) {
+        ret = AVERROR(ENOMEM);
+        goto failed;
+    }
+
+    for (i = 0; i < (int)ifc->nb_streams; i++) {
+        is = ifc->streams[i];
+        if (is->codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
+            is->codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
+            is->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
+            recorder->stream_mapping[i] = -1;
+            continue;
+        }
+        recorder->stream_mapping[i] = stream_index++;
+
+        os = avformat_new_stream(recorder->ofc, NULL);
         if (!os) {
             printf("failed allocating output stream !\n");
             goto failed;
         }
 
-        ret = avcodec_copy_context(os->codec, is->codec);
+        ret = avcodec_parameters_copy(os->codecpar, is->codecpar);
         if (ret < 0) {
-            printf("failed to copy context from input to output stream codec context !\n");
+            fprintf(stderr, "Failed to copy codec parameters\n");
             goto failed;
         }
-
-        os->codec->codec_tag = 0;
-        if (recorder->ofc->oformat->flags & AVFMT_GLOBALHEADER) {
-            os->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-        }
+        os->codecpar->codec_tag = 0;
     }
 
     /* open the output file, if needed */
@@ -100,6 +109,9 @@ void recorder_free(void *ctxt)
         }
     }
 
+    // free stream_mapping
+    av_freep(&recorder->stream_mapping);
+
     // free the stream
     avformat_free_context(recorder->ofc);
 
@@ -118,23 +130,25 @@ int recorder_packet(void *ctxt, AVPacket *pkt)
     RECORDER *recorder = (RECORDER*)ctxt;
     AVPacket  packet   = {0};
     AVStream *is, *os;
-    if (!ctxt || !pkt) return -1;
 
-    // lock
+    if (!ctxt || !pkt || pkt->stream_index >= (int)recorder->ifc->nb_streams || recorder->stream_mapping[pkt->stream_index] < 0) return -1;
+    if (!(recorder->flags & FLAG_GOT_KEYFRAME) && (pkt->flags & AV_PKT_FLAG_KEY)
+       && recorder->ifc->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+        recorder->flags |= FLAG_GOT_KEYFRAME;
+    }
+    if (!(recorder->flags & FLAG_GOT_KEYFRAME)) return -1;
+
     pthread_mutex_lock(&recorder->lock);
-
-    is = recorder->ifc->streams[pkt->stream_index];
-    os = recorder->ofc->streams[pkt->stream_index];
-
     av_packet_ref(&packet, pkt);
-    packet.pts = av_rescale_q_rnd(packet.pts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
-    packet.dts = av_rescale_q_rnd(packet.dts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
+    packet.stream_index = recorder->stream_mapping[pkt->stream_index];
+    is = recorder->ifc->streams[  pkt->stream_index];
+    os = recorder->ofc->streams[packet.stream_index];
+    packet.pts      = av_rescale_q_rnd(packet.pts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
+    packet.dts      = av_rescale_q_rnd(packet.dts, is->time_base, os->time_base, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX);
     packet.duration = av_rescale_q(packet.duration, is->time_base, os->time_base);
-    packet.pos = -1;
+    packet.pos      = -1;
     av_interleaved_write_frame(recorder->ofc, &packet);
     av_packet_unref(&packet);
-
-    // unlock
     pthread_mutex_unlock(&recorder->lock);
     return 0;
 }

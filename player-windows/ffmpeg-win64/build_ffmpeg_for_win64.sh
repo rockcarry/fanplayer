@@ -51,8 +51,6 @@ cd ffmpeg
 --enable-encoder=mjpeg \
 --enable-encoder=apng \
 --enable-encoder=aac \
---enable-muxer=mjpeg \
---enable-muxer=apng \
 --enable-muxer=mp4 \
 --enable-muxer=flv \
 --enable-muxer=avi \

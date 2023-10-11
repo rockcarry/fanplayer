@@ -8,8 +8,7 @@
 extern "C" {
 #endif
 
-// avformat.h
-#include "libavformat/avformat.h"
+#include "libavcodec/avcodec.h"
 
 // º¯ÊýÉùÃ÷
 void* pktqueue_create (int size, CMNVARS *cmnvars); // important!! size must be power of 2
