@@ -418,7 +418,7 @@ static void* audio_decode_thread_proc(void *param)
 
         // decode audio packet
         int ret = avcodec_send_packet(player->acodec_context, packet);
-        while (ret >= 0 && !(player->status & (PS_V_PAUSE|PS_CLOSE))) {
+        while (ret >= 0 && !(player->status & (PS_A_PAUSE|PS_CLOSE))) {
             if ((ret = avcodec_receive_frame(player->acodec_context, &frame)) == 0) {
                 frame.pts = av_rescale_q(frame.best_effort_timestamp, player->astream_timebase, TIMEBASE_MS);
                 if ( (player->status & PS_A_SEEK) && player->seek_dest - frame.pts < player->seek_diff) player_update_status(player, PS_A_SEEK, 0);
