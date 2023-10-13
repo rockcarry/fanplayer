@@ -131,6 +131,8 @@ CplayerDlg::CplayerDlg(CWnd* pParent /*=NULL*/)
     m_bYoloDetect   = FALSE;
     m_bMouseSelFlag = FALSE;
     m_nCurMouseBtns = 0;
+
+	memset(m_strUrl, '\0', MAX_PATH);
 }
 
 void CplayerDlg::DoDataExchange(CDataExchange* pDX)
@@ -152,19 +154,20 @@ void CplayerDlg::PlayerOpenFile(TCHAR *file)
     // kill player progress timer
     KillTimer(TIMER_ID_PROGRESS);
 
-    // open file dialog
-    if (!file) {
-        if (dlg.DoModal() == IDOK) {
-            _tcscpy(str, dlg.GetPathName());
-        } else {
-            OnOK();
-            return;
-        }
-    } else {
-        _tcscpy(str, file);
-    }
-    WideCharToMultiByte(CP_UTF8, 0, str, -1, m_strUrl, MAX_PATH, NULL, NULL);
-
+	if( strlen(m_strUrl) <= 0 ){
+		// open file dialog
+		if (!file) {
+			if (dlg.DoModal() == IDOK) {
+				_tcscpy(str, dlg.GetPathName());
+			} else {
+				OnOK();
+				return;
+			}
+		} else {
+			_tcscpy(str, file);
+		}
+		WideCharToMultiByte(CP_UTF8, 0, str, -1, m_strUrl, MAX_PATH, NULL, NULL);
+	}
     // set window title
     SetWindowText(TEXT("testplayer - loading"));
 
@@ -508,6 +511,7 @@ BOOL CplayerDlg::PreTranslateMessage(MSG *pMsg)
 
 void CplayerDlg::OnOpenFile()
 {
+	memset(m_strUrl, '\0', MAX_PATH);
     PlayerOpenFile(NULL);
 }
 
