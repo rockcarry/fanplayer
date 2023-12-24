@@ -16,6 +16,8 @@
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 
+#define ALIGN(a, b) (((a) + (b) - 1) & ~((b) - 1))
+
 typedef struct {
     // format
     AVFormatContext *avformat_context;
@@ -85,6 +87,9 @@ typedef struct {
     int  auto_reconnect;           // w  播放流媒体时自动重连的超时时间，毫秒为单位
     int  rtsp_transport;           // w  rtsp 传输模式，0 - 自动，1 - udp，2 - tcp
 
+    int      use_avio;             // w  use avio
+    uint8_t *avio_buf;             // avio buffer
+
     char         hwdec_str[32];
     int          hwdec_type;
     int          hwdec_fmt;
@@ -130,6 +135,19 @@ static int interrupt_callback(void *param)
     PLAYER *player = (PLAYER*)param;
     if (player->read_timeout == -1) return 0;
     return av_gettime_relative() - player->read_timelast > player->read_timeout ? AVERROR_EOF : 0;
+}
+
+static int avio_read_callback(void *opaque, uint8_t *buf, int size)
+{
+    PLAYER *player = (PLAYER*)opaque;
+    return player->callback(player->cbctx, PLAYER_AVIO_READ, buf, size);
+}
+
+static int64_t avio_seek_callback(void *opaque, int64_t offset, int whence)
+{
+    PLAYER *player = (PLAYER*)opaque;
+    player->callback(player->cbctx, PLAYER_AVIO_SEEK, &offset, whence);
+    return offset;
 }
 
 static int player_callback(void *cbctx, int msg, void *buf, int len)
@@ -292,6 +310,10 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
         player->read_timelast = av_gettime_relative();
         player->read_timeout  = player->init_timeout ? player->init_timeout * 1000 : -1;
 
+        if (player->use_avio) {
+            player->avformat_context->pb = avio_alloc_context(player->avio_buf, player->use_avio, 0, NULL, avio_read_callback, NULL, avio_seek_callback);
+            player->avformat_context->pb->opaque = player;
+        }
         if (avformat_open_input(&player->avformat_context, player->url, NULL, &opts) != 0) { // if failed, no need call avformat_free_context
             av_usleep(100 * 1000);
             if (player->auto_reconnect > 0 && !(player->status & PS_CLOSE)) {
@@ -518,14 +540,18 @@ static void* av_demux_thread_proc(void *param)
 
 void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
 {
-    PLAYER *player = (PLAYER*)calloc(1, sizeof(PLAYER));
+    char strval[256] = "";
+    int use_avio = atoi(parse_params(params, "use_avio", strval, sizeof(strval)) ? strval : "0");
+    use_avio = ALIGN(use_avio, 256);
+
+    PLAYER *player = (PLAYER*)malloc(sizeof(PLAYER) + use_avio);
     if (!player) return NULL;
+    memset(player, 0, sizeof(PLAYER));
 
     player->callback = callback ? callback : player_callback;
     player->cbctx    = cbctx;
     player->hwdec_fmt= AV_PIX_FMT_NONE;
 
-    char strval[256] = "";
     player->video_vwidth     = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
     player->video_vheight    = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
     player->video_frame_rate = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
@@ -536,6 +562,8 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     player->open_autoplay    = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
     player->auto_reconnect   = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
     player->rtsp_transport   = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    player->use_avio         = use_avio;
+    player->avio_buf         = (uint8_t*)(player + 1);
     parse_params(params, "hwdec_str", player->hwdec_str, sizeof(player->hwdec_str));
 
     // init network
@@ -551,7 +579,7 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     av_log_set_level   (AV_LOG_WARNING);
     av_log_set_callback(avlog_callback);
 
-    strncpy(player->url, url, sizeof(player->url) - 1);
+    if (url) strncpy(player->url, url, sizeof(player->url) - 1);
     player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
     player->pktqueue = pktqueue_create(0);
     player->ffrender = render_init(NULL, player->callback, player->cbctx);

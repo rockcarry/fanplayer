@@ -43,6 +43,7 @@ typedef struct {
     void *idev;
     void *player;
     int   playing;
+    FILE *fp;
 } MYAPP;
 
 #ifdef WITH_LIBAVDEV
@@ -112,6 +113,19 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
     case PLAYER_PLAY_COMPLETED:
         printf("play completed !\n");
         break;
+    case PLAYER_AVIO_READ:
+        return app->fp ? fread(buf, 1, len, app->fp) : 0;
+    case PLAYER_AVIO_SEEK:
+        if (!app->fp) break;
+        if (len == 0x10000) { // get file size
+            size_t cur = ftell(app->fp);
+            fseek(app->fp, 0  , SEEK_END);
+            *(int64_t*)buf = ftell(app->fp);
+            fseek(app->fp, cur, SEEK_SET);
+        } else {
+            fseek(app->fp, *(int64_t*)buf, len);
+        }
+        break;
 #ifdef WITH_LIBAVDEV
     case PLAYER_ADEV_SAMPRATE:
         return ADEV_SAMPRATE;
@@ -177,6 +191,7 @@ int main(int argc, char *argv[])
     idev_set(myapp.idev, "callback", my_videv_cb);
 #endif
 
+    if (strstr(initparams, "use_avio")) myapp.fp = fopen(url, "rb");
     myapp.player = player_init(url, initparams, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
@@ -184,6 +199,7 @@ int main(int argc, char *argv[])
 #endif
 
     player_exit(myapp.player);
+    if (myapp.fp) fclose(myapp.fp);
 
 #ifdef WITH_LIBAVDEV
     vdev_exit(myapp.vdev, 0);
