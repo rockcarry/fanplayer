@@ -185,17 +185,17 @@ int main(int argc, char *argv[])
 #ifdef WITH_LIBAVDEV
     myapp.adev   = adev_init(ADEV_SAMPRATE, ADEV_CHANNELS, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
     myapp.vdev   = vdev_init(1024, 600, "resizable", my_videv_cb, &myapp);
-    myapp.idev   = (void*)vdev_get(myapp.vdev, "idev", NULL);
-    vdev_set(myapp.vdev, "title", "fanplayer");
-    idev_set(myapp.idev, "cbctx"   , &myapp);
-    idev_set(myapp.idev, "callback", my_videv_cb);
+    myapp.idev   = (void*)vdev_get(myapp.vdev, VDEV_PARAM_IDEV, NULL);
+    vdev_set(myapp.vdev, VDEV_PARAM_TITLE, "fanplayer");
+    idev_set(myapp.idev, IDEV_PARAM_CALLBACK, my_videv_cb);
+    idev_set(myapp.idev, IDEV_PARAM_CBCTX, &myapp);
 #endif
 
-    if (strstr(initparams, "use_avio")) myapp.fp = fopen(url, "rb");
+    if (initparams && strstr(initparams, "use_avio")) myapp.fp = fopen(url, "rb");
     myapp.player = player_init(url, initparams, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
-    while (strcmp((char*)vdev_get(myapp.vdev, "state", NULL), "running") == 0) { usleep(100 * 1000); }
+    while (!vdev_get(myapp.vdev, VDEV_PARAM_CLOSED, NULL)) { usleep(100 * 1000); }
 #endif
 
     player_exit(myapp.player);

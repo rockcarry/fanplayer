@@ -202,7 +202,7 @@ handle_avts_sync:
 void render_set(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
-    if (!ctx) return;
+    if (!ctx || !key) return;
     if (strcmp(key, "speed") == 0 || strcmp(key, "reset") == 0) {
         int n = (intptr_t)val;
         n = n < 300 ? n : 300;
@@ -224,15 +224,15 @@ void render_set(void *ctx, char *key, void *val)
     else if (strcmp(key, "video_buf_npkt") == 0) render->video_buf_npkt = (intptr_t)val;
 }
 
-void* render_get(void *ctx, char *key, void *val)
+long render_get(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
-    if (!ctx) return NULL;
-    if (key == PARAM_MEDIA_POSITION) return (void*)(intptr_t)(render->apts > render->vpts ? render->apts : render->vpts);
-    if (strcmp(key, "speed"  ) == 0) return (void*)(intptr_t)render->cur_speed_value;
-    if (strcmp(key, "stretch") == 0) return (void*)(intptr_t)!!(render->flags & FLAG_STRETCH);
-    if (strcmp(key, "avts_sync_mode") == 0) return (void*)(intptr_t)render->avts_sync_mode;
-    if (strcmp(key, "audio_buf_npkt") == 0) return (void*)(intptr_t)render->audio_buf_npkt;
-    if (strcmp(key, "video_buf_npkt") == 0) return (void*)(intptr_t)render->video_buf_npkt;
-    return NULL;
+    if (!ctx || !key) return 0;
+    if (key == PARAM_MEDIA_POSITION) return (render->apts > render->vpts ? render->apts : render->vpts);
+    if (strcmp(key, "speed"  ) == 0) return render->cur_speed_value;
+    if (strcmp(key, "stretch") == 0) return !!(render->flags & FLAG_STRETCH);
+    if (strcmp(key, "avts_sync_mode") == 0) return render->avts_sync_mode;
+    if (strcmp(key, "audio_buf_npkt") == 0) return render->audio_buf_npkt;
+    if (strcmp(key, "video_buf_npkt") == 0) return render->video_buf_npkt;
+    return 0;
 }

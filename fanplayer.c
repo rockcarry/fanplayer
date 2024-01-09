@@ -635,7 +635,7 @@ void player_seek(void *ctx, int64_t ms, int type)
 
 void player_set(void *ctx, char *key, void *val)
 {
-    if (!ctx) return;
+    if (!ctx || !key) return;
     PLAYER *player = ctx;
     if (strcmp(key, "play") == 0) {
         player_play(player, (intptr_t)val);
@@ -651,23 +651,23 @@ void player_set(void *ctx, char *key, void *val)
     }
 }
 
-void* player_get(void *ctx, char *key, void *val)
+long player_get(void *ctx, char *key, void *val)
 {
-    if (!ctx) return 0;
+    if (!ctx || !key) return 0;
     PLAYER  *player = ctx;
     uint32_t position;
     switch ((intptr_t)key) {
     case (intptr_t)PARAM_MEDIA_DURATION:
-        return (void*)(intptr_t)(player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1);
+        return (player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1);
     case (intptr_t)PARAM_MEDIA_POSITION:
         position = (intptr_t)render_get(player->ffrender, key, NULL);
-        return (void*)(intptr_t)(position > player->start_time ? position - player->start_time : position);
+        return (position > player->start_time ? position - player->start_time : position);
     case (intptr_t)PARAM_VIDEO_WIDTH:
-        return (void*)(intptr_t)(player->vcodec_context ? player->video_owidth  : 0);
+        return (player->vcodec_context ? player->video_owidth  : 0);
     case (intptr_t)PARAM_VIDEO_HEIGHT:
-        return (void*)(intptr_t)(player->vcodec_context ? player->video_oheight : 0);
+        return (player->vcodec_context ? player->video_oheight : 0);
     }
-    if (strcmp(key, "play"  ) == 0) return (void*)(intptr_t)!(player->status & PS_R_PAUSE);
-    if (strcmp(key, "record") == 0) return (void*)(intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
+    if (strcmp(key, "play"  ) == 0) return !(player->status & PS_R_PAUSE);
+    if (strcmp(key, "record") == 0) return (intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
     return render_get(player->ffrender, key, val);
 }

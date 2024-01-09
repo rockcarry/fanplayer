@@ -48,12 +48,12 @@ enum {
 };
 void player_seek(void *ctx, int64_t ms, int type);
 
-#define PARAM_MEDIA_DURATION ((char*)0)
-#define PARAM_MEDIA_POSITION ((char*)1)
-#define PARAM_VIDEO_WIDTH    ((char*)2)
-#define PARAM_VIDEO_HEIGHT   ((char*)3)
-void  player_set(void *ctx, char *key, void *val);
-void* player_get(void *ctx, char *key, void *val);
+#define PARAM_MEDIA_DURATION ((char*)1)
+#define PARAM_MEDIA_POSITION ((char*)2)
+#define PARAM_VIDEO_WIDTH    ((char*)3)
+#define PARAM_VIDEO_HEIGHT   ((char*)4)
+void player_set(void *ctx, char *key, void *val);
+long player_get(void *ctx, char *key, void *val);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
