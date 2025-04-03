@@ -454,7 +454,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     // for video
     if (player->vstream_index != -1) {
         player->vfrate = player->avformat_context->streams[player->vstream_index]->avg_frame_rate;
-        if (player->vfrate.num / player->vfrate.den > 100) { player->vfrate.num = 20; player->vfrate.den = 1; }
+        if (player->vfrate.num >= 100 * player->vfrate.den) { player->vfrate.num = 20; player->vfrate.den = 1; }
         player->init_params.video_vwidth = player->init_params.video_owidth  = player->vcodec_context->width;
         player->init_params.video_vheight= player->init_params.video_oheight = player->vcodec_context->height;
         vfilter_graph_init(player);
