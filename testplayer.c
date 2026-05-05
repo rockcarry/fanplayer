@@ -56,36 +56,37 @@ static char* gen_file_name(char *name, int len, char *ext)
     return name;
 }
 
-static int my_videv_cb(void *cbctx, int msg, uint32_t param1, uint32_t param2, uint32_t param3)
+static long my_idev_cb(void *cbctx, int type, void *buf, int len)
 {
-    MYAPP *app = cbctx;
+    MYAPP *app  = cbctx;
+    IDEV  *idev = buf;
     char   file[256];
-    switch (msg) {
-    case DEV_MSG_KEY_EVENT:
-        if (param1) {
-            switch (param2) {
-            case ' ': player_set(app->player, "play"   , (void*)(intptr_t)(!player_get(app->player, "play"   , NULL))); break;
-            case 'S': player_set(app->player, "stretch", (void*)(intptr_t)(!player_get(app->player, "stretch", NULL))); break;
-            case 189: player_set(app->player, "speed"  , (void*)(intptr_t)( player_get(app->player, "speed"  , NULL) - 10)); break;
-            case 187: player_set(app->player, "speed"  , (void*)(intptr_t)( player_get(app->player, "speed"  , NULL) + 10)); break;
+    switch (type) {
+    case IDEV_CALLBACK_KEY_EVENT:
+        if (buf) {
+            switch (len) {
+            case ' ': player_set(app->player, "i_play"   , (void*)(intptr_t)(!player_get(app->player, "i_play"   , NULL))); break;
+            case 'S': player_set(app->player, "i_stretch", (void*)(intptr_t)(!player_get(app->player, "i_stretch", NULL))); break;
+            case 189: player_set(app->player, "i_speed"  , (void*)(intptr_t)( player_get(app->player, "i_speed"  , NULL) - 10)); break;
+            case 187: player_set(app->player, "i_speed"  , (void*)(intptr_t)( player_get(app->player, "i_speed"  , NULL) + 10)); break;
             case 'R':
-                if (player_get(app->player, "record", NULL)) {
-                    player_set(app->player, "record", NULL);
+                if (player_get(app->player, "i_record", NULL)) {
+                    player_set(app->player, "s_record", NULL);
                 } else {
-                    player_set(app->player, "record", gen_file_name(file, sizeof(file), "avi"));
+                    player_set(app->player, "s_record", gen_file_name(file, sizeof(file), "avi"));
                 }
                 break;
             case 'P':
-                player_set(app->player, "snapshot", gen_file_name(file, sizeof(file), "png"));
+                player_set(app->player, "s_snapshot", gen_file_name(file, sizeof(file), "png"));
                 break;
             }
         }
         break;
-    case DEV_MSG_MOUSE_MOVE:
-    case DEV_MSG_MOUSE_LBUTTON_D:
-        if (param2 > (intptr_t)vdev_get(app->vdev, "height", NULL) - 16 && param3 & 1) { // mouse lbutton down or drag
+    case IDEV_CALLBACK_MOUSE_MOVE:
+    case IDEV_CALLBACK_MOUSE_LBTNDOWN:
+        if (idev && idev->curr_mouse_y > vdev_get(app->vdev, VDEV_KEY_HEIGHT, NULL) - 16 && (idev->curr_mouse_btns & 1)) {
             uint32_t duration = (intptr_t)player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-            player_seek(app->player, duration * param1 / (intptr_t)vdev_get(app->vdev, "width", NULL), 0);
+            player_seek(app->player, duration * idev->curr_mouse_x / (intptr_t)vdev_get(app->vdev, VDEV_KEY_WIDTH, NULL), 0);
         }
         break;
     }
@@ -103,12 +104,18 @@ static void bar(BMP *bmp, int x, int y, int w, int h, int c)
 }
 #endif
 
-static int my_player_cb(void *cbctx, int msg, void *buf, int len)
+static long my_player_cb(void *cbctx, int msg, void *buf, int len)
 {
     MYAPP *app = cbctx;
     switch (msg) {
-    case PLAYER_OPEN_SUCCESS:
-        player_set(app->player, "play", (void*)1);
+    case PLAYER_OPEN_SUCCESS: {
+            int vw  = player_get(app->player, PARAM_VIDEO_WIDTH , NULL);
+            int vh  = player_get(app->player, PARAM_VIDEO_HEIGHT, NULL);
+            int max = vw > vh ? vw : vh;
+            char str[128]; snprintf(str, sizeof(str), "sw:%f,sh:%f", vw * 20.0 / max, vh * 20.0 / max);
+            vdev_set(app->vdev, VDEV_KEY_SURFACE_PARAMS, str);
+            player_set(app->player, "i_play", (void*)1);
+        }
         break;
     case PLAYER_PLAY_COMPLETED:
         printf("play completed !\n");
@@ -137,27 +144,19 @@ static int my_player_cb(void *cbctx, int msg, void *buf, int len)
         adev_play(app->adev, buf, len, 100);
         break;
     case PLAYER_VDEV_LOCK: {
-            BMP     *bmp  = vdev_lock(app->vdev);
+            BMP     *bmp  = vdev_lock(app->vdev, 0);
             SURFACE *surf = buf;
             surf->w       = bmp ? bmp->width  : 0;
             surf->h       = bmp ? bmp->height : 0;
             surf->data    = bmp ? bmp->pdata  : NULL;
             surf->stride  = bmp ? bmp->stride : 0;
-            surf->format  = bmp ? bmp->pixfmt : SURFACE_FMT_RGB32;
+            surf->format  = SURFACE_FMT_RGB32;
             surf->cdepth  = bmp ? bmp->cdepth : 32;
-            if (surf->h > 3) {
-                surf->h -= 3;
-                uint32_t duration = (intptr_t)player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-                uint32_t position = (intptr_t)player_get(app->player, PARAM_MEDIA_POSITION, NULL);
-                uint32_t w = surf->w * position / duration;
-                w = w < surf->w ? w : surf->w;
-                bar(bmp, 0, surf->h, w, 3, 0xFF8800);
-                bar(bmp, w, surf->h, surf->w - w, 3, 0);
-            }
         }
         break;
     case PLAYER_VDEV_UNLOCK:
-        vdev_unlock(app->vdev);
+        vdev_unlock(app->vdev, 0);
+        vdev_render(app->vdev);
         break;
 #endif
     }
@@ -183,26 +182,39 @@ int main(int argc, char *argv[])
     printf("params: %s\n", initparams);
 
 #ifdef WITH_LIBAVDEV
-    myapp.adev   = adev_init(ADEV_SAMPRATE, ADEV_CHANNELS, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
-    myapp.vdev   = vdev_init(1024, 600, "resizable", my_videv_cb, &myapp);
-    myapp.idev   = (void*)vdev_get(myapp.vdev, VDEV_PARAM_IDEV, NULL);
-    vdev_set(myapp.vdev, VDEV_PARAM_TITLE, "fanplayer");
-    idev_set(myapp.idev, IDEV_PARAM_CALLBACK, my_videv_cb);
-    idev_set(myapp.idev, IDEV_PARAM_CBCTX, &myapp);
+    char str[256];
+    snprintf(str, sizeof(str), "samprate:%d,chnnum:%d,frmsize:%d,frmnum:%d", ADEV_SAMPRATE, ADEV_CHANNELS, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
+    myapp.adev = adev_init(str, NULL, NULL);
+    snprintf(str, sizeof(str), "title:fanplayer,surfaces:3,resize,show");
+    myapp.vdev = vdev_init(str, my_idev_cb, &myapp);
+    vdev_set(myapp.vdev, "s_surface_params1", "parent:-1,sw:0.999999,sh:3,sx:center,sy:-0.0000000000001");
+    myapp.idev = (void*)vdev_get(myapp.vdev, VDEV_KEY_IDEV, NULL);
 #endif
 
     if (initparams && strstr(initparams, "use_avio")) myapp.fp = fopen(url, "rb");
     myapp.player = player_init(url, initparams, my_player_cb, &myapp);
 
 #ifdef WITH_LIBAVDEV
-    while (!vdev_get(myapp.vdev, VDEV_PARAM_CLOSED, NULL)) { usleep(100 * 1000); }
+    while (vdev_get(myapp.vdev, VDEV_KEY_STATE, NULL) != VDEV_CALLBACK_VDEV_CLOSED) {
+        BMP *bmp = vdev_lock(myapp.vdev, 1);
+        if (bmp) {
+            uint32_t duration = (intptr_t)player_get(myapp.player, PARAM_MEDIA_DURATION, NULL);
+            uint32_t position = (intptr_t)player_get(myapp.player, PARAM_MEDIA_POSITION, NULL);
+            uint32_t w = bmp->width * position / duration;
+            w = w < bmp->width ? w : bmp->width;
+            bar(bmp, 0, 0, w, bmp->height, 0xFF8800);
+            bar(bmp, w, 0, bmp->width - w, bmp->height, 0);
+            vdev_unlock(myapp.vdev, 1);
+        }
+        usleep(100 * 1000);
+    }
 #endif
 
     player_exit(myapp.player);
     if (myapp.fp) fclose(myapp.fp);
 
 #ifdef WITH_LIBAVDEV
-    vdev_exit(myapp.vdev, 0);
+    vdev_exit(myapp.vdev);
     adev_exit(myapp.adev);
 #endif
     return 0;

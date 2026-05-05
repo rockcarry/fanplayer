@@ -10,8 +10,10 @@ cd libavdev
 
 ./configure \
 --prefix=$TOPDIR/_install \
+--host=$BUILD_HOST \
 --enable-static \
---disable-shared
+--disable-shared \
+--enable-tests
 
 make -j2 && make install
 cd -

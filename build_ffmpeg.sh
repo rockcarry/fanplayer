@@ -4,11 +4,16 @@ set -e
 
 TOPDIR=$PWD
 
-cd ffmpeg-4.3.6
+cd ffmpeg
+git checkout .
+git checkout n4.3.9
 
 ./configure \
 --pkg-config=pkg-config \
 --prefix=$TOPDIR/_install \
+--arch=i686 \
+--target-os=mingw64 \
+--cross-prefix=$CROSS_COMPILE \
 --enable-static \
 --disable-shared \
 --enable-small \

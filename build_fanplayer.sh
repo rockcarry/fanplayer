@@ -8,6 +8,7 @@ TOPDIR=$PWD
 
 ./configure \
 --prefix=$TOPDIR/_install \
+--host=$BUILD_HOST \
 --enable-static \
 --disable-shared \
 --with-libavdev

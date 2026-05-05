@@ -18,7 +18,7 @@ fanplayer_LDFLAGS = --static
 endif
 
 CFLAGS  += -Os -g -Wall -Werror -funwind-tables -ffunction-sections -fdata-sections
-LDFLAGS += -no-undefined -lz
+LDFLAGS += -no-undefined
 
 if WIN32
 CFLAGS  += -DWIN32 -mwindows

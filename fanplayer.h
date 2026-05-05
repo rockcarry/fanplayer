@@ -37,7 +37,7 @@ enum {
     PLAYER_STREAM_CONNECTED,
     PLAYER_STREAM_DISCONNECT,
 };
-typedef int (*PFN_PLAYER_CB)(void *cbctx, int msg, void *buf, int len);
+typedef long (*PFN_PLAYER_CB)(void *cbctx, int msg, void *buf, int len);
 
 void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx);
 void  player_exit(void *ctx);
@@ -52,7 +52,7 @@ void player_seek(void *ctx, int64_t ms, int type);
 #define PARAM_MEDIA_POSITION ((char*)2)
 #define PARAM_VIDEO_WIDTH    ((char*)3)
 #define PARAM_VIDEO_HEIGHT   ((char*)4)
-void player_set(void *ctx, char *key, void *val);
+long player_set(void *ctx, char *key, void *val);
 long player_get(void *ctx, char *key, void *val);
 
 #if defined(__cplusplus) || defined(c_plusplus)

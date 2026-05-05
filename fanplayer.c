@@ -150,7 +150,7 @@ static int64_t avio_seek_callback(void *opaque, int64_t offset, int whence)
     return offset;
 }
 
-static int player_callback(void *cbctx, int msg, void *buf, int len)
+static long player_callback(void *cbctx, int msg, void *buf, int len)
 {
     switch (msg) {
     case PLAYER_ADEV_SAMPRATE: return 48000;
@@ -258,7 +258,7 @@ static void player_play(void *ctx, int play)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
-    if (play) render_set(player->ffrender, "reset", (void*)-1);
+    if (play) render_set(player->ffrender, "i_reset", (void*)-1);
     pthread_mutex_lock(&player->lock);
     if (play) player->status &= PS_CLOSE;
     else      player->status |= PS_R_PAUSE;
@@ -397,8 +397,8 @@ static int handle_fseek_or_reconnect(PLAYER *player)
         if (player->vstream_index != -1) avcodec_flush_buffers(player->vcodec_context);
     }
 
-    pktqueue_reset(player->pktqueue);                 // reset pktqueue
-    render_set(player->ffrender, "reset", (void*)-1); // reset render
+    pktqueue_reset(player->pktqueue);                   // reset pktqueue
+    render_set(player->ffrender, "i_reset", (void*)-1); // reset render
 
     // make audio & video decoding thread resume
     if (ret == 0) player_update_status(player, PS_F_SEEK|PS_RECONNECT|PAUSE_REQ|PAUSE_ACK, (player->status & PS_F_SEEK) ? (PS_A_SEEK|PS_V_SEEK) : 0);
@@ -633,22 +633,23 @@ void player_seek(void *ctx, int64_t ms, int type)
     player_update_status(player, PS_COMPLETED, PS_F_SEEK);
 }
 
-void player_set(void *ctx, char *key, void *val)
+long player_set(void *ctx, char *key, void *val)
 {
-    if (!ctx || !key) return;
+    if (!ctx || !key) return -1;
     PLAYER *player = ctx;
-    if (strcmp(key, "play") == 0) {
+    if (strcmp(key, "i_play") == 0) {
         player_play(player, (intptr_t)val);
-    } else if (strcmp(key, "record") == 0) {
-        if ((intptr_t)val) {
+    } else if (strcmp(key, "s_record") == 0) {
+        if (val) {
             strncpy(player->rec, val, sizeof(player->rec) - 1);
             player->status |=  PS_RECORD;
         } else {
             player->status &= ~PS_RECORD;
         }
     } else {
-        render_set(player->ffrender, key, val);
+        return render_set(player->ffrender, key, val);
     }
+    return 0;
 }
 
 long player_get(void *ctx, char *key, void *val)
@@ -667,7 +668,7 @@ long player_get(void *ctx, char *key, void *val)
     case (intptr_t)PARAM_VIDEO_HEIGHT:
         return (player->vcodec_context ? player->video_oheight : 0);
     }
-    if (strcmp(key, "play"  ) == 0) return !(player->status & PS_R_PAUSE);
-    if (strcmp(key, "record") == 0) return (intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
+    if (strcmp(key, "i_play"  ) == 0) return !(player->status & PS_R_PAUSE);
+    if (strcmp(key, "i_record") == 0) return (intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
     return render_get(player->ffrender, key, val);
 }
