@@ -204,7 +204,7 @@ static int init_stream(PLAYER *player, enum AVMediaType type, int sel) {
         }
     }
     if (idx == -1) return -1;
-    AVCodec *decoder = avcodec_find_decoder(player->avformat_context->streams[i]->codecpar->codec_id);
+    const AVCodec *decoder = avcodec_find_decoder(player->avformat_context->streams[i]->codecpar->codec_id);
 
     switch (type) {
     case AVMEDIA_TYPE_AUDIO:
@@ -252,17 +252,6 @@ static int get_stream_total(PLAYER *player, enum AVMediaType type) {
 
 static void player_send_message(PLAYER *player, int msg, void *buf, int len) {
     player->callback(player->cbctx, msg, buf, len);
-}
-
-static void player_play(void *ctx, int play)
-{
-    if (!ctx) return;
-    PLAYER *player = ctx;
-    if (play) render_set(player->ffrender, "i_reset", (void*)-1);
-    pthread_mutex_lock(&player->lock);
-    if (play) player->status &= PS_CLOSE;
-    else      player->status |= PS_R_PAUSE;
-    pthread_mutex_unlock(&player->lock);
 }
 
 static int player_prepare_or_free(PLAYER *player, int prepare)
@@ -333,15 +322,6 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     player->astream_index = -1; init_stream(player, AVMEDIA_TYPE_AUDIO, player->audio_stream_cur);
     player->vstream_index = -1; init_stream(player, AVMEDIA_TYPE_VIDEO, player->video_stream_cur);
 
-    // for audio
-    if (player->astream_index != -1) {
-        //++ fix audio channel layout issue
-        if (player->acodec_context->channel_layout == 0) {
-            player->acodec_context->channel_layout = av_get_default_channel_layout(player->acodec_context->channels);
-        }
-        //-- fix audio channel layout issue
-    }
-
     // for video
     AVRational vfrate = { .num = 1, .den = 1 };
     if (player->vstream_index != -1) {
@@ -357,7 +337,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
     // for player init params
     player->video_frame_rate   = vfrate.num / vfrate.den;
     player->video_stream_total = get_stream_total(player, AVMEDIA_TYPE_VIDEO);
-    player->audio_channels     = player->acodec_context ? av_get_channel_layout_nb_channels(player->acodec_context->channel_layout) : 0;
+    player->audio_channels     = player->acodec_context ? player->acodec_context->ch_layout.nb_channels : 0;
     player->audio_sample_rate  = player->acodec_context ? player->acodec_context->sample_rate : 0;
     player->audio_stream_total = get_stream_total(player, AVMEDIA_TYPE_AUDIO);
     player->video_codecid      = player->avformat_context->video_codec_id;
@@ -366,7 +346,7 @@ static int player_prepare_or_free(PLAYER *player, int prepare)
 done:
     // send player init message
     player_send_message(player, ret == 0 ? PLAYER_OPEN_SUCCESS : PLAYER_OPEN_FAILED, NULL, 0);
-    if (ret == 0 && player->open_autoplay) player_play(player, 1);
+    if (ret == 0 && player->open_autoplay) player_set(player, PLAYER_KEY_STATE, (void*)1);
     return ret;
 }
 
@@ -535,36 +515,64 @@ static void* av_demux_thread_proc(void *param)
             else                                                    pktqueue_release_packet(player->pktqueue, packet); // other
         }
     }
+    recorder_free(player->recorder); player->recorder = NULL;
     return NULL;
 }
 
-void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
+static void player_state(void *ctx, int state)
 {
+    if (!ctx) return;
+    PLAYER *player = ctx;
+    pthread_mutex_lock(&player->lock);
+    switch (state) {
+    case 0: case 4:
+        player->status = PS_CLOSE;
+        if (player->adecode_thread) { pthread_join(player->adecode_thread, NULL); player->adecode_thread = (pthread_t)NULL; } // wait audio decoding thread exit
+        if (player->vdecode_thread) { pthread_join(player->vdecode_thread, NULL); player->vdecode_thread = (pthread_t)NULL; } // wait video decoding thread exit
+        if (player->avdemux_thread) { pthread_join(player->avdemux_thread, NULL); player->avdemux_thread = (pthread_t)NULL; } // wait avdemux thread exit
+        if (state == 0) break;
+    case 1:
+        render_set(player->ffrender, "i_reset", (void*)-1);
+        player->status &= PS_CLOSE;
+        if (!player->avdemux_thread) pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
+        if (!player->adecode_thread) pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
+        if (!player->vdecode_thread) pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+        break;
+    case 2:
+        player->status |= PS_R_PAUSE;
+        break;
+    }
+    pthread_mutex_unlock(&player->lock);
+}
+
+void* player_init(void *params, PFN_PLAYER_CB callback, void *cbctx)
+{
+    if (!params) return NULL;
     char strval[256] = "";
-    int use_avio = atoi(parse_params(params, "use_avio", strval, sizeof(strval)) ? strval : "0");
+    int use_avio = atoi(parse_params(params, "i_use_avio", strval, sizeof(strval)) ? strval : "0");
     use_avio = ALIGN(use_avio, 256);
 
-    PLAYER *player = (PLAYER*)malloc(sizeof(PLAYER) + use_avio);
+    PLAYER *player = (PLAYER*)calloc(1, sizeof(PLAYER) + use_avio);
     if (!player) return NULL;
-    memset(player, 0, sizeof(PLAYER));
 
     player->callback = callback ? callback : player_callback;
     player->cbctx    = cbctx;
     player->hwdec_fmt= AV_PIX_FMT_NONE;
 
-    player->video_vwidth     = atoi(parse_params(params, "video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
-    player->video_vheight    = atoi(parse_params(params, "video_vheight"     , strval, sizeof(strval)) ? strval : "0");
-    player->video_frame_rate = atoi(parse_params(params, "video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_stream_cur = atoi(parse_params(params, "video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->video_codecid    = atoi(parse_params(params, "video_codecid"     , strval, sizeof(strval)) ? strval : "0");
-    player->audio_stream_cur = atoi(parse_params(params, "audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
-    player->init_timeout     = atoi(parse_params(params, "init_timeout"      , strval, sizeof(strval)) ? strval : "0");
-    player->open_autoplay    = atoi(parse_params(params, "open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
-    player->auto_reconnect   = atoi(parse_params(params, "auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
-    player->rtsp_transport   = atoi(parse_params(params, "rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
+    player->video_vwidth     = atoi(parse_params(params, "i_video_vwidth"      , strval, sizeof(strval)) ? strval : "0");
+    player->video_vheight    = atoi(parse_params(params, "i_video_vheight"     , strval, sizeof(strval)) ? strval : "0");
+    player->video_frame_rate = atoi(parse_params(params, "i_video_frame_rate"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_stream_cur = atoi(parse_params(params, "i_video_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->video_codecid    = atoi(parse_params(params, "i_video_codecid"     , strval, sizeof(strval)) ? strval : "0");
+    player->audio_stream_cur = atoi(parse_params(params, "i_audio_stream_cur"  , strval, sizeof(strval)) ? strval : "0");
+    player->init_timeout     = atoi(parse_params(params, "i_init_timeout"      , strval, sizeof(strval)) ? strval : "0");
+    player->open_autoplay    = atoi(parse_params(params, "i_open_autoplay"     , strval, sizeof(strval)) ? strval : "0");
+    player->auto_reconnect   = atoi(parse_params(params, "i_auto_reconnect"    , strval, sizeof(strval)) ? strval : "0");
+    player->rtsp_transport   = atoi(parse_params(params, "i_rtsp_transport"    , strval, sizeof(strval)) ? strval : "0");
     player->use_avio         = use_avio;
     player->avio_buf         = (uint8_t*)(player + 1);
-    parse_params(params, "hwdec_str", player->hwdec_str, sizeof(player->hwdec_str));
+    parse_params(params, "s_hwdec_name", player->hwdec_str, sizeof(player->hwdec_str));
+    parse_params(params, "s_url"       , player->url      , sizeof(player->url      ));
 
     // init network
     avformat_network_init();
@@ -579,18 +587,15 @@ void* player_init(char *url, char *params, PFN_PLAYER_CB callback, void *cbctx)
     av_log_set_level   (AV_LOG_WARNING);
     av_log_set_callback(avlog_callback);
 
-    if (url) strncpy(player->url, url, sizeof(player->url) - 1);
     player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
     player->pktqueue = pktqueue_create(0);
     player->ffrender = render_init(NULL, player->callback, player->cbctx);
-    render_set(player->ffrender, "avts_sync_mode", (void*)(intptr_t)atoi(parse_params(params, "avts_sync_mode", strval, sizeof(strval)) ? strval : "0"));
-    render_set(player->ffrender, "audio_buf_npkt", (void*)(intptr_t)atoi(parse_params(params, "audio_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
-    render_set(player->ffrender, "video_buf_npkt", (void*)(intptr_t)atoi(parse_params(params, "video_buf_npkt", strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, PLAYER_KEY_AVSYNC_MODE, (void*)(intptr_t)atoi(parse_params(params, PLAYER_KEY_AVSYNC_MODE, strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, PLAYER_KEY_AUDIO_NPKT , (void*)(intptr_t)atoi(parse_params(params, PLAYER_KEY_AUDIO_NPKT , strval, sizeof(strval)) ? strval : "0"));
+    render_set(player->ffrender, PLAYER_KEY_VIDEO_NPKT , (void*)(intptr_t)atoi(parse_params(params, PLAYER_KEY_VIDEO_NPKT , strval, sizeof(strval)) ? strval : "0"));
 
     pthread_mutex_init(&player->lock, NULL); // init lock
-    pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
-    pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
-    pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+    if (player->url[0] && player->open_autoplay) player_set(player, PLAYER_KEY_STATE, (void*)1);
     return player;
 }
 
@@ -598,33 +603,19 @@ void player_exit(void *ctx)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
-
-    player->read_timeout = 0; // set read_timeout to 0
-    player_update_status(player, 0, PS_CLOSE);
-    if (player->adecode_thread) pthread_join(player->adecode_thread, NULL); // wait audio decoding thread exit
-    if (player->vdecode_thread) pthread_join(player->vdecode_thread, NULL); // wait video decoding thread exit
-    if (player->avdemux_thread) pthread_join(player->avdemux_thread, NULL); // wait avdemux thread exit
+    player_state(player, 0);
     pthread_mutex_destroy(&player->lock);
-
-    recorder_free   (player->recorder);
     pktqueue_destroy(player->pktqueue);
     render_exit(player->ffrender);
-
     avformat_network_deinit(); // deinit network
     free(player);
 }
 
-void player_seek(void *ctx, int64_t ms, int type)
+static void player_seek(void *ctx, int64_t ms)
 {
     if (!ctx) return;
     PLAYER *player = ctx;
     if (player->status & (PS_F_SEEK|PS_A_SEEK|PS_V_SEEK)) { av_log(NULL, AV_LOG_WARNING, "seek busy !\n"); return; }
-    switch (type) {
-    case SEEK_STEP_FORWARD:
-        break;
-    case SEEK_STEP_BACKWARD:
-        break;
-    }
     player->seek_dest =  player->start_time + ms;
     player->seek_pos  = (player->start_time + ms) * AV_TIME_BASE / 1000;
     player->seek_diff = 50;
@@ -637,9 +628,14 @@ long player_set(void *ctx, char *key, void *val)
 {
     if (!ctx || !key) return -1;
     PLAYER *player = ctx;
-    if (strcmp(key, "i_play") == 0) {
-        player_play(player, (intptr_t)val);
-    } else if (strcmp(key, "s_record") == 0) {
+    if (key == PLAYER_KEY_MEDIA_POSITION) {
+        player_seek(player, (intptr_t)val);
+    } else if (strcmp(key, PLAYER_KEY_URL) == 0 && val) {
+        strncpy(player->url, val, sizeof(player->url) - 1);
+        if (player->url[0] && player->open_autoplay) player_set(player, PLAYER_KEY_STATE, (void*)4);
+    } else if (strcmp(key, PLAYER_KEY_STATE) == 0) {
+        player_state(player, (intptr_t)val);
+    } else if (strcmp(key, PLAYER_KEY_RECFILE) == 0) {
         if (val) {
             strncpy(player->rec, val, sizeof(player->rec) - 1);
             player->status |=  PS_RECORD;
@@ -658,17 +654,119 @@ long player_get(void *ctx, char *key, void *val)
     PLAYER  *player = ctx;
     uint32_t position;
     switch ((intptr_t)key) {
-    case (intptr_t)PARAM_MEDIA_DURATION:
+    case (intptr_t)PLAYER_KEY_MEDIA_DURATION:
         return (player->avformat_context ? (player->avformat_context->duration * 1000 / AV_TIME_BASE) : 1);
-    case (intptr_t)PARAM_MEDIA_POSITION:
+    case (intptr_t)PLAYER_KEY_MEDIA_POSITION:
         position = (intptr_t)render_get(player->ffrender, key, NULL);
         return (position > player->start_time ? position - player->start_time : position);
-    case (intptr_t)PARAM_VIDEO_WIDTH:
+    case (intptr_t)PLAYER_KEY_VIDEO_WIDTH:
         return (player->vcodec_context ? player->video_owidth  : 0);
-    case (intptr_t)PARAM_VIDEO_HEIGHT:
+    case (intptr_t)PLAYER_KEY_VIDEO_HEIGHT:
         return (player->vcodec_context ? player->video_oheight : 0);
     }
-    if (strcmp(key, "i_play"  ) == 0) return !(player->status & PS_R_PAUSE);
-    if (strcmp(key, "i_record") == 0) return (intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
+    if (strcmp(key, PLAYER_KEY_URL  ) == 0) return (long)player->url;
+    if (strcmp(key, PLAYER_KEY_STATE) == 0) {
+        if (player->status & PS_R_PAUSE) return 2;
+        if (!player->avdemux_thread && !player->adecode_thread && !player->vdecode_thread) return 0;
+        return 1;
+    }
+    if (strcmp(key, PLAYER_KEY_RECFILE  ) == 0) return (long)player->rec;
+    if (strcmp(key, PLAYER_KEY_RECORDING) == 0) return (intptr_t)((player->status & PS_RECORD) ? player->rec : NULL);
     return render_get(player->ffrender, key, val);
+}
+
+void player_dump(void *ctx, char *str, int len, int page)
+{
+    if (!ctx || !str || !len) return;
+    PLAYER  *player = ctx;
+    int      pos = 0, n;
+
+    #define DUMP(fmt, ...) \
+        do { \
+            if (pos < len) { \
+                n = snprintf(str + pos, len - pos, fmt "\n", ##__VA_ARGS__); \
+                if (n > 0) pos += n; \
+            } \
+        } while(0)
+
+    DUMP("=== PLAYER DUMP ===");
+    // format
+    DUMP("avformat_context: %p", player->avformat_context);
+
+    // audio
+    DUMP("acodec_context  : %p", player->acodec_context);
+    DUMP("astream_index   : %d", player->astream_index);
+    DUMP("astream_timebase: %d/%d", player->astream_timebase.num, player->astream_timebase.den);
+
+    // video
+    DUMP("vcodec_context  : %p", player->vcodec_context);
+    DUMP("vstream_index   : %d", player->vstream_index);
+    DUMP("vstream_timebase: %d/%d", player->vstream_timebase.num, player->vstream_timebase.den);
+
+    // pointers
+    DUMP("pktqueue        : %p", player->pktqueue);
+    DUMP("recorder        : %p", player->recorder);
+    DUMP("ffrender        : %p", player->ffrender);
+    DUMP("callback        : %p", player->callback);
+    DUMP("cbctx           : %p", player->cbctx);
+
+    // status & seek
+    DUMP("status          : 0x%x", player->status);
+    DUMP("seek_pos        : %lld", (long long)player->seek_pos);
+    DUMP("seek_dest       : %lld", (long long)player->seek_dest);
+    DUMP("seek_diff       : %d",   player->seek_diff);
+
+    // threads
+    DUMP("avdemux_thread  : %lu", (unsigned long)player->avdemux_thread);
+    DUMP("adecode_thread  : %lu", (unsigned long)player->adecode_thread);
+    DUMP("vdecode_thread  : %lu", (unsigned long)player->vdecode_thread);
+
+    // timeout & time
+    DUMP("read_timelast   : %lld", (long long)player->read_timelast);
+    DUMP("read_timeout    : %lld", (long long)player->read_timeout);
+    DUMP("start_time      : %lld", (long long)player->start_time);
+
+    // completed cnt
+    DUMP("a_completed_cnt : %d", player->a_completed_cnt);
+    DUMP("v_completed_cnt : %d", player->v_completed_cnt);
+
+    // video
+    DUMP("video_vwidth      : %d", player->video_vwidth);
+    DUMP("video_vheight     : %d", player->video_vheight);
+    DUMP("video_owidth      : %d", player->video_owidth);
+    DUMP("video_oheight     : %d", player->video_oheight);
+    DUMP("video_frame_rate  : %d", player->video_frame_rate);
+    DUMP("video_stream_total: %d", player->video_stream_total);
+    DUMP("video_stream_cur  : %d", player->video_stream_cur);
+    DUMP("video_codecid     : %d", player->video_codecid);
+
+    // audio
+    DUMP("audio_channels    : %d", player->audio_channels);
+    DUMP("audio_sample_rate : %d", player->audio_sample_rate);
+    DUMP("audio_stream_total: %d", player->audio_stream_total);
+    DUMP("audio_stream_cur  : %d", player->audio_stream_cur);
+
+    // params
+    DUMP("init_timeout  : %d", player->init_timeout);
+    DUMP("open_autoplay : %d", player->open_autoplay);
+    DUMP("auto_reconnect: %d", player->auto_reconnect);
+    DUMP("rtsp_transport: %d", player->rtsp_transport);
+
+    // avio
+    DUMP("use_avio: %d", player->use_avio);
+    DUMP("avio_buf: %p", player->avio_buf);
+
+    // hwdec
+    DUMP("hwdec_str          : %s", player->hwdec_str);
+    DUMP("hwdec_type         : %d", player->hwdec_type);
+    DUMP("hwdec_fmt          : %d", player->hwdec_fmt);
+    DUMP("hwdec_devctx       : %p", player->hwdec_devctx);
+    DUMP("hwdec_get_format_sw: %p", player->hwdec_get_format_sw);
+
+    // strings
+    DUMP("rec: %s", player->rec);
+    DUMP("url: %s", player->url);
+    DUMP("===================");
+
+    #undef DUMP
 }

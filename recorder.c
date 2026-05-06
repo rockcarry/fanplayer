@@ -33,7 +33,7 @@ void* recorder_init(char *filename, AVFormatContext *ifc)
         goto failed;
     }
 
-    recorder->stream_mapping = av_mallocz_array(ifc->nb_streams, sizeof(int));
+    recorder->stream_mapping = av_calloc(ifc->nb_streams, sizeof(int));
     if (!recorder->stream_mapping) {
         ret = AVERROR(ENOMEM);
         goto failed;

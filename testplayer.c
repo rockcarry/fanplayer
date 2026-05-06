@@ -19,19 +19,22 @@
 #include <windows.h>
 static int open_file_dialog(HWND hwnd, char *name, int len)
 {
-    OPENFILENAME ofn = {};
+    wchar_t file[256];
+    OPENFILENAMEW ofn = {};
     ofn.lStructSize     = sizeof(ofn);
     ofn.hwndOwner       = hwnd;
-    ofn.lpstrFilter     = "AVI Files (*.avi)\0*.avi\0FLV Files (*.flv)\0*.flv\0MP3 Files (*.mp3)\0*.mp3\0MP4 Files (*.mp4)\0*.mp4\0All Files (*.*)\0*.*\0\0";
+    ofn.lpstrFilter     = L"AVI Files (*.avi)\0*.avi\0FLV Files (*.flv)\0*.flv\0MP3 Files (*.mp3)\0*.mp3\0MP4 Files (*.mp4)\0*.mp4\0All Files (*.*)\0*.*\0\0";
     ofn.nFilterIndex    = 4;
-    ofn.lpstrFile       = name;
-    ofn.nMaxFile        = len;
+    ofn.lpstrFile       = file;
+    ofn.nMaxFile        = sizeof(file) / sizeof(file[0]);
     ofn.lpstrFileTitle  = NULL;
     ofn.lpstrInitialDir = NULL;
-    ofn.lpstrTitle      = "Open File";
+    ofn.lpstrTitle      = L"Open File";
     ofn.Flags           = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_LONGNAMES | OFN_PATHMUSTEXIST;
     ofn.lpstrDefExt     = NULL;
-    return GetOpenFileName(&ofn) ? 0 : -1;
+    if (!GetOpenFileNameW(&ofn)) return -1;
+    WideCharToMultiByte(CP_UTF8, 0, file, -1, name, len, NULL, NULL);
+    return 0;
 }
 #else
 static int open_file_dialog(HWND hwnd, char *name, int len) { return -1; }
@@ -61,23 +64,27 @@ static long my_idev_cb(void *cbctx, int type, void *buf, int len)
     MYAPP *app  = cbctx;
     IDEV  *idev = buf;
     char   file[256];
+    int    playing;
     switch (type) {
     case IDEV_CALLBACK_KEY_EVENT:
         if (buf) {
             switch (len) {
-            case ' ': player_set(app->player, "i_play"   , (void*)(intptr_t)(!player_get(app->player, "i_play"   , NULL))); break;
-            case 'S': player_set(app->player, "i_stretch", (void*)(intptr_t)(!player_get(app->player, "i_stretch", NULL))); break;
-            case 189: player_set(app->player, "i_speed"  , (void*)(intptr_t)( player_get(app->player, "i_speed"  , NULL) - 10)); break;
-            case 187: player_set(app->player, "i_speed"  , (void*)(intptr_t)( player_get(app->player, "i_speed"  , NULL) + 10)); break;
+            case ' ':
+                playing = (intptr_t)player_get(app->player, PLAYER_KEY_STATE, NULL) == 1;
+                player_set(app->player, PLAYER_KEY_STATE, (void*)(playing ? 2 : 1));
+                break;
+            case 'S': player_set(app->player, PLAYER_KEY_STRETCH, (void*)(intptr_t)(!player_get(app->player, PLAYER_KEY_STRETCH, NULL))); break;
+            case 189: player_set(app->player, PLAYER_KEY_SPEED  , (void*)(intptr_t)( player_get(app->player, PLAYER_KEY_SPEED  , NULL) - 10)); break;
+            case 187: player_set(app->player, PLAYER_KEY_SPEED  , (void*)(intptr_t)( player_get(app->player, PLAYER_KEY_SPEED  , NULL) + 10)); break;
             case 'R':
-                if (player_get(app->player, "i_record", NULL)) {
-                    player_set(app->player, "s_record", NULL);
+                if (player_get(app->player, PLAYER_KEY_RECORDING, NULL)) {
+                    player_set(app->player, PLAYER_KEY_RECFILE  , NULL);
                 } else {
-                    player_set(app->player, "s_record", gen_file_name(file, sizeof(file), "avi"));
+                    player_set(app->player, PLAYER_KEY_RECFILE  , gen_file_name(file, sizeof(file), "avi"));
                 }
                 break;
             case 'P':
-                player_set(app->player, "s_snapshot", gen_file_name(file, sizeof(file), "png"));
+                player_set(app->player, PLAYER_KEY_SNAPSHOT, gen_file_name(file, sizeof(file), "png"));
                 break;
             }
         }
@@ -85,8 +92,8 @@ static long my_idev_cb(void *cbctx, int type, void *buf, int len)
     case IDEV_CALLBACK_MOUSE_MOVE:
     case IDEV_CALLBACK_MOUSE_LBTNDOWN:
         if (idev && idev->curr_mouse_y > vdev_get(app->vdev, VDEV_KEY_HEIGHT, NULL) - 16 && (idev->curr_mouse_btns & 1)) {
-            uint32_t duration = (intptr_t)player_get(app->player, PARAM_MEDIA_DURATION, NULL);
-            player_seek(app->player, duration * idev->curr_mouse_x / (intptr_t)vdev_get(app->vdev, VDEV_KEY_WIDTH, NULL), 0);
+            uint32_t duration = (intptr_t)player_get(app->player, PLAYER_KEY_MEDIA_DURATION, NULL);
+            player_set(app->player, PLAYER_KEY_MEDIA_POSITION, (void*)(duration * idev->curr_mouse_x / (intptr_t)vdev_get(app->vdev, VDEV_KEY_WIDTH, NULL)));
         }
         break;
     }
@@ -109,12 +116,12 @@ static long my_player_cb(void *cbctx, int msg, void *buf, int len)
     MYAPP *app = cbctx;
     switch (msg) {
     case PLAYER_OPEN_SUCCESS: {
-            int vw  = player_get(app->player, PARAM_VIDEO_WIDTH , NULL);
-            int vh  = player_get(app->player, PARAM_VIDEO_HEIGHT, NULL);
+            int vw  = player_get(app->player, PLAYER_KEY_VIDEO_WIDTH , NULL);
+            int vh  = player_get(app->player, PLAYER_KEY_VIDEO_HEIGHT, NULL);
             int max = vw > vh ? vw : vh;
             char str[128]; snprintf(str, sizeof(str), "sw:%f,sh:%f", vw * 20.0 / max, vh * 20.0 / max);
             vdev_set(app->vdev, VDEV_KEY_SURFACE_PARAMS, str);
-            player_set(app->player, "i_play", (void*)1);
+            player_set(app->player, PLAYER_KEY_STATE, (void*)1);
         }
         break;
     case PLAYER_PLAY_COMPLETED:
@@ -167,7 +174,7 @@ int main(int argc, char *argv[])
 {
     MYAPP myapp     = {};
     char  url[256]  = "";
-    char *initparams= NULL;
+    char *initparams= "";
     int   i;
 
     for (i = 1; i < argc; i++) {
@@ -191,16 +198,18 @@ int main(int argc, char *argv[])
     myapp.idev = (void*)vdev_get(myapp.vdev, VDEV_KEY_IDEV, NULL);
 #endif
 
-    if (initparams && strstr(initparams, "use_avio")) myapp.fp = fopen(url, "rb");
-    myapp.player = player_init(url, initparams, my_player_cb, &myapp);
+    if (initparams && strstr(initparams, "i_use_avio")) myapp.fp = fopen(url, "rb");
+    myapp.player = player_init(initparams, my_player_cb, &myapp);
+    player_set(myapp.player, PLAYER_KEY_URL  , url     );
+    player_set(myapp.player, PLAYER_KEY_STATE, (void*)1);
 
 #ifdef WITH_LIBAVDEV
     while (vdev_get(myapp.vdev, VDEV_KEY_STATE, NULL) != VDEV_CALLBACK_VDEV_CLOSED) {
         BMP *bmp = vdev_lock(myapp.vdev, 1);
         if (bmp) {
-            uint32_t duration = (intptr_t)player_get(myapp.player, PARAM_MEDIA_DURATION, NULL);
-            uint32_t position = (intptr_t)player_get(myapp.player, PARAM_MEDIA_POSITION, NULL);
-            uint32_t w = bmp->width * position / duration;
+            uint32_t duration = (intptr_t)player_get(myapp.player, PLAYER_KEY_MEDIA_DURATION, NULL);
+            uint32_t position = (intptr_t)player_get(myapp.player, PLAYER_KEY_MEDIA_POSITION, NULL);
+            uint32_t w = bmp->width * position / (duration ? duration : 1);
             w = w < bmp->width ? w : bmp->width;
             bar(bmp, 0, 0, w, bmp->height, 0xFF8800);
             bar(bmp, w, 0, bmp->width - w, bmp->height, 0);

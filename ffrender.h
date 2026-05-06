@@ -14,6 +14,7 @@ void render_audio(void *ctx, struct AVFrame *audio, int npkt);
 void render_video(void *ctx, struct AVFrame *video, int npkt);
 long render_set  (void *ctx, char *key, void *val);
 long render_get  (void *ctx, char *key, void *val);
+void render_dump (void *ctx, char *str, int len, int page);
 
 #ifdef __cplusplus
 }

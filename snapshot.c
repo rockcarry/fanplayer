@@ -1,6 +1,7 @@
 #include <string.h>
 #include "snapshot.h"
 #include "libavformat/avformat.h"
+#include "libavcodec/avcodec.h"
 #include "libswscale/swscale.h"
 
 int take_snapshot(char *file, int w, int h, AVFrame *video)
@@ -13,7 +14,7 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
     AVFrame            picture    = {};
     int                ret        = -1;
     AVCodecContext    *codec_ctxt = NULL;
-    AVCodec           *codec      = NULL;
+    const AVCodec     *codec      = NULL;
     AVPacket           packet     = {};
 
     fp = fopen(file, "wb");
@@ -81,7 +82,6 @@ int take_snapshot(char *file, int w, int h, AVFrame *video)
 
 done:
     av_frame_unref(&picture);
-    if (codec_ctxt) avcodec_close(codec_ctxt);
     if (codec_ctxt) avcodec_free_context(&codec_ctxt);
     if (sws_ctx) sws_freeContext(sws_ctx);
     if (fp) fclose(fp);

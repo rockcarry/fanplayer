@@ -6,7 +6,7 @@ TOPDIR=$PWD
 
 cd ffmpeg
 git checkout .
-git checkout n4.3.9
+git checkout n7.1.4
 
 ./configure \
 --pkg-config=pkg-config \
@@ -25,6 +25,7 @@ git checkout n4.3.9
 --disable-avdevice \
 --disable-postproc \
 --disable-avfilter \
+--disable-pixelutils \
 --disable-encoders \
 --disable-muxers   \
 --enable-encoder=mjpeg \

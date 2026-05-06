@@ -10,13 +10,6 @@
 #define DEF_FRAME_RATE 20
 #define DEF_PLAY_SPEED 100
 
-enum {
-    AVSYNC_MODE_AUTO,  // auto
-    AVSYNC_MODE_FILE,  // file mode
-    AVSYNC_MODE_LIVE_SYNC0, // live mode, without avts sync
-    AVSYNC_MODE_LIVE_SYNC1, // live mode, with avts sync
-};
-
 typedef struct {
     #define FLAG_STRETCH  (1 << 0)
     #define FLAG_UPDATE   (1 << 1)
@@ -33,13 +26,14 @@ typedef struct {
     int                cur_speed_value;
     int                new_speed_value;
 
+    int                adev_samprate;
     int                swr_src_format;
     int                swr_src_samprate;
-    int                swr_src_chlayout;
+    AVChannelLayout    swr_src_chlayout;
+    int                swr_dst_format;
     int                swr_dst_samprate;
+    AVChannelLayout    swr_dst_chlayout;
     int16_t            swr_dst_buf[48000 * 2 / DEF_FRAME_RATE];
-    int                adev_samprate;
-    int                adev_channels;
 
     int                sws_src_pixfmt;
     int                sws_src_width;
@@ -82,26 +76,33 @@ void render_exit(void *ctx)
 void render_audio(void *ctx, AVFrame *audio, int npkt)
 {
     RENDER *render = (RENDER*)ctx;
-    if (!render) return;
+    if (!render || !audio) return;
 
     int16_t *out = render->swr_dst_buf;
+    int adev_format   = AV_SAMPLE_FMT_S16;
     int adev_samprate = render->callback(render->cbctx, PLAYER_ADEV_SAMPRATE, NULL, 0);
     int adev_channels = render->callback(render->cbctx, PLAYER_ADEV_CHANNELS, NULL, 0);
     int avsync_delta  = render->callback(render->cbctx, PLAYER_AVSYNC_DELTA , NULL, 0) * DEF_FRAME_RATE / render->new_speed_value;
     int frate, sampnum, samptotal = 0;
+    static AVChannelLayout s_chlayout_mono   = AV_CHANNEL_LAYOUT_MONO;
+    static AVChannelLayout s_chlayout_stereo = AV_CHANNEL_LAYOUT_STEREO;
+    AVChannelLayout *adev_chlayout = adev_channels == 1 ? &s_chlayout_mono : &s_chlayout_stereo;
 
-    if (  render->swr_src_format != audio->format || render->swr_src_samprate != audio->sample_rate || render->swr_src_chlayout != audio->channel_layout
-       || render->adev_samprate != adev_samprate || render->adev_channels != adev_channels || render->cur_speed_value != render->new_speed_value || !render->swr_context) {
+    if (  render->adev_samprate != adev_samprate
+       || av_channel_layout_compare(&render->swr_src_chlayout, &audio->ch_layout) != 0
+       || av_channel_layout_compare(&render->swr_dst_chlayout, adev_chlayout    ) != 0
+       || render->swr_src_format != audio->format || render->swr_src_samprate != audio->sample_rate || render->swr_dst_format != adev_format
+       || render->cur_speed_value != render->new_speed_value || !render->swr_context) {
+        render->cur_speed_value  = render->new_speed_value;
+        render->adev_samprate    = adev_samprate;
         render->swr_src_format   = (int)audio->format;
         render->swr_src_samprate = (int)audio->sample_rate;
-        render->swr_src_chlayout = (int)audio->channel_layout;
-        render->adev_samprate    = adev_samprate;
-        render->adev_channels    = adev_channels;
-        render->cur_speed_value  = render->new_speed_value;
-        render->swr_dst_samprate = (int)(render->adev_samprate * DEF_PLAY_SPEED / render->cur_speed_value);
+        render->swr_src_chlayout = audio->ch_layout;
+        render->swr_dst_format   = (int)adev_format;
+        render->swr_dst_samprate = (int)(adev_samprate * DEF_PLAY_SPEED / render->cur_speed_value);
+        render->swr_dst_chlayout = *adev_chlayout;
         if (render->swr_context) swr_free(&render->swr_context);
-        render->swr_context = swr_alloc_set_opts(NULL, render->adev_channels == 2 ? AV_CH_LAYOUT_STEREO : AV_CH_LAYOUT_MONO, AV_SAMPLE_FMT_S16,
-            render->swr_dst_samprate, render->swr_src_chlayout, render->swr_src_format, render->swr_src_samprate, 0, NULL);
+        swr_alloc_set_opts2(&render->swr_context, &render->swr_dst_chlayout, render->swr_dst_format, render->swr_dst_samprate, &audio->ch_layout, audio->format, audio->sample_rate, 0, NULL);
         swr_init(render->swr_context);
     }
 
@@ -114,7 +115,7 @@ void render_audio(void *ctx, AVFrame *audio, int npkt)
             audio->extended_data = NULL, audio->nb_samples = 0;
             if (sampnum) {
                 render->apts = audio->pts + 1000 * samptotal * render->cur_speed_value / (render->adev_samprate * DEF_PLAY_SPEED) - avsync_delta;
-                if (render->avts_sync_mode < AVSYNC_MODE_LIVE_SYNC0 || render->audio_buf_npkt >= npkt) {
+                if (render->avts_sync_mode < PLAYER_AVSYNC_MODE_LIVE_SYNC0 || render->audio_buf_npkt >= npkt) {
                     render->callback(render->cbctx, PLAYER_ADEV_WRITE, out, sampnum * adev_channels * sizeof(int16_t));
                 }
                 samptotal += sampnum;
@@ -127,7 +128,7 @@ void render_video(void *ctx, AVFrame *video, int npkt)
 {
     RENDER *render = (RENDER*)ctx;
     if (!render) return;
-    int drop = render->avts_sync_mode >= AVSYNC_MODE_LIVE_SYNC0 && render->video_buf_npkt < npkt;
+    int drop = render->avts_sync_mode >= PLAYER_AVSYNC_MODE_LIVE_SYNC0 && render->video_buf_npkt < npkt;
     if (drop) goto handle_avts_sync;
 
     SURFACE surface;
@@ -189,7 +190,7 @@ handle_avts_sync:
     int64_t tick_next  = render->tick_start + (render->frame_count * DEF_PLAY_SPEED * 1000 * render->frate_den) / (render->new_speed_value * render->frate_num);
     int64_t tick_sleep = tick_next - tick_cur;
 
-    if (render->avts_sync_mode == AVSYNC_MODE_LIVE_SYNC0) render->tick_adjust = 0;
+    if (render->avts_sync_mode == PLAYER_AVSYNC_MODE_LIVE_SYNC0) render->tick_adjust = 0;
     else if (tick_avdiff > 50 ) render->tick_adjust -= 2;
     else if (tick_avdiff > 20 ) render->tick_adjust -= 1;
     else if (tick_avdiff <-50 ) render->tick_adjust += 2;
@@ -203,25 +204,25 @@ long render_set(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx || !key) return -1;
-    if (strcmp(key, "i_speed") == 0 || strcmp(key, "i_reset") == 0) {
+    if (strcmp(key, PLAYER_KEY_SPEED) == 0 || strcmp(key, "i_reset") == 0) {
         int n = (intptr_t)val;
         n = n < 300 ? n : 300;
         n = n > 10  ? n : 10;
         if ((intptr_t)val != -1) render->new_speed_value = n;
         render->vpts = render->frame_count = render->tick_start = render->tick_adjust = 0;
     }
-    else if (strcmp(key, "i_stretch") == 0) {
+    else if (strcmp(key, PLAYER_KEY_STRETCH) == 0) {
         if ((intptr_t)val) render->flags |= FLAG_STRETCH;
         else render->flags &= ~FLAG_STRETCH;
         render->flags |= FLAG_UPDATE;
     }
-    else if (strcmp(key, "s_snapshot") == 0 && val) {
+    else if (strcmp(key, PLAYER_KEY_SNAPSHOT) == 0 && val) {
         strncpy(render->snapshot, val, sizeof(render->snapshot) - 1);
         render->flags |= FLAG_SNAPSHOT;
     }
-    else if (strcmp(key, "i_avts_sync_mode") == 0) render->avts_sync_mode = (intptr_t)val;
-    else if (strcmp(key, "i_audio_buf_npkt") == 0) render->audio_buf_npkt = (intptr_t)val;
-    else if (strcmp(key, "i_video_buf_npkt") == 0) render->video_buf_npkt = (intptr_t)val;
+    else if (strcmp(key, PLAYER_KEY_AVSYNC_MODE) == 0) render->avts_sync_mode = (intptr_t)val;
+    else if (strcmp(key, PLAYER_KEY_AUDIO_NPKT ) == 0) render->audio_buf_npkt = (intptr_t)val;
+    else if (strcmp(key, PLAYER_KEY_VIDEO_NPKT ) == 0) render->video_buf_npkt = (intptr_t)val;
     else return -1;
     return 0;
 }
@@ -230,11 +231,84 @@ long render_get(void *ctx, char *key, void *val)
 {
     RENDER *render = (RENDER*)ctx;
     if (!ctx || !key) return 0;
-    if (key == PARAM_MEDIA_POSITION) return (render->apts > render->vpts ? render->apts : render->vpts);
-    if (strcmp(key, "i_speed"  ) == 0) return render->cur_speed_value;
-    if (strcmp(key, "i_stretch") == 0) return !!(render->flags & FLAG_STRETCH);
-    if (strcmp(key, "i_avts_sync_mode") == 0) return render->avts_sync_mode;
-    if (strcmp(key, "i_audio_buf_npkt") == 0) return render->audio_buf_npkt;
-    if (strcmp(key, "i_video_buf_npkt") == 0) return render->video_buf_npkt;
+    if (key == PLAYER_KEY_MEDIA_POSITION) return (render->apts > render->vpts ? render->apts : render->vpts);
+    if (strcmp(key, PLAYER_KEY_SPEED      ) == 0) return render->cur_speed_value;
+    if (strcmp(key, PLAYER_KEY_STRETCH    ) == 0) return !!(render->flags & FLAG_STRETCH);
+    if (strcmp(key, PLAYER_KEY_AVSYNC_MODE) == 0) return render->avts_sync_mode;
+    if (strcmp(key, PLAYER_KEY_AUDIO_NPKT ) == 0) return render->audio_buf_npkt;
+    if (strcmp(key, PLAYER_KEY_VIDEO_NPKT ) == 0) return render->video_buf_npkt;
     return 0;
+}
+
+void render_dump(void *ctx, char *str, int len, int page)
+{
+    if (!ctx || !str || !len) return;
+    RENDER *render = ctx;
+    int     pos = 0, n;
+
+    #define DUMP(fmt, ...) \
+        do { \
+            if (pos < len) { \
+                n = snprintf(str + pos, len - pos, fmt "\n", ##__VA_ARGS__); \
+                if (n > 0) pos += n; \
+            } \
+        } while(0)
+
+    DUMP("=== RENDER DUMP ===");
+
+    // flags
+    DUMP("flags          : 0x%x", render->flags);
+
+    // swr & sws context
+    DUMP("swr_context    : %p", render->swr_context);
+    DUMP("sws_context    : %p", render->sws_context);
+
+    // sync & buf
+    DUMP("avts_sync_mode : %d", render->avts_sync_mode);
+    DUMP("audio_buf_npkt : %d", render->audio_buf_npkt);
+    DUMP("video_buf_npkt : %d", render->video_buf_npkt);
+
+    // speed
+    DUMP("cur_speed_value: %d", render->cur_speed_value);
+    DUMP("new_speed_value: %d", render->new_speed_value);
+
+    // audio device & swr src
+    DUMP("adev_samprate   : %d", render->adev_samprate);
+    DUMP("swr_src_format  : %d", render->swr_src_format);
+    DUMP("swr_src_samprate: %d", render->swr_src_samprate);
+
+    // swr dst (skip swr_dst_chlayout, swr_dst_buf)
+    DUMP("swr_dst_format  : %d", render->swr_dst_format);
+    DUMP("swr_dst_samprate: %d", render->swr_dst_samprate);
+
+    // sws src
+    DUMP("sws_src_pixfmt: %d", render->sws_src_pixfmt);
+    DUMP("sws_src_width : %d", render->sws_src_width);
+    DUMP("sws_src_height: %d", render->sws_src_height);
+
+    // sws dst
+    DUMP("sws_dst_pixfmt: %d", render->sws_dst_pixfmt);
+    DUMP("sws_dst_width : %d", render->sws_dst_width);
+    DUMP("sws_dst_height: %d", render->sws_dst_height);
+    DUMP("sws_dst_offset: %d", render->sws_dst_offset);
+    DUMP("sws_scale_type: %d", render->sws_scale_type);
+
+    // timing
+    DUMP("frate_num   : %lld", (long long)render->frate_num);
+    DUMP("frate_den   : %lld", (long long)render->frate_den);
+    DUMP("apts        : %lld", (long long)render->apts);
+    DUMP("vpts        : %lld", (long long)render->vpts);
+    DUMP("tick_start  : %lld", (long long)render->tick_start);
+    DUMP("tick_adjust : %lld", (long long)render->tick_adjust);
+    DUMP("frame_count : %lld", (long long)render->frame_count);
+
+    // callback
+    DUMP("callback: %p", render->callback);
+    DUMP("cbctx   : %p", render->cbctx);
+
+    // snapshot
+    DUMP("snapshot: %s", render->snapshot);
+
+    DUMP("===================");
+    #undef DUMP
 }
