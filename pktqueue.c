@@ -30,21 +30,18 @@ typedef struct {
 
 void* pktqueue_create(int size)
 {
-    PKTQUEUE *ppq;
-    int       i;
-
     size = size ? size : DEF_PKT_QUEUE_SIZE;
-    ppq  = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE) + size * sizeof(AVPacket) + 3 * size * sizeof(AVPacket*));
+    PKTQUEUE *ppq = (PKTQUEUE*)calloc(1, sizeof(PKTQUEUE) + size * sizeof(AVPacket) + 3 * size * sizeof(AVPacket*));
     if (!ppq) return NULL;
 
-    ppq->fncur  = ppq->asize = ppq->vsize = ppq->fsize = size;
-    ppq->bpkts  = (AVPacket* )((uint8_t*)ppq + sizeof(PKTQUEUE));
-    ppq->fpkts  = (AVPacket**)((uint8_t*)ppq->bpkts + size * sizeof(AVPacket ));
-    ppq->apkts  = (AVPacket**)((uint8_t*)ppq->fpkts + size * sizeof(AVPacket*));
-    ppq->vpkts  = (AVPacket**)((uint8_t*)ppq->apkts + size * sizeof(AVPacket*));
+    ppq->fncur = ppq->asize = ppq->vsize = ppq->fsize = size;
+    ppq->bpkts = (AVPacket* )((uint8_t*)ppq + sizeof(PKTQUEUE));
+    ppq->fpkts = (AVPacket**)((uint8_t*)ppq->bpkts + size * sizeof(AVPacket ));
+    ppq->apkts = (AVPacket**)((uint8_t*)ppq->fpkts + size * sizeof(AVPacket*));
+    ppq->vpkts = (AVPacket**)((uint8_t*)ppq->apkts + size * sizeof(AVPacket*));
     pthread_mutex_init(&ppq->lock, NULL);
     pthread_cond_init (&ppq->cond, NULL);
-    for (i = 0; i < ppq->fsize; i++) ppq->fpkts[i] = &ppq->bpkts[i];
+    for (int i = 0; i < ppq->fsize; i++) ppq->fpkts[i] = &ppq->bpkts[i];
     return ppq;
 }
 
@@ -52,8 +49,7 @@ void pktqueue_destroy(void *ctx)
 {
     if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
-    int       i;
-    for (i = 0; i < ppq->fsize; i++) av_packet_unref(&ppq->bpkts[i]);
+    for (int i = 0; i < ppq->fsize; i++) av_packet_unref(&ppq->bpkts[i]);
     pthread_mutex_destroy(&ppq->lock);
     pthread_cond_destroy (&ppq->cond);
     free(ppq);
@@ -63,12 +59,12 @@ void pktqueue_reset(void *ctx)
 {
     if (!ctx) return;
     PKTQUEUE *ppq = (PKTQUEUE*)ctx;
-    int       i;
     pthread_mutex_lock(&ppq->lock);
-    for (i = 0; i < ppq->fsize; i++) {
+    for (int i = 0; i < ppq->fsize; i++) {
         ppq->fpkts[i] = &ppq->bpkts[i];
         ppq->apkts[i] = NULL;
         ppq->vpkts[i] = NULL;
+        av_packet_unref(ppq->fpkts[i]);
     }
     ppq->fncur = ppq->asize;
     ppq->ancur = ppq->vncur = 0;
@@ -95,7 +91,6 @@ AVPacket* pktqueue_request_packet(void *ctx)
     if (ppq->fncur != 0) {
         ppq->fncur--;
         pkt = ppq->fpkts[ppq->fhead++ & (ppq->fsize - 1)];
-        av_packet_unref(pkt);
         pthread_cond_signal(&ppq->cond);
     }
     pthread_mutex_unlock(&ppq->lock);
@@ -117,6 +112,7 @@ void pktqueue_release_packet(void *ctx, AVPacket *pkt)
     if (ppq->fncur != ppq->fsize) {
         ppq->fncur++;
         ppq->fpkts[ppq->ftail++ & (ppq->fsize - 1)] = pkt;
+        av_packet_unref(pkt);
         pthread_cond_signal(&ppq->cond);
     }
     pthread_mutex_unlock(&ppq->lock);

@@ -388,7 +388,7 @@ static int handle_fseek_or_reconnect(PLAYER *player)
 static void check_play_completed(PLAYER *player, int av)
 {
     #define MAX_COMPLETED_COUNT 20
-    if (!(player->status & PS_COMPLETED) && player->avformat_context->duration != (1ull << 63)) {
+    if (!(player->status & PS_COMPLETED) && player->avformat_context && player->avformat_context->duration != (1ull << 63)) {
         if (av) {
             if (player->v_completed_cnt < MAX_COMPLETED_COUNT) player->v_completed_cnt++;
             if (player->a_completed_cnt == MAX_COMPLETED_COUNT && player->v_completed_cnt == MAX_COMPLETED_COUNT) {
@@ -488,6 +488,7 @@ static void* av_demux_thread_proc(void *param)
 {
     PLAYER   *player = (PLAYER*)param;
     AVPacket *packet = NULL;
+    player->pktqueue = pktqueue_create(0);
     while (!(player->status & PS_CLOSE)) {
         if (handle_fseek_or_reconnect(player) != 0) {
             if (!player->auto_reconnect) break;
@@ -516,7 +517,8 @@ static void* av_demux_thread_proc(void *param)
         }
     }
     player_prepare_or_free(player, 0);
-    recorder_free(player->recorder); player->recorder = NULL;
+    recorder_free   (player->recorder); player->recorder = NULL;
+    pktqueue_destroy(player->pktqueue); player->pktqueue = NULL;
     return NULL;
 }
 
@@ -590,7 +592,6 @@ void* player_init(void *params, PFN_PLAYER_CB callback, void *cbctx)
     av_log_set_callback(avlog_callback);
 
     player->status   = PS_A_PAUSE|PS_V_PAUSE|PS_R_PAUSE; // make sure player paused
-    player->pktqueue = pktqueue_create(0);
     player->ffrender = render_init(NULL, player->callback, player->cbctx);
     render_set(player->ffrender, PLAYER_KEY_AVSYNC_MODE, (void*)(intptr_t)atoi(parse_params(params, PLAYER_KEY_AVSYNC_MODE, strval, sizeof(strval)) ? strval : "0"));
     render_set(player->ffrender, PLAYER_KEY_AUDIO_NPKT , (void*)(intptr_t)atoi(parse_params(params, PLAYER_KEY_AUDIO_NPKT , strval, sizeof(strval)) ? strval : "0"));
@@ -607,7 +608,6 @@ void player_exit(void *ctx)
     PLAYER *player = ctx;
     player_state(player, 0);
     pthread_mutex_destroy(&player->lock);
-    pktqueue_destroy(player->pktqueue);
     render_exit(player->ffrender);
     avformat_network_deinit(); // deinit network
     free(player);
