@@ -19,7 +19,7 @@
 #include <windows.h>
 static int open_file_dialog(HWND hwnd, char *name, int len)
 {
-    wchar_t file[256];
+    wchar_t file[256] = L"";
     OPENFILENAMEW ofn = {};
     ofn.lStructSize     = sizeof(ofn);
     ofn.hwndOwner       = hwnd;
@@ -59,6 +59,7 @@ static char* gen_file_name(char *name, int len, char *ext)
     return name;
 }
 
+#ifdef WITH_LIBAVDEV
 static long my_idev_cb(void *cbctx, int type, void *buf, int len)
 {
     MYAPP *app  = cbctx;
@@ -86,6 +87,12 @@ static long my_idev_cb(void *cbctx, int type, void *buf, int len)
             case 'P':
                 player_set(app->player, PLAYER_KEY_SNAPSHOT, gen_file_name(file, sizeof(file), "png"));
                 break;
+            case 'O':
+                if (0 == open_file_dialog((HWND)vdev_get(app->vdev, VDEV_KEY_HWND, NULL), file, sizeof(file))) {
+                    player_set(app->player, PLAYER_KEY_URL, file);
+                    player_set(app->player, PLAYER_KEY_STATE, (void*)4);
+                }
+                break;
             }
         }
         break;
@@ -99,6 +106,7 @@ static long my_idev_cb(void *cbctx, int type, void *buf, int len)
     }
     return 0;
 }
+#endif
 
 static void bar(BMP *bmp, int x, int y, int w, int h, int c)
 {

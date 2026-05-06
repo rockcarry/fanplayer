@@ -515,6 +515,7 @@ static void* av_demux_thread_proc(void *param)
             else                                                    pktqueue_release_packet(player->pktqueue, packet); // other
         }
     }
+    player_prepare_or_free(player, 0);
     recorder_free(player->recorder); player->recorder = NULL;
     return NULL;
 }
@@ -530,13 +531,14 @@ static void player_state(void *ctx, int state)
         if (player->adecode_thread) { pthread_join(player->adecode_thread, NULL); player->adecode_thread = (pthread_t)NULL; } // wait audio decoding thread exit
         if (player->vdecode_thread) { pthread_join(player->vdecode_thread, NULL); player->vdecode_thread = (pthread_t)NULL; } // wait video decoding thread exit
         if (player->avdemux_thread) { pthread_join(player->avdemux_thread, NULL); player->avdemux_thread = (pthread_t)NULL; } // wait avdemux thread exit
+        player->status = 0;
         if (state == 0) break;
     case 1:
-        render_set(player->ffrender, "i_reset", (void*)-1);
-        player->status &= PS_CLOSE;
         if (!player->avdemux_thread) pthread_create(&player->avdemux_thread, NULL, av_demux_thread_proc    , player);
         if (!player->adecode_thread) pthread_create(&player->adecode_thread, NULL, audio_decode_thread_proc, player);
         if (!player->vdecode_thread) pthread_create(&player->vdecode_thread, NULL, video_decode_thread_proc, player);
+        render_set(player->ffrender, "i_reset", (void*)-1);
+        player->status &= PS_CLOSE;
         break;
     case 2:
         player->status |= PS_R_PAUSE;
