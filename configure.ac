@@ -93,6 +93,17 @@ AS_IF([test "x$with_libavdev" != "xno"],
   ])
 AM_CONDITIONAL([WITH_LIBAVDEV], [test x"$with_libavdev" == x"yes"])
 
+# Checks for libhw
+AC_ARG_WITH([libhw], [AS_HELP_STRING([--with-libhw], [--with-libhw, use libhw for audio & video rendering])], [], [with_libhw="no"])
+AS_IF([test "x$with_libhw" != "xno"],
+  [ PKG_CHECK_MODULES(LIBHW, [libhw >= 2.0.0])
+    LIBHW_VERSION=`$PKG_CONFIG libhw --modversion`
+    AC_MSG_NOTICE("using libhw version $LIBHW_VERSION")
+    CFLAGS="$CFLAGS `$PKG_CONFIG libhw --cflags`"
+    LDFLAGS="$LDFLAGS `$PKG_CONFIG libhw --libs`"
+  ])
+AM_CONDITIONAL([WITH_LIBHW], [test x"$with_libhw" == x"yes"])
+
 AM_CONDITIONAL([DISABLE_SHARED], [test x"$enable_shared" == x"no"])
 
 AC_OUTPUT

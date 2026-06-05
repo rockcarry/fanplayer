@@ -9,11 +9,18 @@
 #include "libavdev/adev.h"
 #include "libavdev/vdev.h"
 #include "libavdev/idev.h"
+#endif
+
+#ifdef WITH_LIBHW
+#include "libhw/adev.h"
+#include "libhw/vdev.h"
+#include "libhw/idev.h"
+#endif
+
 #define ADEV_SAMPRATE    48000
 #define ADEV_CHANNELS    2
 #define ADEV_FRAME_SIZE (ADEV_SAMPRATE / 20)
 #define ADEV_FRAME_NUM   8
-#endif
 
 #ifdef WIN32
 #include <windows.h>
@@ -49,7 +56,7 @@ typedef struct {
     FILE *fp;
 } MYAPP;
 
-#ifdef WITH_LIBAVDEV
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
 static char* gen_file_name(char *name, int len, char *ext)
 {
     time_t tt = time(NULL);
@@ -59,7 +66,6 @@ static char* gen_file_name(char *name, int len, char *ext)
     return name;
 }
 
-#ifdef WITH_LIBAVDEV
 static long my_idev_cb(void *cbctx, int type, void *buf, int len)
 {
     MYAPP *app  = cbctx;
@@ -106,7 +112,6 @@ static long my_idev_cb(void *cbctx, int type, void *buf, int len)
     }
     return 0;
 }
-#endif
 
 static void bar(BMP *bmp, int x, int y, int w, int h, int c)
 {
@@ -124,11 +129,13 @@ static long my_player_cb(void *cbctx, int msg, void *buf, int len)
     MYAPP *app = cbctx;
     switch (msg) {
     case PLAYER_OPEN_SUCCESS: {
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
             int vw  = player_get(app->player, PLAYER_KEY_VIDEO_WIDTH , NULL);
             int vh  = player_get(app->player, PLAYER_KEY_VIDEO_HEIGHT, NULL);
             int max = vw > vh ? vw : vh;
             char str[128]; snprintf(str, sizeof(str), "sw:%f,sh:%f", vw * 20.0 / max, vh * 20.0 / max);
             vdev_set(app->vdev, VDEV_KEY_SURFACE_PARAMS, str);
+#endif
             player_set(app->player, PLAYER_KEY_STATE, (void*)1);
         }
         break;
@@ -148,7 +155,7 @@ static long my_player_cb(void *cbctx, int msg, void *buf, int len)
             fseek(app->fp, *(int64_t*)buf, len);
         }
         break;
-#ifdef WITH_LIBAVDEV
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
     case PLAYER_ADEV_SAMPRATE:
         return ADEV_SAMPRATE;
     case PLAYER_ADEV_CHANNELS:
@@ -196,7 +203,7 @@ int main(int argc, char *argv[])
     printf("url   : %s\n", url       );
     printf("params: %s\n", initparams);
 
-#ifdef WITH_LIBAVDEV
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
     char str[256];
     snprintf(str, sizeof(str), "samprate:%d,chnnum:%d,frmsize:%d,frmnum:%d", ADEV_SAMPRATE, ADEV_CHANNELS, ADEV_FRAME_SIZE, ADEV_FRAME_NUM);
     myapp.adev = adev_init(str, NULL, NULL);
@@ -211,7 +218,7 @@ int main(int argc, char *argv[])
     player_set(myapp.player, PLAYER_KEY_URL  , url     );
     player_set(myapp.player, PLAYER_KEY_STATE, (void*)1);
 
-#ifdef WITH_LIBAVDEV
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
     while (vdev_get(myapp.vdev, VDEV_KEY_STATE, NULL) != VDEV_CALLBACK_VDEV_CLOSED) {
         BMP *bmp = vdev_lock(myapp.vdev, 1);
         if (bmp) {
@@ -230,7 +237,7 @@ int main(int argc, char *argv[])
     player_exit(myapp.player);
     if (myapp.fp) fclose(myapp.fp);
 
-#ifdef WITH_LIBAVDEV
+#if defined(WITH_LIBAVDEV) || defined(WITH_LIBHW)
     vdev_exit(myapp.vdev);
     adev_exit(myapp.adev);
 #endif

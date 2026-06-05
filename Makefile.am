@@ -36,3 +36,7 @@ endif
 if WITH_LIBAVDEV
 CFLAGS += -DWITH_LIBAVDEV
 endif
+
+if WITH_LIBHW
+CFLAGS += -DWITH_LIBHW
+endif
