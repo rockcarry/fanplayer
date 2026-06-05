@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([fanplayer], [1.0.0], [chenk@apical.com.cn])
+AC_INIT([fanplayer], [2.0.0], [chenk@apical.com.cn])
 
 AC_CONFIG_SRCDIR([fanplayer.c])
 AC_CONFIG_HEADERS([config.h])

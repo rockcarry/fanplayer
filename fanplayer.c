@@ -666,8 +666,9 @@ long player_get(void *ctx, char *key, void *val)
     case (intptr_t)PLAYER_KEY_VIDEO_HEIGHT:
         return (player->vcodec_context ? player->video_oheight : 0);
     }
-    if (strcmp(key, PLAYER_KEY_URL  ) == 0) return (long)player->url;
-    if (strcmp(key, PLAYER_KEY_STATE) == 0) {
+    if (strcmp(key, PLAYER_KEY_VERSION) == 0) return (long)FANPLAYER_VERSION;
+    if (strcmp(key, PLAYER_KEY_URL    ) == 0) return (long)player->url;
+    if (strcmp(key, PLAYER_KEY_STATE  ) == 0) {
         if (player->status & PS_R_PAUSE) return 2;
         if (!player->avdemux_thread && !player->adecode_thread && !player->vdecode_thread) return 0;
         return 1;

@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define FANPLAYER_VERSION "v2.0.0"
+
 // note: if ffmepg version changed, this constant may change
 enum { // constant from ffmpeg 4.3.6
     SURFACE_FMT_BGR32  = 26, // AV_PIX_FMT_BGR32
@@ -70,6 +72,7 @@ void  player_dump(void *ctx, char *str, int len, int page);
 #define PLAYER_KEY_MEDIA_POSITION ((char*)2)   // set/get, get current play position, set: 1 - step forward, -1 - step backward, other - seek position in ms unit
 #define PLAYER_KEY_VIDEO_WIDTH    ((char*)3)   // get only, get video width
 #define PLAYER_KEY_VIDEO_HEIGHT   ((char*)4)   // get only, get video height
+#define PLAYER_KEY_VERSION        "s_version"  // get only, get fanplayer version string
 #define PLAYER_KEY_URL            "s_url"      // set/get, url to play, note: url should be using utf-8 encoding
 #define PLAYER_KEY_STATE          "i_state"    // set/get, set: 0 - stop, 1 - start, 2 - pause, 4 - restart, get: 0 - stopped, 1 - running, 2 - paused
 #define PLAYER_KEY_RECFILE        "s_recfile"  // set/get, recording file name, set NULL to stop
